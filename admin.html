@@ -95,6 +95,19 @@
     <div id="tab-products" class="admin-section">
         <form id="product-form" onsubmit="handleProductSave(event)">
             <input type="hidden" id="edit-prod-id">
+            
+            <div class="form-group">
+                <label class="form-label">صورة المنتج (من المعرض/الاستوديو) *</label>
+                <input type="file" id="prod-img-file" accept="image/*" onchange="previewImageFile(this)" style="display: none;">
+                <div onclick="document.getElementById('prod-img-file').click()" style="height: 120px; border: 2px dashed var(--border-color); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: var(--bg-main); overflow: hidden;">
+                    <div id="img-preview-placeholder" style="text-align: center; color: var(--text-muted);">
+                        <i class="fa-solid fa-cloud-arrow-up" style="font-size: 24px; margin-bottom: 4px;"></i>
+                        <p style="font-size: 11px; font-weight: 700;">اضغط لاختيار صورة المنتج من جهازك</p>
+                    </div>
+                    <img id="img-preview" src="" style="display: none; width: 100%; height: 100%; object-fit: contain;">
+                </div>
+            </div>
+
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div class="form-group">
                     <label class="form-label">اسم المنتج *</label>
@@ -128,11 +141,8 @@
                     <input type="text" id="prod-colors" class="form-input" value="أسود, أبيض, رمادي" required>
                 </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">رابط الصورة مباشر (URL) *</label>
-                <input type="text" id="prod-img" class="form-input" placeholder="https://..." required>
-            </div>
-            <button type="submit" class="submit-btn" style="background:var(--accent-dark);">حفظ المنتج</button>
+
+            <button type="submit" class="submit-btn" style="background:var(--accent-dark); width: 100%; margin-top: 10px;">حفظ المنتج</button>
         </form>
 
         <hr style="margin:20px 0;">
@@ -170,6 +180,7 @@
         let products = JSON.parse(localStorage.getItem('zazoua_products')) || defaultProducts;
         let shippingRates = JSON.parse(localStorage.getItem('zazoua_shipping')) || defaultShippingRates;
         let orders = JSON.parse(localStorage.getItem('zazoua_orders')) || [];
+        let currentImageData = '';
 
         function handleLogin(e) {
             e.preventDefault();
@@ -186,6 +197,21 @@
             document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
             btn.classList.add('active');
             document.getElementById(`tab-${tab}`).classList.add('active');
+        }
+
+        function previewImageFile(input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentImageData = e.target.result;
+                    const previewImg = document.getElementById('img-preview');
+                    previewImg.src = currentImageData;
+                    previewImg.style.display = 'block';
+                    document.getElementById('img-preview-placeholder').style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+            }
         }
 
         function renderOrders() {
@@ -248,7 +274,10 @@
         function renderProductsAdmin() {
             document.getElementById('admin-products-list').innerHTML = products.map(p => `
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; font-size:12px;">
-                    <div><strong>${p.title}</strong> (${p.price} ج.م)</div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <img src="${p.image}" style="width:35px; height:35px; object-fit:cover; border-radius:4px;">
+                        <strong>${p.title}</strong> (${p.price} ج.م)
+                    </div>
                     <div>
                         <button onclick="copyAdLink(${p.id})" style="background:var(--accent-dark); color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; cursor:pointer;">نسخ رابط الإعلان 🔗</button>
                         <button onclick="deleteProduct(${p.id})" style="background:var(--danger-color); color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; cursor:pointer; margin-right:4px;">حذف</button>
@@ -265,13 +294,18 @@
             const subCat = document.getElementById('prod-sub-cat').value.trim();
             const sizes = document.getElementById('prod-sizes').value.split(',').map(s => s.trim());
             const colors = document.getElementById('prod-colors').value.split(',').map(c => c.trim());
-            const image = document.getElementById('prod-img').value.trim();
 
-            products.unshift({ id: Date.now(), title, price, mainCat, subCat, sizes, colors, image });
+            if (!currentImageData) { alert('يرجى اختيار صورة للمنتج من المعرض أولاً!'); return; }
+
+            products.unshift({ id: Date.now(), title, price, mainCat, subCat, sizes, colors, image: currentImageData });
             localStorage.setItem('zazoua_products', JSON.stringify(products));
             renderProductsAdmin();
+            
             document.getElementById('product-form').reset();
-            alert('تم حفظ المنتج بنجاح وتحديث المتجر!');
+            currentImageData = '';
+            document.getElementById('img-preview').style.display = 'none';
+            document.getElementById('img-preview-placeholder').style.display = 'block';
+            alert('تم حفظ المنتج بنجاح من المعرض!');
         }
 
         function deleteProduct(id) {
