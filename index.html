@@ -235,13 +235,17 @@
         </div>
     </div>
 
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, collection, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        const db = getFirestore(initializeApp({ apiKey: "AIzaSyDsQTX9rCxxT7Dl-OhDSkrce85lM_yDaf4", authDomain: "zazoua-b4d33.firebaseapp.com", projectId: "zazoua-b4d33", storageBucket: "zazoua-b4d33.firebasestorage.app", messagingSenderId: "990100552162", appId: "1:990100552162:web:5b886a47ef93ff3ad7a1bb" }));
+        window.fb = {
+            async getProducts() { const s = await getDocs(collection(db, 'products')); return s.docs.map(d => d.data()).sort((a, b) => b.id - a.id); },
+            async getShipping() { const s = await getDocs(collection(db, 'shipping')); return s.docs.map(d => d.data()); },
+            async addOrder(o) { await setDoc(doc(db, 'orders', o.orderId), o); }
+        };
+    </script>
     <script>
-        // المنتجات الأساسية للمتجر (يمكنك تعديلها هنا مباشرة لضمان ظهورها بثبات تام على كل الهواتف واللابتوب)
-        const defaultProducts = [
-            { id: 1, title: 'شال حريمي راقي', price: 350, mainCat: 'women', subCat: 'شال', sizes: ['M', 'L', 'XL', '2XL'], colors: ['أسود', 'أبيض', 'رمادي'], image: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=600&q=80' },
-            { id: 2, title: 'بنطلون كاجوال رجالي', price: 480, mainCat: 'men', subCat: 'بنطلون', sizes: ['30', '32', '34', '36'], colors: ['أسود', 'رمادي'], image: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=600&q=80' }
-        ];
-
         const defaultShippingRates = [
             { id: 'cairo', name: 'القاهرة', price: 55 },
             { id: 'giza', name: 'الجيزة', price: 55 },
@@ -249,8 +253,8 @@
             { id: 'alex', name: 'الإسكندرية', price: 60 }
         ];
 
-        let products = JSON.parse(localStorage.getItem('zazoua_products')) || defaultProducts;
-        let shippingRates = JSON.parse(localStorage.getItem('zazoua_shipping')) || defaultShippingRates;
+        let products = [];
+        let shippingRates = [];
         let cart = JSON.parse(localStorage.getItem('zazoua_cart')) || [];
         
         let activeProduct = null;
@@ -258,13 +262,27 @@
         let currentMainCat = 'all';
         let currentSubCat = 'all';
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            document.getElementById('products-grid').innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:30px; color:var(--text-muted);">جاري تحميل المنتجات...</div>';
+            await loadData();
             renderSubCategories();
             renderProducts();
             populateShippingOptions();
             updateCartUI();
             checkDirectProductUrl();
         });
+
+        async function loadData() {
+            try {
+                products = await fb.getProducts();
+                const s = await fb.getShipping();
+                shippingRates = s.length ? s : defaultShippingRates;
+            } catch (e) {
+                console.error(e);
+                shippingRates = defaultShippingRates;
+                showToast('تعذر تحميل المنتجات، تأكد من الاتصال بالإنترنت');
+            }
+        }
 
         function handleOutsideClick(event, modalId, closeCallback) { if (event.target.id === modalId) closeCallback(); }
         
@@ -453,7 +471,7 @@
 
         function closeCheckoutModal() { document.getElementById('checkout-modal').classList.remove('active'); }
 
-        function handleCartOrderSubmit(e) {
+        async function handleCartOrderSubmit(e) {
             e.preventDefault();
             const nameInput = document.getElementById('cust-name');
             const phoneInput = document.getElementById('cust-phone');
@@ -472,19 +490,18 @@
 
             if (!isValid) return;
 
-            const orders = JSON.parse(localStorage.getItem('zazoua_orders')) || [];
             const govName = govSelect.options[govSelect.selectedIndex].text;
             const shipFee = parseInt(govSelect.options[govSelect.selectedIndex].dataset.ship || 0);
             const subtotal = cart.reduce((s, i) => s + i.price, 0);
 
-            orders.unshift({
+            const order = ({
                 orderId: 'ZZ-' + Math.floor(100000 + Math.random() * 900000),
                 dateStr: new Date().toLocaleString('ar-EG'),
                 customer: { name: nameInput.value.trim(), phone: cleanPhone, phone2: phone2Input.value.trim() || 'لا يوجد', address: addressInput.value.trim(), gov: govName },
                 items: [...cart], subtotal, shipping: shipFee, total: subtotal + shipFee
             });
 
-            localStorage.setItem('zazoua_orders', JSON.stringify(orders));
+            try { await fb.addOrder(order); } catch (err) { console.error(err); showToast('تعذر إرسال الطلب، حاول مرة أخرى'); return; }
             cart = []; saveCartState();
             closeCheckoutModal();
             document.getElementById('order-success-modal').classList.add('active');
