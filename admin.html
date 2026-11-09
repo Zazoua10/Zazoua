@@ -162,34 +162,61 @@
 
     <div id="print-area"></div>
 
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        const app = initializeApp({ apiKey: "AIzaSyDsQTX9rCxxT7Dl-OhDSkrce85lM_yDaf4", authDomain: "zazoua-b4d33.firebaseapp.com", projectId: "zazoua-b4d33", storageBucket: "zazoua-b4d33.firebasestorage.app", messagingSenderId: "990100552162", appId: "1:990100552162:web:5b886a47ef93ff3ad7a1bb" });
+        const auth = getAuth(app), db = getFirestore(app);
+        const list = async (name) => (await getDocs(collection(db, name))).docs.map(d => d.data());
+        window.fb = {
+            login: (e, p) => signInWithEmailAndPassword(auth, e, p),
+            logout: () => signOut(auth),
+            onAuth: (cb) => onAuthStateChanged(auth, cb),
+            getProducts: async () => (await list('products')).sort((a, b) => b.id - a.id),
+            saveProduct: (p) => setDoc(doc(db, 'products', String(p.id)), p),
+            deleteProduct: (id) => deleteDoc(doc(db, 'products', String(id))),
+            getShipping: () => list('shipping'),
+            saveShipping: (r) => setDoc(doc(db, 'shipping', String(r.id)), r),
+            getOrders: async () => (await list('orders')).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+        };
+    </script>
     <script>
-        const OWNER_EMAIL = "trader872007@gmail.com";
-        const OWNER_PASS = "ANAomarmok7tar2007";
-
-        const defaultProducts = [
-            { id: 1, title: 'شال حريمي راقي', price: 350, mainCat: 'women', subCat: 'شال', sizes: ['M', 'L', 'XL', '2XL'], colors: ['أسود', 'أبيض', 'رمادي'], image: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=600&q=80' },
-            { id: 2, title: 'بنطلون كاجوال رجالي', price: 480, mainCat: 'men', subCat: 'بنطلون', sizes: ['30', '32', '34', '36'], colors: ['أسود', 'رمادي'], image: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=600&q=80' }
-        ];
-
         const defaultShippingRates = [
             { id: 'cairo', name: 'القاهرة', price: 55 },
             { id: 'giza', name: 'الجيزة', price: 55 },
+            { id: 'qalyubia', name: 'القليوبية', price: 55 },
             { id: 'alex', name: 'الإسكندرية', price: 60 }
         ];
 
-        let products = JSON.parse(localStorage.getItem('zazoua_products')) || defaultProducts;
-        let shippingRates = JSON.parse(localStorage.getItem('zazoua_shipping')) || defaultShippingRates;
-        let orders = JSON.parse(localStorage.getItem('zazoua_orders')) || [];
+        let products = [];
+        let shippingRates = [];
+        let orders = [];
         let currentImageData = '';
 
-        function handleLogin(e) {
+        async function handleLogin(e) {
             e.preventDefault();
-            const email = document.getElementById('admin-email').value.trim().toLowerCase();
-            const pass = document.getElementById('admin-pass').value.trim();
-            if (email === OWNER_EMAIL.toLowerCase() && pass === OWNER_PASS) {
-                document.getElementById('login-overlay').style.display = 'none';
-                renderOrders(); renderProductsAdmin(); renderShipping();
-            } else alert('بيانات الدخول غير صحيحة!');
+            const email = document.getElementById('admin-email').value.trim();
+            const pass = document.getElementById('admin-pass').value;
+            try { await fb.login(email, pass); }
+            catch (err) { alert('بيانات الدخول غير صحيحة!'); }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fb.onAuth(user => {
+                if (user) { document.getElementById('login-overlay').style.display = 'none'; loadAdminData(); }
+                else document.getElementById('login-overlay').style.display = 'flex';
+            });
+        });
+
+        async function loadAdminData() {
+            try {
+                products = await fb.getProducts();
+                shippingRates = await fb.getShipping();
+                if (shippingRates.length === 0) { for (const r of defaultShippingRates) await fb.saveShipping(r); shippingRates = [...defaultShippingRates]; }
+                orders = await fb.getOrders();
+            } catch (err) { console.error(err); alert('تعذر تحميل البيانات: ' + err.message); }
+            renderOrders(); renderProductsAdmin(); renderShipping();
         }
 
         function switchTab(tab, btn) {
@@ -201,17 +228,24 @@
 
         function previewImageFile(input) {
             const file = input.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    currentImageData = e.target.result;
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const scale = Math.min(1, 900 / Math.max(img.width, img.height));
+                    const c = document.createElement('canvas');
+                    c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+                    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                    currentImageData = c.toDataURL('image/jpeg', 0.75);
                     const previewImg = document.getElementById('img-preview');
                     previewImg.src = currentImageData;
                     previewImg.style.display = 'block';
                     document.getElementById('img-preview-placeholder').style.display = 'none';
                 };
-                reader.readAsDataURL(file);
-            }
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
         }
 
         function renderOrders() {
@@ -286,7 +320,7 @@
             `).join('');
         }
 
-        function handleProductSave(e) {
+        async function handleProductSave(e) {
             e.preventDefault();
             const title = document.getElementById('prod-title').value.trim();
             const price = parseFloat(document.getElementById('prod-price').value);
@@ -296,24 +330,23 @@
             const colors = document.getElementById('prod-colors').value.split(',').map(c => c.trim());
 
             if (!currentImageData) { alert('يرجى اختيار صورة للمنتج من المعرض أولاً!'); return; }
-
-            products.unshift({ id: Date.now(), title, price, mainCat, subCat, sizes, colors, image: currentImageData });
-            localStorage.setItem('zazoua_products', JSON.stringify(products));
+            const newProd = { id: Date.now(), title, price, mainCat, subCat, sizes, colors, image: currentImageData };
+            try { await fb.saveProduct(newProd); } catch (err) { console.error(err); alert('فشل الحفظ: ' + err.message); return; }
+            products.unshift(newProd);
             renderProductsAdmin();
-            
+
             document.getElementById('product-form').reset();
             currentImageData = '';
             document.getElementById('img-preview').style.display = 'none';
             document.getElementById('img-preview-placeholder').style.display = 'block';
-            alert('تم حفظ المنتج بنجاح من المعرض!');
+            alert('تم حفظ المنتج بنجاح، وهو ظاهر الآن للعملاء!');
         }
 
-        function deleteProduct(id) {
-            if (confirm('هل أنت متأكد من حذف المنتج؟')) {
-                products = products.filter(p => p.id !== id);
-                localStorage.setItem('zazoua_products', JSON.stringify(products));
-                renderProductsAdmin();
-            }
+        async function deleteProduct(id) {
+            if (!confirm('هل أنت متأكد من حذف المنتج؟')) return;
+            try { await fb.deleteProduct(id); } catch (err) { alert('فشل الحذف: ' + err.message); return; }
+            products = products.filter(p => p.id !== id);
+            renderProductsAdmin();
         }
 
         function copyAdLink(id) {
@@ -329,12 +362,13 @@
             `).join('');
         }
 
-        function handleAddGov(e) {
+        async function handleAddGov(e) {
             e.preventDefault();
             const name = document.getElementById('gov-name').value.trim();
             const price = parseInt(document.getElementById('gov-price').value);
-            shippingRates.push({ id: 'gov-' + Date.now(), name, price });
-            localStorage.setItem('zazoua_shipping', JSON.stringify(shippingRates));
+            const rate = { id: 'gov-' + Date.now(), name, price };
+            try { await fb.saveShipping(rate); } catch (err) { alert('فشل الحفظ: ' + err.message); return; }
+            shippingRates.push(rate);
             renderShipping();
         }
     </script>
