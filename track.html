@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تتبع طلبك - Zazoua</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800&family=Montserrat:wght@800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Cairo',sans-serif}
+body{background:#f8f9fa;color:#1a1a1a;min-height:100vh}
+header{background:#fff;border-bottom:1px solid #e9ecef;padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
+.brand{font-family:'Montserrat',sans-serif;font-weight:800;font-size:20px;color:#121212;text-decoration:none}
+.back{font-size:13px;font-weight:700;color:#121212;text-decoration:none}
+main{max-width:480px;margin:20px auto;padding:0 14px}
+.box{background:#fff;border:1px solid #e9ecef;border-radius:14px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+h1{font-size:19px;font-weight:800;margin-bottom:6px}
+p.sub{font-size:12px;color:#6c757d;margin-bottom:14px}
+label{display:block;font-size:12px;font-weight:700;margin:10px 0 4px}
+input{width:100%;padding:11px;border:1px solid #e9ecef;border-radius:8px;font-size:14px}
+button{width:100%;margin-top:14px;padding:12px;border:none;border-radius:10px;background:#121212;color:#fff;font-weight:800;font-size:14px;cursor:pointer}
+#res{margin-top:18px}
+.err{color:#c0392b;font-size:13px;font-weight:700;text-align:center}
+.step{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:14px;color:#aaa;font-weight:700}
+.dot{width:22px;height:22px;border-radius:50%;background:#e9ecef;flex:none}
+.step.done{color:#1a1a1a}.step.done .dot{background:#27ae60}
+.step.now .dot{box-shadow:0 0 0 4px rgba(39,174,96,.25)}
+.cancel{background:#fdecea;color:#c0392b;padding:12px;border-radius:10px;text-align:center;font-weight:800}
+</style>
+</head>
+<body>
+<header><a class="brand" href="index.html">Zazoua</a><a class="back" href="index.html">← العودة للمتجر</a></header>
+<main><div class="box">
+<h1>تتبع طلبك</h1>
+<p class="sub">اكتب رقم الطلب وآخر 4 أرقام من رقم هاتفك.</p>
+<label>رقم الطلب</label><input id="oid" placeholder="ZZ-123456" autocomplete="off">
+<label>آخر 4 أرقام من الهاتف</label><input id="p4" inputmode="numeric" maxlength="4" placeholder="1234">
+<button onclick="check()">تتبع</button>
+<div id="res"></div>
+</div></main>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+const db = getFirestore(initializeApp({ apiKey: "AIzaSyDsQTX9rCxxT7Dl-OhDSkrce85lM_yDaf4", authDomain: "zazoua-b4d33.firebaseapp.com", projectId: "zazoua-b4d33", storageBucket: "zazoua-b4d33.firebasestorage.app", messagingSenderId: "990100552162", appId: "1:990100552162:web:5b886a47ef93ff3ad7a1bb" }));
+const STEPS = [['new', 'تم استلام الطلب'], ['confirmed', 'تم تأكيد الطلب'], ['shipped', 'تم شحن الطلب'], ['delivered', 'تم التسليم']];
+const res = document.getElementById('res');
+window.check = async () => {
+  const id = document.getElementById('oid').value.trim().toUpperCase().replace(/[\/\s]/g, '');
+  const p4 = document.getElementById('p4').value.replace(/\D/g, '');
+  if (!id || p4.length !== 4) { res.innerHTML = '<div class="err">اكتب رقم الطلب وآخر 4 أرقام.</div>'; return; }
+  res.innerHTML = '<div class="sub">جاري البحث...</div>';
+  try {
+    const s = await getDoc(doc(db, 'tracking', id));
+    const d = s.exists() ? s.data() : null;
+    if (!d || d.phone4 !== p4) { res.innerHTML = '<div class="err">لم نجد طلبًا بهذه البيانات، راجع الرقم وحاول مرة أخرى.</div>'; return; }
+    if (d.status === 'cancelled') { res.innerHTML = '<div class="cancel">تم إلغاء هذا الطلب.</div>'; return; }
+    const idx = STEPS.findIndex(x => x[0] === d.status);
+    res.innerHTML = STEPS.map((x, i) => `<div class="step ${i <= idx ? 'done' : ''} ${i === idx ? 'now' : ''}"><span class="dot"></span>${x[1]}</div>`).join('');
+  } catch (e) { console.error(e); res.innerHTML = '<div class="err">تعذر التحقق الآن، حاول لاحقًا.</div>'; }
+};
+</script>
+</body>
+</html>

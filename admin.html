@@ -50,7 +50,7 @@
     <!-- نافذة تسجيل الدخول لحماية صفحة الإدارة -->
     <div id="login-overlay" style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); z-index:9999; display:flex; align-items:center; justify-content:center;">
         <div style="background:white; padding:25px; border-radius:12px; width:100%; max-width:350px;">
-            <h3 style="font-size:16px; font-weight:800; margin-bottom:15px; text-align:center;">دخول لوحة تحكم Zazoua 👑</h3>
+            <h3 style="font-size:16px; font-weight:800; margin-bottom:15px; text-align:center;">دخول لوحة تحكم Zazoua</h3>
             <form onsubmit="handleLogin(event)">
                 <div class="form-group">
                     <label class="form-label">البريد الإلكتروني</label>
@@ -66,14 +66,28 @@
     </div>
 
     <div class="admin-header">
-        <div class="admin-title">لوحة الإدارة والمتابعة 👑</div>
+        <div class="admin-title">لوحة الإدارة والمتابعة</div>
         <a href="index.html" class="back-to-store"><i class="fa-solid fa-store"></i> المعاينة كعميل</a>
+    </div>
+
+    <div id="sound-bar" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; padding:8px 12px; font-size:12px;">
+        <button id="sound-toggle" onclick="toggleSound()" class="submit-btn" style="font-size:12px;"></button>
+        <button onclick="document.getElementById('sound-file').click()" class="submit-btn" style="background:var(--accent-dark); font-size:12px;">🎵 اختر صوت من الجهاز</button>
+        <input type="file" id="sound-file" accept="audio/*" style="display:none;" onchange="pickSound(this)">
+        <button onclick="beep(true)" class="submit-btn" style="background:#2c6fbb; font-size:12px;">▶ تجربة الصوت</button>
+        <button onclick="resetSound()" class="submit-btn" style="background:#888; font-size:12px;">الصوت الافتراضي</button>
+        <span id="sound-name" style="color:var(--text-muted);"></span>
     </div>
 
     <div class="admin-tabs">
         <button class="tab-btn active" onclick="switchTab('orders', this)"><i class="fa-solid fa-boxes-packing"></i> الطلبات الواردة</button>
         <button class="tab-btn" onclick="switchTab('products', this)"><i class="fa-solid fa-shirt"></i> إدارة المنتجات</button>
         <button class="tab-btn" onclick="switchTab('shipping', this)"><i class="fa-solid fa-truck-rampage"></i> أسعار الشحن</button>
+        <button class="tab-btn" onclick="switchTab('coupons', this)"><i class="fa-solid fa-ticket"></i> كوبونات الخصم</button>
+        <button class="tab-btn" onclick="switchTab('settings', this)"><i class="fa-solid fa-gear"></i> الإعدادات والصفحات</button>
+        <button class="tab-btn" onclick="switchTab('stats', this)"><i class="fa-solid fa-chart-line"></i> الإحصائيات</button>
+        <button class="tab-btn" onclick="switchTab('reviews', this)"><i class="fa-solid fa-star"></i> التقييمات</button>
+        <button class="tab-btn" onclick="switchTab('leads', this)"><i class="fa-solid fa-user-clock"></i> عملاء مهتمين</button>
     </div>
 
     <!-- TAB 1: ORDERS -->
@@ -85,9 +99,13 @@
             </div>
             <div>
                 <button onclick="printSelectedInvoices()" class="submit-btn" style="background:var(--accent-dark); font-size:12px;"><i class="fa-solid fa-print"></i> طباعة الفواتير المحددة (3/صفحة)</button>
+                <button onclick="deleteSelectedOrders()" class="submit-btn" style="background:var(--danger-color); font-size:12px;"><i class="fa-solid fa-trash"></i> حذف المحدد</button>
                 <button onclick="exportToExcel()" class="submit-btn" style="background:#1f7244; font-size:12px;"><i class="fa-solid fa-file-excel"></i> تصدير Excel</button>
             </div>
         </div>
+        <select id="order-filter" class="form-select" onchange="renderOrders()" style="margin-bottom:10px;">
+            <option value="all">كل الطلبات</option><option value="new">جديد</option><option value="confirmed">تم التأكيد</option><option value="shipped">اتشحن</option><option value="delivered">اتسلّم</option><option value="cancelled">ملغي</option>
+        </select>
         <div id="admin-orders-list"></div>
     </div>
 
@@ -97,8 +115,8 @@
             <input type="hidden" id="edit-prod-id">
             
             <div class="form-group">
-                <label class="form-label">صورة المنتج (من المعرض/الاستوديو) *</label>
-                <input type="file" id="prod-img-file" accept="image/*" onchange="previewImageFile(this)" style="display: none;">
+                <label class="form-label">صور المنتج (حتى 5 صور، الأولى هي الرئيسية) *</label>
+                <input type="file" id="prod-img-file" accept="image/*" multiple onchange="previewImageFile(this)" style="display: none;">
                 <div onclick="document.getElementById('prod-img-file').click()" style="height: 120px; border: 2px dashed var(--border-color); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: var(--bg-main); overflow: hidden;">
                     <div id="img-preview-placeholder" style="text-align: center; color: var(--text-muted);">
                         <i class="fa-solid fa-cloud-arrow-up" style="font-size: 24px; margin-bottom: 4px;"></i>
@@ -106,6 +124,7 @@
                     </div>
                     <img id="img-preview" src="" style="display: none; width: 100%; height: 100%; object-fit: contain;">
                 </div>
+                <div id="img-thumbs" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;"></div>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
@@ -116,6 +135,7 @@
                 <div class="form-group">
                     <label class="form-label">السعر (ج.م) *</label>
                     <input type="number" id="prod-price" class="form-input" required>
+                    <input type="number" id="prod-old-price" class="form-input" placeholder="السعر قبل الخصم (اختياري)" style="margin-top:6px;">
                 </div>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
@@ -142,7 +162,9 @@
                 </div>
             </div>
 
-            <button type="submit" class="submit-btn" style="background:var(--accent-dark); width: 100%; margin-top: 10px;">حفظ المنتج</button>
+            <div class="form-group"><label class="form-label">جدول المقاسات لهذا المنتج (اختياري، يظهر للعميل)</label><textarea id="prod-sizechart" class="form-input" rows="3" placeholder="M: صدر 100 - طول 70"></textarea></div>
+            <button type="submit" id="prod-save-btn" class="submit-btn" style="background:var(--accent-dark); width: 100%; margin-top: 10px;">حفظ المنتج</button>
+            <button type="button" id="prod-cancel-btn" onclick="cancelEdit()" class="submit-btn" style="display:none; background:#888; width:100%; margin-top:6px;">إلغاء التعديل</button>
         </form>
 
         <hr style="margin:20px 0;">
@@ -160,12 +182,61 @@
         <div id="shipping-list"></div>
     </div>
 
+    <!-- TAB 4: COUPONS -->
+    <div id="tab-coupons" class="admin-section">
+        <form onsubmit="handleAddCoupon(event)" style="display:grid; grid-template-columns: 2fr 1fr 1fr auto; gap:8px; margin-bottom:15px; align-items:end;">
+            <div class="form-group" style="margin:0;"><label class="form-label">الكود / الجملة</label><input type="text" id="cp-code" class="form-input" placeholder="مثال: خصم الجمعة" required></div>
+            <div class="form-group" style="margin:0;"><label class="form-label">النوع</label><select id="cp-type" class="form-select"><option value="percent">نسبة %</option><option value="fixed">مبلغ ثابت</option></select></div>
+            <div class="form-group" style="margin:0;"><label class="form-label">القيمة</label><input type="number" id="cp-value" class="form-input" min="1" required></div>
+            <button type="submit" class="submit-btn">إضافة</button>
+        </form>
+        <div id="coupons-list"></div>
+    </div>
+
+    <!-- TAB 5: SETTINGS -->
+    <div id="tab-settings" class="admin-section">
+        <form onsubmit="handleSaveSettings(event)">
+            <div class="form-group"><label class="form-label">رقم واتساب المتجر (لاستلام الطلبات وزر تواصل معنا)</label><input type="tel" id="set-wa" class="form-input" placeholder="01XXXXXXXXX"></div>
+            <div class="form-group"><label class="form-label">الإعلان الذي يظهر أعلى المتجر</label><input type="text" id="set-banner" class="form-input" placeholder="مثال: شحن مجاني على الطلبات فوق 1000 ج.م"></div>
+            <div class="form-group"><label class="form-label">شحن مجاني للطلبات من (ج.م) — اتركه فارغًا لإلغائه</label><input type="number" id="set-free" class="form-input" min="0"></div>
+            <div class="form-group"><label class="form-label">جدول مقاسات عام (يظهر لأي منتج ليس له جدول خاص)</label><textarea id="set-sizechart" class="form-input" rows="3"></textarea></div>
+            <div class="form-group"><label class="form-label">طرق الدفع (تظهر للعميل عند إتمام الطلب)</label><textarea id="set-payment" class="form-input" rows="3" placeholder="الدفع عند الاستلام. أو التحويل على إنستا باي / فودافون كاش على رقم ..."></textarea></div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div class="form-group"><label class="form-label">Meta Pixel ID</label><input type="text" id="set-meta" class="form-input" placeholder="أرقام فقط"></div>
+                <div class="form-group"><label class="form-label">TikTok Pixel ID</label><input type="text" id="set-tiktok" class="form-input" placeholder="مثال: C1234ABCD"></div>
+            </div>
+            <div class="form-group"><label class="form-label">صفحة "من نحن"</label><textarea id="set-about" class="form-input" rows="5"></textarea></div>
+            <div class="form-group"><label class="form-label">صفحة "سياسة الاستبدال والاسترجاع"</label><textarea id="set-policy" class="form-input" rows="5"></textarea></div>
+            <div class="form-group"><label class="form-label">صفحة "تواصل معنا" (أرقام، إنستجرام، مواعيد العمل...)</label><textarea id="set-contact" class="form-input" rows="4"></textarea></div>
+            <button type="submit" class="submit-btn" style="background:var(--accent-dark); width:100%;">حفظ الإعدادات</button>
+        </form>
+    </div>
+
+    <div id="tab-reviews" class="admin-section">
+        <form onsubmit="handleAddReview(event)" style="margin-bottom:15px;">
+            <div style="display:grid; grid-template-columns:2fr 1fr; gap:8px;">
+                <input type="text" id="rv-name" class="form-input" placeholder="اسم العميل" required>
+                <select id="rv-stars" class="form-select"><option value="5">5 نجوم</option><option value="4">4 نجوم</option><option value="3">3 نجوم</option></select>
+            </div>
+            <textarea id="rv-text" class="form-input" rows="2" placeholder="نص التقييم" style="margin-top:8px;" required></textarea>
+            <button type="submit" class="submit-btn" style="margin-top:8px; width:100%;">إضافة التقييم</button>
+        </form>
+        <div id="reviews-list"></div>
+    </div>
+
+    <div id="tab-leads" class="admin-section">
+        <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">أرقام عملاء كتبوا رقمهم في صفحة الطلب ولم يُكملوا الطلب (لا يظهر من أتمّ طلبًا). تواصل معهم بلطف عبر واتساب.</div>
+        <div id="leads-list"></div>
+    </div>
+
+    <div id="tab-stats" class="admin-section"><div id="stats-box"></div></div>
+
     <div id="print-area"></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, updateDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         const app = initializeApp({ apiKey: "AIzaSyDsQTX9rCxxT7Dl-OhDSkrce85lM_yDaf4", authDomain: "zazoua-b4d33.firebaseapp.com", projectId: "zazoua-b4d33", storageBucket: "zazoua-b4d33.firebasestorage.app", messagingSenderId: "990100552162", appId: "1:990100552162:web:5b886a47ef93ff3ad7a1bb" });
         const auth = getAuth(app), db = getFirestore(app);
         const list = async (name) => (await getDocs(collection(db, name))).docs.map(d => d.data());
@@ -178,6 +249,21 @@
             deleteProduct: (id) => deleteDoc(doc(db, 'products', String(id))),
             getShipping: () => list('shipping'),
             saveShipping: (r) => setDoc(doc(db, 'shipping', String(r.id)), r),
+            getReviews: async () => (await list('reviews')).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)),
+            saveReview: (r) => setDoc(doc(db, 'reviews', r.id), r),
+            deleteReview: (id) => deleteDoc(doc(db, 'reviews', String(id))),
+            getLeads: () => list('leads'),
+            deleteLead: (id) => deleteDoc(doc(db, 'leads', String(id))),
+            deleteOrder: async (id) => { await deleteDoc(doc(db, 'orders', String(id))); await deleteDoc(doc(db, 'tracking', String(id))); },
+            setTracking: (t) => setDoc(doc(db, 'tracking', String(t.orderId)), t, { merge: true }),
+            updateOrder: (id, data) => updateDoc(doc(db, 'orders', String(id)), data),
+            deleteShipping: (id) => deleteDoc(doc(db, 'shipping', String(id))),
+            getSettings: async () => { const s = await getDoc(doc(db, 'settings', 'main')); return s.exists() ? s.data() : {}; },
+            saveSettings: (d) => setDoc(doc(db, 'settings', 'main'), d, { merge: true }),
+            getCoupons: () => list('coupons'),
+            saveCoupon: (c) => setDoc(doc(db, 'coupons', c.id), c),
+            deleteCoupon: (id) => deleteDoc(doc(db, 'coupons', id)),
+            watchOrders: (cb, err) => onSnapshot(collection(db, 'orders'), s => cb(s.docs.map(d => d.data())), err),
             getOrders: async () => (await list('orders')).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
         };
     </script>
@@ -191,8 +277,8 @@
 
         let products = [];
         let shippingRates = [];
-        let orders = [];
-        let currentImageData = '';
+        let orders = [], coupons = [], settings = {}, reviews = [], leads = [];
+        let currentImages = [];
 
         async function handleLogin(e) {
             e.preventDefault();
@@ -214,9 +300,188 @@
                 products = await fb.getProducts();
                 shippingRates = await fb.getShipping();
                 if (shippingRates.length === 0) { for (const r of defaultShippingRates) await fb.saveShipping(r); shippingRates = [...defaultShippingRates]; }
-                orders = await fb.getOrders();
+                coupons = await fb.getCoupons();
+                reviews = await fb.getReviews();
+                leads = await fb.getLeads();
+                settings = await fb.getSettings();
             } catch (err) { console.error(err); alert('تعذر تحميل البيانات: ' + err.message); }
-            renderOrders(); renderProductsAdmin(); renderShipping();
+            renderProductsAdmin(); renderShipping(); renderCoupons(); renderReviews(); renderLeads(); fillSettings(); startOrderWatch();
+        }
+
+
+        function normCode(s) { return s.trim().replace(/\//g, '').replace(/\s+/g, ' ').toUpperCase(); }
+
+        function renderCoupons() {
+            document.getElementById('coupons-list').innerHTML = coupons.length ? coupons.map(c => `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; font-size:12px; ${c.active ? '' : 'opacity:.55;'}">
+                    <span><strong>${c.code}</strong> — ${c.type === 'percent' ? c.value + '%' : c.value + ' ج.م'} ${c.active ? '' : '(متوقف)'}</span>
+                    <span>
+                        <button onclick="toggleCoupon('${c.id}')" style="cursor:pointer; border:none; color:#fff; background:#666; padding:4px 8px; border-radius:4px; font-size:11px;">${c.active ? 'إيقاف' : 'تفعيل'}</button>
+                        <button onclick="deleteCoupon('${c.id}')" style="cursor:pointer; border:none; color:#fff; background:var(--danger-color); padding:4px 8px; border-radius:4px; font-size:11px; margin-right:4px;">حذف</button>
+                    </span>
+                </div>`).join('') : '<div style="color:var(--text-muted); font-size:12px;">لا توجد كوبونات بعد.</div>';
+        }
+
+        async function handleAddCoupon(e) {
+            e.preventDefault();
+            const code = normCode(document.getElementById('cp-code').value);
+            const type = document.getElementById('cp-type').value;
+            const value = parseFloat(document.getElementById('cp-value').value);
+            if (!code) return;
+            if (type === 'percent' && value > 100) { alert('النسبة لا تزيد عن 100'); return; }
+            const c = { id: code, code, type, value, active: true };
+            try { await fb.saveCoupon(c); } catch (err) { alert('فشل الحفظ: ' + err.message); return; }
+            coupons = [...coupons.filter(x => x.id !== c.id), c];
+            renderCoupons(); e.target.reset();
+        }
+
+        async function toggleCoupon(id) {
+            const c = coupons.find(x => x.id === id); if (!c) return;
+            const u = { ...c, active: !c.active };
+            try { await fb.saveCoupon(u); } catch (err) { alert('فشل الحفظ: ' + err.message); return; }
+            coupons = coupons.map(x => x.id === id ? u : x); renderCoupons();
+        }
+
+        async function deleteCoupon(id) {
+            if (!confirm('حذف الكوبون؟')) return;
+            try { await fb.deleteCoupon(id); } catch (err) { alert('فشل الحذف: ' + err.message); return; }
+            coupons = coupons.filter(x => x.id !== id); renderCoupons();
+        }
+
+        function fillSettings() {
+            document.getElementById('set-wa').value = settings.whatsapp || '';
+            document.getElementById('set-banner').value = settings.banner || '';
+            document.getElementById('set-free').value = settings.freeShipFrom || '';
+            document.getElementById('set-sizechart').value = settings.sizeChartText || '';
+            document.getElementById('set-payment').value = settings.paymentText || '';
+            document.getElementById('set-meta').value = settings.metaPixel || '';
+            document.getElementById('set-tiktok').value = settings.tiktokPixel || '';
+            document.getElementById('set-about').value = settings.aboutText || '';
+            document.getElementById('set-policy').value = settings.policyText || '';
+            document.getElementById('set-contact').value = settings.contactText || '';
+        }
+
+        async function handleSaveSettings(e) {
+            e.preventDefault();
+            const d = {
+                whatsapp: document.getElementById('set-wa').value.trim(),
+                banner: document.getElementById('set-banner').value.trim(),
+                freeShipFrom: parseFloat(document.getElementById('set-free').value) || 0,
+                sizeChartText: document.getElementById('set-sizechart').value,
+                paymentText: document.getElementById('set-payment').value,
+                metaPixel: document.getElementById('set-meta').value.trim(),
+                tiktokPixel: document.getElementById('set-tiktok').value.trim(),
+                aboutText: document.getElementById('set-about').value,
+                policyText: document.getElementById('set-policy').value,
+                contactText: document.getElementById('set-contact').value
+            };
+            try { await fb.saveSettings(d); } catch (err) { alert('فشل الحفظ: ' + err.message); return; }
+            settings = { ...settings, ...d }; alert('تم حفظ الإعدادات ✅');
+        }
+
+        function renderStats() {
+            const box = document.getElementById('stats-box'); if (!box) return;
+            const ok = orders.filter(o => (o.status || 'new') !== 'cancelled');
+            const now = Date.now(), DAY = 864e5;
+            const sum = a => a.reduce((s, o) => s + (o.total || 0), 0);
+            const within = d => ok.filter(o => o.createdAt && now - o.createdAt < d * DAY);
+            const card = (l, a) => `<div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; text-align:center;"><div style="font-size:11px; color:var(--text-muted);">${l}</div><div style="font-size:18px; font-weight:800;">${sum(a)} ج.م</div><div style="font-size:11px; color:var(--text-muted);">${a.length} طلب</div></div>`;
+            const cnt = {}; ok.forEach(o => o.items.forEach(i => cnt[i.title] = (cnt[i.title] || 0) + 1));
+            const top = Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            const cp = {}; orders.forEach(o => { if (o.coupon) cp[o.coupon] = (cp[o.coupon] || 0) + 1; });
+            const st = Object.entries(STATUSES).map(([k, v]) => `${v}: <strong>${orders.filter(o => (o.status || 'new') === k).length}</strong>`).join(' &nbsp;|&nbsp; ');
+            const li = arr => arr.length ? arr.map(([n, c]) => `<div style="padding:5px 8px; background:var(--bg-main); border-radius:6px; margin-bottom:4px; font-size:12px; display:flex; justify-content:space-between;"><span>${n}</span><strong>${c}</strong></div>`).join('') : '<div style="font-size:12px; color:var(--text-muted);">لا توجد بيانات بعد.</div>';
+            box.innerHTML = `
+                <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px;">${card('آخر 24 ساعة', within(1))}${card('آخر 7 أيام', within(7))}${card('آخر 30 يوم', within(30))}</div>
+                <div style="margin-bottom:14px;">${card('كل الطلبات (بدون الملغي)', ok)}</div>
+                <div style="font-size:12px; margin-bottom:14px;">${st}</div>
+                <h4 style="font-size:13px; margin-bottom:6px;">الأكثر طلبًا (عدد القطع)</h4>${li(top)}
+                <h4 style="font-size:13px; margin:14px 0 6px;">استخدام الكوبونات</h4>${li(Object.entries(cp))}`;
+        }
+
+        function soundOn() { return localStorage.getItem('zz_sound_off') !== '1'; }
+
+        function renderReviews() {
+            document.getElementById('reviews-list').innerHTML = reviews.length ? reviews.map(r => `
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 10px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; font-size:12px;">
+                    <span><span style="color:#f1c40f;">${'★'.repeat(r.stars)}</span> <strong>${r.name}</strong> — ${r.text}</span>
+                    <button onclick="deleteReview('${r.id}')" style="cursor:pointer; border:none; color:#fff; background:var(--danger-color); padding:4px 8px; border-radius:4px; font-size:11px;">حذف</button>
+                </div>`).join('') : '<div style="font-size:12px; color:var(--text-muted);">لا توجد تقييمات بعد.</div>';
+        }
+        async function handleAddReview(e) {
+            e.preventDefault();
+            const r = { id: 'r' + Date.now(), name: document.getElementById('rv-name').value.trim(), stars: parseInt(document.getElementById('rv-stars').value), text: document.getElementById('rv-text').value.trim(), createdAt: Date.now() };
+            try { await fb.saveReview(r); } catch (err) { alert('فشل الحفظ: ' + err.message); return; }
+            reviews.unshift(r); renderReviews(); e.target.reset();
+        }
+        async function deleteReview(id) {
+            if (!confirm('حذف التقييم؟')) return;
+            try { await fb.deleteReview(id); } catch (err) { alert('فشل الحذف: ' + err.message); return; }
+            reviews = reviews.filter(r => r.id !== id); renderReviews();
+        }
+
+        function renderLeads() {
+            const el = document.getElementById('leads-list'); if (!el) return;
+            const done = new Set(orders.map(o => String(o.customer.phone)));
+            const ls = leads.filter(l => !done.has(l.phone)).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            el.innerHTML = ls.length ? ls.map(l => `
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 10px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; font-size:12px;">
+                    <span><strong>${l.name || 'بدون اسم'}</strong> — ${l.phone} — سلة ${l.total} ج.م — ${new Date(l.createdAt).toLocaleString('ar-EG')}</span>
+                    <span>
+                        <a href="https://wa.me/20${l.phone.replace(/^0/, '')}?text=${encodeURIComponent('أهلاً ' + (l.name || '') + '، شوفنا إنك كنت بتطلب من Zazoua. تحب نساعدك تكمّل الطلب؟')}" target="_blank" rel="noopener" style="background:#25D366; color:#fff; padding:4px 8px; border-radius:6px; text-decoration:none; font-weight:700;">واتساب</a>
+                        <button onclick="deleteLead('${l.phone}')" style="cursor:pointer; border:none; color:#fff; background:var(--danger-color); padding:4px 8px; border-radius:4px; font-size:11px; margin-right:4px;">حذف</button>
+                    </span>
+                </div>`).join('') : '<div style="font-size:12px; color:var(--text-muted);">لا يوجد عملاء مهتمون حاليًا.</div>';
+        }
+        async function deleteLead(phone) {
+            try { await fb.deleteLead(phone); } catch (err) { alert('فشل الحذف: ' + err.message); return; }
+            leads = leads.filter(l => l.phone !== phone); renderLeads();
+        }
+
+        function beep(force) {
+            if (!force && !soundOn()) return;
+            const custom = localStorage.getItem('zz_sound_data');
+            if (custom) { try { new Audio(custom).play().catch(() => {}); return; } catch (e) {} }
+            try { const c = new (window.AudioContext || window.webkitAudioContext)(); const o = c.createOscillator(); o.connect(c.destination); o.frequency.value = 880; o.start(); setTimeout(() => { o.stop(); c.close(); }, 450); } catch (e) {}
+        }
+
+        function updateSoundUI() {
+            const on = soundOn(), b = document.getElementById('sound-toggle');
+            b.innerText = on ? '🔔 التنبيه: شغال (اضغط للإيقاف)' : '🔕 التنبيه: متوقف (اضغط للتشغيل)';
+            b.style.background = on ? '#1f7244' : '#c0392b';
+            document.getElementById('sound-name').innerText = localStorage.getItem('zz_sound_data') ? ('الصوت: ' + (localStorage.getItem('zz_sound_name') || 'مخصص')) : 'الصوت: الافتراضي';
+        }
+
+        function toggleSound() { localStorage.setItem('zz_sound_off', soundOn() ? '1' : '0'); updateSoundUI(); }
+
+        function pickSound(input) {
+            const file = input.files[0]; input.value = '';
+            if (!file) return;
+            if (file.size > 1024 * 1024) { alert('حجم الملف كبير، اختر صوتًا أقل من 1 ميجا (مدة قصيرة)'); return; }
+            const r = new FileReader();
+            r.onload = e => {
+                try {
+                    localStorage.setItem('zz_sound_data', e.target.result);
+                    localStorage.setItem('zz_sound_name', file.name);
+                    updateSoundUI(); beep(true);
+                } catch (err) { alert('تعذر حفظ الصوت، اختر ملفًا أصغر'); }
+            };
+            r.readAsDataURL(file);
+        }
+
+        function resetSound() { localStorage.removeItem('zz_sound_data'); localStorage.removeItem('zz_sound_name'); updateSoundUI(); }
+        document.addEventListener('DOMContentLoaded', updateSoundUI);
+
+        let watching = false, firstSnap = true;
+        function startOrderWatch() {
+            if (watching) return; watching = true;
+            fb.watchOrders(list => {
+                list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                const added = list.length - orders.length;
+                orders = list; renderOrders(); renderStats(); renderLeads();
+                if (!firstSnap && added > 0) { beep(); document.title = `🔔 (${added}) طلب جديد - لوحة الإدارة`; }
+                firstSnap = false;
+            }, err => { console.error(err); alert('تعذر تحميل الطلبات: ' + err.message); });
         }
 
         function switchTab(tab, btn) {
@@ -226,42 +491,87 @@
             document.getElementById(`tab-${tab}`).classList.add('active');
         }
 
-        function previewImageFile(input) {
-            const file = input.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    const scale = Math.min(1, 900 / Math.max(img.width, img.height));
-                    const c = document.createElement('canvas');
-                    c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
-                    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-                    currentImageData = c.toDataURL('image/jpeg', 0.75);
-                    const previewImg = document.getElementById('img-preview');
-                    previewImg.src = currentImageData;
-                    previewImg.style.display = 'block';
-                    document.getElementById('img-preview-placeholder').style.display = 'none';
+        function compressImage(file) {
+            return new Promise(res => {
+                const r = new FileReader();
+                r.onload = e => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const s = Math.min(1, 800 / Math.max(img.width, img.height));
+                        const c = document.createElement('canvas');
+                        c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+                        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                        res(c.toDataURL('image/jpeg', 0.7));
+                    };
+                    img.src = e.target.result;
                 };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
+                r.readAsDataURL(file);
+            });
         }
+
+        async function previewImageFile(input) {
+            for (const f of Array.from(input.files)) {
+                if (currentImages.length >= 5) { alert('الحد الأقصى 5 صور'); break; }
+                currentImages.push(await compressImage(f));
+            }
+            input.value = '';
+            renderThumbs();
+        }
+
+        function removeImage(i) { currentImages.splice(i, 1); renderThumbs(); }
+
+        function renderThumbs() {
+            document.getElementById('img-thumbs').innerHTML = currentImages.map((s, i) => `
+                <div style="position:relative;"><img src="${s}" style="width:60px; height:60px; object-fit:cover; border-radius:6px; border:${i === 0 ? '2px solid var(--accent-dark)' : '1px solid #ddd'};">
+                <span onclick="removeImage(${i})" style="position:absolute; top:-6px; left:-6px; background:#c0392b; color:#fff; border-radius:50%; width:18px; height:18px; font-size:13px; text-align:center; line-height:18px; cursor:pointer;">×</span></div>`).join('');
+            const pv = document.getElementById('img-preview'), ph = document.getElementById('img-preview-placeholder');
+            if (currentImages.length) { pv.src = currentImages[0]; pv.style.display = 'block'; ph.style.display = 'none'; }
+            else { pv.style.display = 'none'; ph.style.display = 'block'; }
+        }
+
+        const STATUSES = { new: 'جديد', confirmed: 'تم التأكيد', shipped: 'اتشحن', delivered: 'اتسلّم', cancelled: 'ملغي' };
+        const STATUS_COLORS = { new: '#2c6fbb', confirmed: '#b9770e', shipped: '#7d3c98', delivered: '#1f7244', cancelled: '#c0392b' };
 
         function renderOrders() {
             const container = document.getElementById('admin-orders-list');
-            if (orders.length === 0) { container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">لا توجد طلبات واردة بعد.</div>'; return; }
-            container.innerHTML = orders.map(ord => `
-                <div class="admin-order-card">
+            const f = document.getElementById('order-filter').value;
+            const list = f === 'all' ? orders : orders.filter(o => (o.status || 'new') === f);
+            if (list.length === 0) { container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">لا توجد طلبات.</div>'; return; }
+            container.innerHTML = list.map(ord => {
+                const st = ord.status || 'new';
+                return `
+                <div class="admin-order-card" style="border-right:4px solid ${STATUS_COLORS[st]};">
                     <div style="display:flex; justify-content:space-between; border-bottom:1px dashed #ccc; padding-bottom:4px; margin-bottom:6px;">
                         <div><input type="checkbox" class="order-cb" data-id="${ord.orderId}"> <strong>رقم الطلب: ${ord.orderId}</strong> (${ord.dateStr})</div>
-                        <strong style="color:var(--success-color);">${ord.total} ج.م</strong>
+                        <strong style="color:var(--success-color);">${ord.total} ج.م${ord.coupon ? ` <small style="color:#888;">(كوبون ${ord.coupon}: -${ord.discount})</small>` : ''}</strong>
                     </div>
                     <div>👤 <strong>العميل:</strong> ${ord.customer.name} | <strong>الهاتف 1:</strong> ${ord.customer.phone} | <strong>الهاتف 2:</strong> ${ord.customer.phone2}</div>
                     <div>📍 <strong>العنوان:</strong> ${ord.customer.gov} - ${ord.customer.address}</div>
                     <div style="margin-top:4px; color:var(--text-muted);"><strong>التفاصيل:</strong> ${ord.items.map(i => `${i.title} (${i.size}/${i.color})`).join(' - ')}</div>
-                </div>
-            `).join('');
+                    <div style="margin-top:6px; display:flex; align-items:center; gap:6px;">
+                        <strong>الحالة:</strong>
+                        <select class="form-select" style="width:auto; padding:3px 8px; font-size:12px;" onchange="changeStatus('${ord.orderId}', this.value)">
+                            ${Object.entries(STATUSES).map(([k, v]) => `<option value="${k}" ${k === st ? 'selected' : ''}>${v}</option>`).join('')}
+                        </select>
+                        <a href="https://wa.me/20${String(ord.customer.phone).replace(/^0/, '')}?text=${encodeURIComponent('أهلاً ' + ord.customer.name + ' 👋 بنأكد معاك طلبك رقم ' + ord.orderId + ' من Zazoua بإجمالي ' + ord.total + ' ج.م. تمام كده؟')}" target="_blank" rel="noopener" style="background:#25D366; color:#fff; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none;">💬 واتساب العميل</a>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        async function changeStatus(orderId, status) {
+            try { await fb.updateOrder(orderId, { status }); const o0 = orders.find(x => x.orderId === orderId); if (o0) await fb.setTracking({ orderId, status, phone4: String(o0.customer.phone).slice(-4), createdAt: o0.createdAt || 0 }); } catch (err) { alert('فشل تحديث الحالة: ' + err.message); return; }
+            const o = orders.find(x => x.orderId === orderId); if (o) o.status = status;
+            renderOrders();
+        }
+
+        async function deleteSelectedOrders() {
+            const ids = Array.from(document.querySelectorAll('.order-cb:checked')).map(cb => cb.dataset.id);
+            if (!ids.length) { alert('حدد طلب واحد على الأقل للحذف'); return; }
+            if (!confirm(`سيتم حذف ${ids.length} طلب نهائيًا ولا يمكن التراجع عن ذلك. هل أنت متأكد؟`)) return;
+            try { await Promise.all(ids.map(id => fb.deleteOrder(id))); }
+            catch (err) { alert('فشل الحذف: ' + err.message); return; }
+            document.getElementById('select-all').checked = false;
         }
 
         function toggleSelectAll(master) { document.querySelectorAll('.order-cb').forEach(cb => cb.checked = master.checked); }
@@ -284,7 +594,7 @@
                         ${ord.items.map(i => `<tr><td>${i.title}</td><td>${i.size}</td><td>${i.color}</td><td>${i.price} ج.م</td></tr>`).join('')}
                     </table>
                     <div style="border-top:1px solid #000; padding-top:4px; display:flex; justify-content:space-between; font-weight:bold;">
-                        <span>الشحن: ${ord.shipping} ج.م</span><span>الإجمالي الكلي: ${ord.total} ج.م</span>
+                        <span>الشحن: ${ord.shipping} ج.م${ord.discount ? ' | خصم: ' + ord.discount + ' ج.م' : ''}</span><span>الإجمالي الكلي: ${ord.total} ج.م</span>
                     </div>
                 </div>
             `).join('');
@@ -307,39 +617,84 @@
 
         function renderProductsAdmin() {
             document.getElementById('admin-products-list').innerHTML = products.map(p => `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; font-size:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; padding:8px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; font-size:12px; ${p.hidden ? 'opacity:.55;' : ''}">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <img src="${p.image}" style="width:35px; height:35px; object-fit:cover; border-radius:4px;">
                         <strong>${p.title}</strong> (${p.price} ج.م)
+                        ${p.soldOut ? '<span style="color:#c0392b;">• نفذت الكمية</span>' : ''}${p.hidden ? '<span style="color:#888;">• مخفي</span>' : ''}
                     </div>
-                    <div>
-                        <button onclick="copyAdLink(${p.id})" style="background:var(--accent-dark); color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; cursor:pointer;">نسخ رابط الإعلان 🔗</button>
-                        <button onclick="deleteProduct(${p.id})" style="background:var(--danger-color); color:white; border:none; padding:4px 8px; border-radius:4px; font-size:11px; cursor:pointer; margin-right:4px;">حذف</button>
+                    <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                        <button onclick="editProduct(${p.id})" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:#2c6fbb;">تعديل</button>
+                        <button onclick="toggleFlag(${p.id}, 'soldOut')" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:#b9770e;">${p.soldOut ? 'متوفر' : 'نفذت'}</button>
+                        <button onclick="toggleFlag(${p.id}, 'hidden')" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:#666;">${p.hidden ? 'إظهار' : 'إخفاء'}</button>
+                        <button onclick="copyAdLink(${p.id})" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:var(--accent-dark);">رابط الإعلان 🔗</button>
+                        <button onclick="deleteProduct(${p.id})" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:var(--danger-color);">حذف</button>
                     </div>
                 </div>
             `).join('');
         }
 
+        function resetProductForm() {
+            document.getElementById('product-form').reset();
+            document.getElementById('edit-prod-id').value = '';
+            currentImages = []; renderThumbs();
+            document.getElementById('prod-save-btn').innerText = 'حفظ المنتج';
+            document.getElementById('prod-cancel-btn').style.display = 'none';
+        }
+        function cancelEdit() { resetProductForm(); }
+
+        function editProduct(id) {
+            const p = products.find(x => x.id == id);
+            if (!p) return;
+            document.getElementById('edit-prod-id').value = p.id;
+            document.getElementById('prod-title').value = p.title;
+            document.getElementById('prod-price').value = p.price;
+            document.getElementById('prod-old-price').value = p.oldPrice || '';
+            document.getElementById('prod-sizechart').value = p.sizeChart || '';
+            document.getElementById('prod-main-cat').value = p.mainCat;
+            document.getElementById('prod-sub-cat').value = p.subCat;
+            document.getElementById('prod-sizes').value = p.sizes.join(', ');
+            document.getElementById('prod-colors').value = p.colors.join(', ');
+            currentImages = (p.images && p.images.length) ? [...p.images] : [p.image];
+            renderThumbs();
+            document.getElementById('prod-save-btn').innerText = 'حفظ التعديلات';
+            document.getElementById('prod-cancel-btn').style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function toggleFlag(id, flag) {
+            const p = products.find(x => x.id == id);
+            if (!p) return;
+            const updated = { ...p, [flag]: !p[flag] };
+            try { await fb.saveProduct(updated); } catch (err) { alert('فشل الحفظ: ' + err.message); return; }
+            products = products.map(x => x.id == id ? updated : x);
+            renderProductsAdmin();
+        }
+
         async function handleProductSave(e) {
             e.preventDefault();
-            const title = document.getElementById('prod-title').value.trim();
-            const price = parseFloat(document.getElementById('prod-price').value);
-            const mainCat = document.getElementById('prod-main-cat').value;
-            const subCat = document.getElementById('prod-sub-cat').value.trim();
-            const sizes = document.getElementById('prod-sizes').value.split(',').map(s => s.trim());
-            const colors = document.getElementById('prod-colors').value.split(',').map(c => c.trim());
-
-            if (!currentImageData) { alert('يرجى اختيار صورة للمنتج من المعرض أولاً!'); return; }
-            const newProd = { id: Date.now(), title, price, mainCat, subCat, sizes, colors, image: currentImageData };
-            try { await fb.saveProduct(newProd); } catch (err) { console.error(err); alert('فشل الحفظ: ' + err.message); return; }
-            products.unshift(newProd);
+            const editId = document.getElementById('edit-prod-id').value;
+            const old = editId ? products.find(p => p.id == editId) : null;
+            const prod = {
+                ...(old || {}),
+                id: old ? old.id : Date.now(),
+                title: document.getElementById('prod-title').value.trim(),
+                price: parseFloat(document.getElementById('prod-price').value),
+                oldPrice: parseFloat(document.getElementById('prod-old-price').value) || 0,
+                sizeChart: document.getElementById('prod-sizechart').value.trim(),
+                mainCat: document.getElementById('prod-main-cat').value,
+                subCat: document.getElementById('prod-sub-cat').value.trim(),
+                sizes: document.getElementById('prod-sizes').value.split(',').map(s => s.trim()),
+                colors: document.getElementById('prod-colors').value.split(',').map(c => c.trim()),
+                image: currentImages[0] || '', images: currentImages
+            };
+            if (!prod.image) { alert('يرجى اختيار صورة للمنتج من المعرض أولاً!'); return; }
+            if (JSON.stringify(prod).length > 950000) { alert('حجم الصور كبير، قلّل عدد الصور'); return; }
+            try { await fb.saveProduct(prod); } catch (err) { console.error(err); alert('فشل الحفظ: ' + err.message); return; }
+            if (old) products = products.map(p => p.id === prod.id ? prod : p); else products.unshift(prod);
             renderProductsAdmin();
-
-            document.getElementById('product-form').reset();
-            currentImageData = '';
-            document.getElementById('img-preview').style.display = 'none';
-            document.getElementById('img-preview-placeholder').style.display = 'block';
-            alert('تم حفظ المنتج بنجاح، وهو ظاهر الآن للعملاء!');
+            resetProductForm();
+            alert(old ? 'تم حفظ التعديلات ✅' : 'تم حفظ المنتج بنجاح، وهو ظاهر الآن للعملاء!');
         }
 
         async function deleteProduct(id) {
@@ -356,10 +711,18 @@
 
         function renderShipping() {
             document.getElementById('shipping-list').innerHTML = shippingRates.map(r => `
-                <div style="display:flex; justify-content:space-between; padding:6px 10px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:4px; font-size:12px;">
-                    <span>${r.name}</span><strong>${r.price} ج.م</strong>
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:4px; font-size:12px;">
+                    <span>${r.name}</span>
+                    <span><strong>${r.price} ج.م</strong> <button onclick="deleteGov('${r.id}')" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:var(--danger-color); margin-right:6px;">حذف</button></span>
                 </div>
             `).join('');
+        }
+
+        async function deleteGov(id) {
+            if (!confirm('حذف هذه المحافظة من أسعار الشحن؟')) return;
+            try { await fb.deleteShipping(id); } catch (err) { alert('فشل الحذف: ' + err.message); return; }
+            shippingRates = shippingRates.filter(r => String(r.id) !== String(id));
+            renderShipping();
         }
 
         async function handleAddGov(e) {
