@@ -9,6 +9,9 @@
     <meta property="og:title" content="Zazoua Store - المتجر الرسمي">
     <meta property="og:description" content="ملابس كاجوال بتوصلك لحد البيت في كل مصر">
     <meta name="theme-color" content="#121212">
+    <meta property="og:site_name" content="Zazoua">
+    <meta property="og:locale" content="ar_EG">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23121212'/%3E%3Ctext x='32' y='44' font-size='36' font-weight='800' text-anchor='middle' fill='white' font-family='Arial'%3EZ%3C/text%3E%3C/svg%3E">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
     
@@ -61,6 +64,7 @@
         .product-price { font-size: 16px; font-weight: 800; color: var(--accent-dark); margin-bottom: 8px; }
         .open-details-btn { width: 100%; background: var(--accent-dark); color: white; border: none; padding: 9px; border-radius: var(--radius-md); font-weight: 700; font-size: 13px; cursor: pointer; }
 
+        .wa-float { position: fixed; bottom: 84px; left: 16px; width: 54px; height: 54px; border-radius: 50%; background: #25D366; color: #fff; display: none; align-items: center; justify-content: center; font-size: 30px; box-shadow: 0 4px 14px rgba(0,0,0,.25); z-index: 900; text-decoration: none; }
         .bottom-cart-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--border-color); padding: 10px 20px; box-shadow: 0 -5px 15px rgba(0,0,0,0.08); z-index: 900; display: flex; justify-content: space-between; align-items: center; max-width: 1100px; margin: 0 auto; }
         .checkout-btn { background: var(--success-color); color: white; border: none; padding: 9px 20px; border-radius: 25px; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
 
@@ -209,7 +213,7 @@
                 <span style="font-weight: 800;">بيانات توصيل الطلب</span>
                 <button class="close-modal" onclick="closeCheckoutModal()">&times;</button>
             </div>
-            <form id="checkout-order-form" onsubmit="handleCartOrderSubmit(event)" novalidate>
+            <form id="checkout-order-form" onsubmit="handleCartOrderSubmit(event)" oninput="queueLead()" onchange="queueLead()" novalidate>
                 <div class="form-group">
                     <label class="form-label">الاسم بالكامل (الثلاثي) *</label>
                     <input type="text" id="cust-name" class="form-input" placeholder="مثال: عمر مختار كمال" required>
@@ -217,8 +221,8 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">رقم الهاتف الأساسي (11 رقم - واتساب) *</label>
-                    <input type="tel" id="cust-phone" class="form-input" placeholder="01XXXXXXXXX" maxlength="11" onblur="captureLead()" required>
-                    <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">بإدخال رقمك قد نتواصل معك لمساعدتك في إتمام الطلب.</div>
+                    <input type="tel" id="cust-phone" class="form-input" placeholder="01XXXXXXXXX" maxlength="11" required>
+                    <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">بياناتك بتتحفظ عشان نقدر نتواصل معاك ونساعدك في إتمام الطلب.</div>
                     <div class="error-hint" id="err-phone">يرجى كتابة رقم هاتف مصري صحيح يتكون من 11 رقم</div>
                 </div>
                 <div class="form-group">
@@ -273,6 +277,8 @@
     </div>
 
     <script type="module">
+        try { const dv = new URLSearchParams(location.search).get('dev'); if (dv === '1') localStorage.setItem('zz_dev', '1'); if (dv === '0') localStorage.removeItem('zz_dev'); } catch (e) {}
+
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getFirestore, collection, getDocs, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         const db = getFirestore(initializeApp({ apiKey: "AIzaSyDsQTX9rCxxT7Dl-OhDSkrce85lM_yDaf4", authDomain: "zazoua-b4d33.firebaseapp.com", projectId: "zazoua-b4d33", storageBucket: "zazoua-b4d33.firebasestorage.app", messagingSenderId: "990100552162", appId: "1:990100552162:web:5b886a47ef93ff3ad7a1bb" }));
@@ -281,7 +287,7 @@
             async getShipping() { const s = await getDocs(collection(db, 'shipping')); return s.docs.map(d => d.data()); },
             async getSettings() { const s = await getDoc(doc(db, 'settings', 'main')); return s.exists() ? s.data() : {}; },
             async getReviews() { const s = await getDocs(collection(db, 'reviews')); return s.docs.map(d => d.data()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); },
-            async addLead(l) { try { await setDoc(doc(db, 'leads', l.phone), l); } catch (e) {} },
+            async saveLead(l) { try { await setDoc(doc(db, 'leads', l.id), l, { merge: true }); } catch (e) {} },
             async getCoupon(code) { const s = await getDoc(doc(db, 'coupons', code)); return s.exists() ? s.data() : null; },
             async addOrder(o) {
                 await setDoc(doc(db, 'orders', o.orderId), o);
@@ -326,7 +332,7 @@
         async function loadData() {
             try {
                 products = (await fb.getProducts()).filter(p => !p.hidden);
-                try { settings = await fb.getSettings(); initPixels(); if (settings.banner) document.querySelector('.announcement').innerText = settings.banner; } catch (e) { console.error(e); }
+                try { settings = await fb.getSettings(); initPixels(); if (settings.banner) document.querySelector('.announcement').innerText = settings.banner; let wn = String(settings.whatsapp || '').replace(/\D/g, ''); if (wn.startsWith('0')) wn = '20' + wn.slice(1); if (wn) { const wf = document.getElementById('wa-float'); wf.href = 'https://wa.me/' + wn; wf.style.display = 'flex'; } } catch (e) { console.error(e); }
                 try { reviews = await fb.getReviews(); } catch (e) { console.error(e); }
                 const s = await fb.getShipping();
                 shippingRates = s.length ? s : defaultShippingRates;
@@ -515,11 +521,22 @@
             document.getElementById('pmodal-sizechart-body').textContent = t;
         }
 
-        function captureLead() {
-            const ph = document.getElementById('cust-phone').value.trim().replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
-            if (!/^01[0125][0-9]{8}$/.test(ph) || leadSent[ph] || !cart.length) return;
-            leadSent[ph] = 1;
-            fb.addLead({ phone: ph, name: document.getElementById('cust-name').value.trim(), total: cart.reduce((s, i) => s + i.price, 0), createdAt: Date.now() });
+        let leadTimer = null;
+        function leadId() {
+            let id = localStorage.getItem('zz_lead_id');
+            if (!id) { id = 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); localStorage.setItem('zz_lead_id', id); }
+            return id;
+        }
+        function leadData(ordered) {
+            const v = id => document.getElementById(id).value.trim();
+            const sel = document.getElementById('cust-gov');
+            return { id: leadId(), name: v('cust-name').slice(0, 100), phone: v('cust-phone').slice(0, 15), phone2: v('cust-phone2').slice(0, 15), gov: sel.value ? sel.options[sel.selectedIndex].text : '', address: v('cust-address').slice(0, 300), items: cart.map(i => `${i.title} (${i.size}/${i.color})`).join(' - ').slice(0, 900), total: cart.reduce((s, i) => s + i.price, 0), ordered: !!ordered, updatedAt: Date.now() };
+        }
+        function queueLead() { clearTimeout(leadTimer); leadTimer = setTimeout(saveLead, 1500); }
+        function saveLead() {
+            if (!cart.length) return;
+            const d = leadData(false);
+            if (d.name || d.phone || d.address) fb.saveLead(d);
         }
 
         function setupGallery(p) {
@@ -621,7 +638,7 @@
             document.getElementById('checkout-modal').classList.add('active');
         }
 
-        function closeCheckoutModal() { document.getElementById('checkout-modal').classList.remove('active'); }
+        function closeCheckoutModal() { clearTimeout(leadTimer); saveLead(); document.getElementById('checkout-modal').classList.remove('active'); }
 
         async function handleCartOrderSubmit(e) {
             e.preventDefault();
@@ -644,8 +661,9 @@
             if (document.getElementById('hp-field').value) { cart = []; saveCartState(); closeCheckoutModal(); return; }
             const nowT = Date.now();
             const hist = JSON.parse(localStorage.getItem('zz_orders_t') || '[]').filter(t => nowT - t < 864e5);
-            if (hist.length && nowT - hist[hist.length - 1] < 60000) { showToast('من فضلك انتظر دقيقة قبل إرسال طلب جديد'); return; }
-            if (hist.length >= 5) { showToast('وصلت للحد الأقصى للطلبات اليوم، تواصل معنا على واتساب'); return; }
+            const isDev = localStorage.getItem('zz_dev') === '1';
+            if (!isDev && hist.length && nowT - hist[hist.length - 1] < 60000) { showToast('من فضلك انتظر دقيقة قبل إرسال طلب جديد'); return; }
+            if (!isDev && hist.length >= 3) { showToast('وصلت للحد الأقصى للطلبات اليوم، تواصل معنا على واتساب'); return; }
 
             const govName = govSelect.options[govSelect.selectedIndex].text;
             const rawFee = parseInt(govSelect.options[govSelect.selectedIndex].dataset.ship || 0);
@@ -655,13 +673,13 @@
             const subtotal = cart.reduce((s, i) => s + i.price, 0);
 
             const order = ({
-                status: 'new', createdAt: Date.now(), orderId: 'ZZ-' + Math.floor(100000 + Math.random() * 900000),
+                status: 'new', createdAt: Date.now(), orderId: 'ZZ-' + (() => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', b = crypto.getRandomValues(new Uint8Array(8)); return Array.from(b, x => A[x % A.length]).join(''); })(),
                 dateStr: new Date().toLocaleString('ar-EG'),
                 customer: { name: nameInput.value.trim(), phone: cleanPhone, phone2: phone2Input.value.trim() || 'لا يوجد', address: addressInput.value.trim(), gov: govName },
                 items: [...cart], subtotal, shipping: shipFee, discount: disc, coupon: appliedCoupon ? appliedCoupon.code : '', total: subtotal - disc + shipFee
             });
 
-            try { await fb.addOrder(order); lastOrder = order; document.getElementById('success-order-id').innerText = 'رقم طلبك: ' + order.orderId; localStorage.setItem('zz_orders_t', JSON.stringify([...hist, nowT])); track('Purchase', { value: order.total }); document.getElementById('wa-order-btn').style.display = settings.whatsapp ? 'block' : 'none'; } catch (err) { console.error(err); showToast('تعذر إرسال الطلب، حاول مرة أخرى'); return; }
+            try { await fb.addOrder(order); lastOrder = order; clearTimeout(leadTimer); fb.saveLead(leadData(true)); localStorage.removeItem('zz_lead_id'); document.getElementById('success-order-id').innerText = 'رقم طلبك: ' + order.orderId; localStorage.setItem('zz_orders_t', JSON.stringify([...hist, nowT])); track('Purchase', { value: order.total }); document.getElementById('wa-order-btn').style.display = settings.whatsapp ? 'block' : 'none'; } catch (err) { console.error(err); showToast('تعذر إرسال الطلب، حاول مرة أخرى'); return; }
             cart = []; saveCartState();
             closeCheckoutModal();
             document.getElementById('order-success-modal').classList.add('active');
@@ -681,5 +699,6 @@
             setTimeout(() => toast.classList.remove('show'), 3000);
         }
     </script>
+<a id="wa-float" class="wa-float" target="_blank" rel="noopener" aria-label="واتساب" onclick="try{if(window.fbq)fbq('track','Contact')}catch(e){}"><i class="fa-brands fa-whatsapp"></i></a>
 </body>
 </html>

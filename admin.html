@@ -22,8 +22,25 @@
         .admin-title { font-size: 20px; font-weight: 800; }
         .back-to-store { text-decoration: none; background: var(--accent-dark); color: white; padding: 7px 15px; border-radius: 20px; font-size: 12px; font-weight: 700; }
 
-        .admin-tabs { display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
-        .tab-btn { background: none; border: none; padding: 8px 16px; font-size: 13px; font-weight: 700; color: var(--text-muted); cursor: pointer; border-radius: 6px; }
+        .admin-layout { display: flex; gap: 15px; align-items: flex-start; }
+        .admin-tabs { display: flex; flex-direction: column; gap: 4px; width: 210px; flex: none; background: white; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 10px; position: sticky; top: 15px; }
+        .admin-content { flex: 1; min-width: 0; }
+        .menu-toggle { display: none; }
+        .acc { background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 8px; font-size: 12px; }
+        .acc > summary { cursor: pointer; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 700; list-style: none; }
+        .acc > summary::-webkit-details-marker { display: none; }
+        .acc > summary::after { content: '\25BE'; color: var(--text-muted); }
+        .acc[open] > summary::after { content: '\25B4'; }
+        .acc-sub { color: var(--text-muted); font-weight: 400; margin-right: auto; }
+        .acc-body { padding: 4px 12px 12px; line-height: 1.9; }
+        @media (max-width: 768px) {
+            .admin-layout { flex-direction: column; }
+            .admin-tabs { display: none; width: 100%; position: static; }
+            .admin-tabs.open { display: flex; }
+            .menu-toggle { display: block; width: 100%; margin-bottom: 10px; padding: 11px; border: none; border-radius: 8px; background: var(--accent-dark); color: #fff; font-weight: 800; cursor: pointer; }
+            .admin-content { width: 100%; }
+        }
+        .tab-btn { background: none; border: none; padding: 11px 14px; font-size: 13px; font-weight: 700; color: var(--text-muted); cursor: pointer; border-radius: 8px; text-align: right; width: 100%; }
         .tab-btn.active { background: var(--accent-dark); color: white; }
 
         .admin-section { display: none; background: white; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border-color); }
@@ -79,6 +96,8 @@
         <span id="sound-name" style="color:var(--text-muted);"></span>
     </div>
 
+    <button class="menu-toggle" onclick="document.querySelector('.admin-tabs').classList.toggle('open')">☰ القائمة</button>
+    <div class="admin-layout">
     <div class="admin-tabs">
         <button class="tab-btn active" onclick="switchTab('orders', this)"><i class="fa-solid fa-boxes-packing"></i> الطلبات الواردة</button>
         <button class="tab-btn" onclick="switchTab('products', this)"><i class="fa-solid fa-shirt"></i> إدارة المنتجات</button>
@@ -90,6 +109,7 @@
         <button class="tab-btn" onclick="switchTab('leads', this)"><i class="fa-solid fa-user-clock"></i> عملاء مهتمين</button>
     </div>
 
+    <div class="admin-content">
     <!-- TAB 1: ORDERS -->
     <div id="tab-orders" class="admin-section active">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -103,6 +123,7 @@
                 <button onclick="exportToExcel()" class="submit-btn" style="background:#1f7244; font-size:12px;"><i class="fa-solid fa-file-excel"></i> تصدير Excel</button>
             </div>
         </div>
+        <input id="order-search" oninput="renderOrders()" placeholder="بحث بالاسم أو الهاتف أو رقم الطلب أو رقم الشحنة" style="width:100%; padding:9px 10px; margin-bottom:8px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;">
         <select id="order-filter" class="form-select" onchange="renderOrders()" style="margin-bottom:10px;">
             <option value="all">كل الطلبات</option><option value="new">جديد</option><option value="confirmed">تم التأكيد</option><option value="shipped">اتشحن</option><option value="delivered">اتسلّم</option><option value="cancelled">ملغي</option>
         </select>
@@ -225,11 +246,13 @@
     </div>
 
     <div id="tab-leads" class="admin-section">
-        <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">أرقام عملاء كتبوا رقمهم في صفحة الطلب ولم يُكملوا الطلب (لا يظهر من أتمّ طلبًا). تواصل معهم بلطف عبر واتساب.</div>
+        <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">بيانات عملاء بدأوا كتابة طلب ولم يُكملوه (تُحفظ أثناء الكتابة، ولا يظهر من أتمّ طلبه). تواصل معهم بلطف عبر واتساب.</div>
         <div id="leads-list"></div>
     </div>
 
     <div id="tab-stats" class="admin-section"><div id="stats-box"></div></div>
+
+    </div></div>
 
     <div id="print-area"></div>
 
@@ -423,19 +446,28 @@
         function renderLeads() {
             const el = document.getElementById('leads-list'); if (!el) return;
             const done = new Set(orders.map(o => String(o.customer.phone)));
-            const ls = leads.filter(l => !done.has(l.phone)).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-            el.innerHTML = ls.length ? ls.map(l => `
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 10px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; font-size:12px;">
-                    <span><strong>${l.name || 'بدون اسم'}</strong> — ${l.phone} — سلة ${l.total} ج.م — ${new Date(l.createdAt).toLocaleString('ar-EG')}</span>
-                    <span>
-                        <a href="https://wa.me/20${l.phone.replace(/^0/, '')}?text=${encodeURIComponent('أهلاً ' + (l.name || '') + '، شوفنا إنك كنت بتطلب من Zazoua. تحب نساعدك تكمّل الطلب؟')}" target="_blank" rel="noopener" style="background:#25D366; color:#fff; padding:4px 8px; border-radius:6px; text-decoration:none; font-weight:700;">واتساب</a>
-                        <button onclick="deleteLead('${l.phone}')" style="cursor:pointer; border:none; color:#fff; background:var(--danger-color); padding:4px 8px; border-radius:4px; font-size:11px; margin-right:4px;">حذف</button>
-                    </span>
-                </div>`).join('') : '<div style="font-size:12px; color:var(--text-muted);">لا يوجد عملاء مهتمون حاليًا.</div>';
+            const when = l => l.updatedAt || l.createdAt || 0;
+            const ls = leads.filter(l => !l.ordered && !(l.phone && done.has(l.phone))).sort((a, b) => when(b) - when(a));
+            const openedL = new Set(Array.from(el.querySelectorAll('details[open]')).map(d => d.dataset.id));
+            const row = (k, v) => v ? `<div><strong>${k}:</strong> ${esc(v)}</div>` : '';
+            el.innerHTML = ls.length ? ls.map(l => {
+                const key = l.id || l.phone;
+                const ph = String(l.phone || '').replace(/\D/g, '');
+                const wa = /^01[0125]\d{8}$/.test(ph) ? `<a href="https://wa.me/20${ph.slice(1)}?text=${encodeURIComponent('أهلاً ' + (l.name || '') + '، شوفنا إنك كنت بتطلب من Zazoua. تحب نساعدك تكمّل الطلب؟')}" target="_blank" rel="noopener" style="background:#25D366; color:#fff; padding:4px 8px; border-radius:6px; text-decoration:none; font-weight:700;">واتساب</a>` : '<span style="color:var(--text-muted);">لا يوجد رقم صالح</span>';
+                return `
+                <details class="acc" data-id="${esc(key)}" ${openedL.has(key) ? 'open' : ''}>
+                    <summary><span><strong>${esc(l.name || l.phone || 'عميل بدون اسم')}</strong></span><span class="acc-sub">${l.total ? l.total + ' ج.م' : ''} ${when(l) ? '· ' + new Date(when(l)).toLocaleString('ar-EG') : ''}</span></summary>
+                    <div class="acc-body">
+                        ${row('الاسم', l.name)}${row('الهاتف', l.phone)}${row('هاتف ثاني', l.phone2)}${row('المحافظة', l.gov)}${row('العنوان', l.address)}${row('المنتجات', l.items)}${row('إجمالي السلة', l.total ? l.total + ' ج.م' : '')}
+                        <div style="margin-top:8px;">${wa} <button onclick="deleteLead(this.closest('details').dataset.id)" style="cursor:pointer; border:none; color:#fff; background:var(--danger-color); padding:4px 8px; border-radius:4px; font-size:11px; margin-right:4px;">حذف</button></div>
+                    </div>
+                </details>`;
+            }).join('') : '<div style="font-size:12px; color:var(--text-muted);">لا يوجد عملاء مهتمون حاليًا.</div>';
         }
-        async function deleteLead(phone) {
-            try { await fb.deleteLead(phone); } catch (err) { alert('فشل الحذف: ' + err.message); return; }
-            leads = leads.filter(l => l.phone !== phone); renderLeads();
+        async function deleteLead(key) {
+            if (!confirm('حذف هذا العميل من القائمة؟')) return;
+            try { await fb.deleteLead(key); } catch (err) { alert('فشل الحذف: ' + err.message); return; }
+            leads = leads.filter(l => (l.id || l.phone) !== key); renderLeads();
         }
 
         function beep(force) {
@@ -485,6 +517,7 @@
         }
 
         function switchTab(tab, btn) {
+            document.querySelector('.admin-tabs').classList.remove('open');
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
             btn.classList.add('active');
@@ -530,33 +563,66 @@
         }
 
         const STATUSES = { new: 'جديد', confirmed: 'تم التأكيد', shipped: 'اتشحن', delivered: 'اتسلّم', cancelled: 'ملغي' };
+        const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const csvCell = v => { let t = String(v ?? ''); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return '"' + t.replace(/"/g, '""') + '"'; };
         const STATUS_COLORS = { new: '#2c6fbb', confirmed: '#b9770e', shipped: '#7d3c98', delivered: '#1f7244', cancelled: '#c0392b' };
 
         function renderOrders() {
             const container = document.getElementById('admin-orders-list');
+            const opened = new Set(Array.from(container.querySelectorAll('details[open]')).map(d => d.dataset.id));
             const f = document.getElementById('order-filter').value;
-            const list = f === 'all' ? orders : orders.filter(o => (o.status || 'new') === f);
+            const drafts = {};
+            container.querySelectorAll('.ord-ext[data-dirty]').forEach(el => { drafts[el.dataset.id + '|' + el.dataset.k] = el.value; });
+            const q = (document.getElementById('order-search') ? document.getElementById('order-search').value : '').trim().toLowerCase();
+            const list = (f === 'all' ? orders : orders.filter(o => (o.status || 'new') === f))
+                .filter(o => !q || [o.orderId, o.customer.name, o.customer.phone, o.customer.phone2, o.shipNo, o.note].join(' ').toLowerCase().includes(q));
+            const extVal = (o, k) => { const dk = o.orderId + '|' + k; return dk in drafts ? drafts[dk] : (o[k] || ''); };
+            const extDirty = (o, k) => (o.orderId + '|' + k) in drafts ? 'data-dirty="1"' : '';
             if (list.length === 0) { container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">لا توجد طلبات.</div>'; return; }
             container.innerHTML = list.map(ord => {
                 const st = ord.status || 'new';
                 return `
-                <div class="admin-order-card" style="border-right:4px solid ${STATUS_COLORS[st]};">
-                    <div style="display:flex; justify-content:space-between; border-bottom:1px dashed #ccc; padding-bottom:4px; margin-bottom:6px;">
-                        <div><input type="checkbox" class="order-cb" data-id="${ord.orderId}"> <strong>رقم الطلب: ${ord.orderId}</strong> (${ord.dateStr})</div>
-                        <strong style="color:var(--success-color);">${ord.total} ج.م${ord.coupon ? ` <small style="color:#888;">(كوبون ${ord.coupon}: -${ord.discount})</small>` : ''}</strong>
+                <details class="acc" data-id="${ord.orderId}" ${opened.has(ord.orderId) ? 'open' : ''} style="border-right:4px solid ${STATUS_COLORS[st]};">
+                    <summary>
+                        <span><input type="checkbox" class="order-cb" data-id="${ord.orderId}" onclick="event.stopPropagation()"> <strong>${esc(ord.customer.name)}</strong> <span class="acc-sub">${ord.orderId}${ord.shipNo ? ' 🚚' : ''}${ord.note ? ' 📝' : ''}</span></span>
+                        <span><strong style="color:var(--success-color);">${ord.total} ج.م</strong> <span style="color:${STATUS_COLORS[st]};">${STATUSES[st]}</span></span>
+                    </summary>
+                    <div class="acc-body">
+                        <div style="color:var(--text-muted);">${esc(ord.dateStr)}${ord.coupon ? ` — كوبون ${esc(ord.coupon)}: -${esc(ord.discount)} ج.م` : ''}</div>
+                        <div><strong>الهاتف 1:</strong> ${esc(ord.customer.phone)} | <strong>الهاتف 2:</strong> ${esc(ord.customer.phone2)}</div>
+                        <div><strong>العنوان:</strong> ${esc(ord.customer.gov)} - ${esc(ord.customer.address)}</div>
+                        <div><strong>المنتجات:</strong> ${ord.items.map(i => `${esc(i.title)} (${esc(i.size)}/${esc(i.color)})`).join(' - ')}</div>
+                        <div style="margin-top:6px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                            <strong>الحالة:</strong>
+                            <select class="form-select" style="width:auto; padding:3px 8px; font-size:12px;" onchange="changeStatus('${ord.orderId}', this.value)">
+                                ${Object.entries(STATUSES).map(([k, v]) => `<option value="${k}" ${k === st ? 'selected' : ''}>${v}</option>`).join('')}
+                            </select>
+                            <a href="https://wa.me/20${String(ord.customer.phone).replace(/\D/g, '').replace(/^0/, '')}?text=${encodeURIComponent('أهلاً ' + ord.customer.name + ' 👋 بنأكد معاك طلبك رقم ' + ord.orderId + ' من Zazoua بإجمالي ' + ord.total + ' ج.م. تمام كده؟')}" target="_blank" rel="noopener" style="background:#25D366; color:#fff; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none;">واتساب العميل</a>
+                        </div>
+                        <div style="margin-top:8px; display:grid; gap:6px;">
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                <input class="ord-ext" data-id="${ord.orderId}" data-k="shipCo" ${extDirty(ord, 'shipCo')} oninput="this.dataset.dirty=1" maxlength="40" value="${esc(extVal(ord, 'shipCo'))}" placeholder="شركة الشحن" style="flex:1; min-width:110px; padding:6px 8px; border:1px solid var(--border-color); border-radius:6px; font-size:12px; font-family:inherit;">
+                                <input class="ord-ext" data-id="${ord.orderId}" data-k="shipNo" ${extDirty(ord, 'shipNo')} oninput="this.dataset.dirty=1" maxlength="60" value="${esc(extVal(ord, 'shipNo'))}" placeholder="رقم الشحنة (يظهر للعميل)" style="flex:1; min-width:110px; padding:6px 8px; border:1px solid var(--border-color); border-radius:6px; font-size:12px; font-family:inherit;">
+                            </div>
+                            <textarea class="ord-ext" data-id="${ord.orderId}" data-k="note" ${extDirty(ord, 'note')} oninput="this.dataset.dirty=1" maxlength="500" rows="2" placeholder="ملاحظة داخلية (لا تظهر للعميل)" style="padding:6px 8px; border:1px solid var(--border-color); border-radius:6px; font-size:12px; font-family:inherit; resize:vertical;">${esc(extVal(ord, 'note'))}</textarea>
+                            <button onclick="saveOrderExtra('${ord.orderId}')" style="cursor:pointer; border:none; color:#fff; background:var(--accent-dark); padding:6px 12px; border-radius:6px; font-size:12px; font-weight:700; justify-self:start;">حفظ الملاحظة والشحن</button>
+                        </div>
                     </div>
-                    <div>👤 <strong>العميل:</strong> ${ord.customer.name} | <strong>الهاتف 1:</strong> ${ord.customer.phone} | <strong>الهاتف 2:</strong> ${ord.customer.phone2}</div>
-                    <div>📍 <strong>العنوان:</strong> ${ord.customer.gov} - ${ord.customer.address}</div>
-                    <div style="margin-top:4px; color:var(--text-muted);"><strong>التفاصيل:</strong> ${ord.items.map(i => `${i.title} (${i.size}/${i.color})`).join(' - ')}</div>
-                    <div style="margin-top:6px; display:flex; align-items:center; gap:6px;">
-                        <strong>الحالة:</strong>
-                        <select class="form-select" style="width:auto; padding:3px 8px; font-size:12px;" onchange="changeStatus('${ord.orderId}', this.value)">
-                            ${Object.entries(STATUSES).map(([k, v]) => `<option value="${k}" ${k === st ? 'selected' : ''}>${v}</option>`).join('')}
-                        </select>
-                        <a href="https://wa.me/20${String(ord.customer.phone).replace(/^0/, '')}?text=${encodeURIComponent('أهلاً ' + ord.customer.name + ' 👋 بنأكد معاك طلبك رقم ' + ord.orderId + ' من Zazoua بإجمالي ' + ord.total + ' ج.م. تمام كده؟')}" target="_blank" rel="noopener" style="background:#25D366; color:#fff; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none;">💬 واتساب العميل</a>
-                    </div>
-                </div>`;
+                </details>`;
             }).join('');
+        }
+
+        async function saveOrderExtra(orderId) {
+            const o = orders.find(x => x.orderId === orderId); if (!o) return;
+            const g = k => { const el = document.querySelector(`.ord-ext[data-id="${orderId}"][data-k="${k}"]`); return el ? el.value.trim() : ''; };
+            const data = { note: g('note').slice(0, 500), shipCo: g('shipCo').slice(0, 40), shipNo: g('shipNo').slice(0, 60) };
+            try {
+                await fb.updateOrder(orderId, data);
+                await fb.setTracking({ orderId, status: o.status || 'new', phone4: String(o.customer.phone).slice(-4), createdAt: o.createdAt || 0, shipCo: data.shipCo, shipNo: data.shipNo });
+            } catch (err) { alert('فشل الحفظ: ' + err.message); return; }
+            Object.assign(o, data);
+            document.querySelectorAll(`.ord-ext[data-id="${orderId}"]`).forEach(el => el.removeAttribute('data-dirty'));
+            renderOrders();
         }
 
         async function changeStatus(orderId, status) {
@@ -586,12 +652,12 @@
                         <h2>Zazoua Store</h2><div>فاتورة طلب: ${ord.orderId}<br>${ord.dateStr}</div>
                     </div>
                     <div style="font-size:13px; margin:8px 0;">
-                        <div><strong>العميل:</strong> ${ord.customer.name} | <strong>الهاتف 1:</strong> ${ord.customer.phone} | <strong>الهاتف 2:</strong> ${ord.customer.phone2}</div>
-                        <div><strong>العنوان:</strong> ${ord.customer.gov} - ${ord.customer.address}</div>
+                        <div><strong>العميل:</strong> ${esc(ord.customer.name)} | <strong>الهاتف 1:</strong> ${esc(ord.customer.phone)} | <strong>الهاتف 2:</strong> ${esc(ord.customer.phone2)}</div>
+                        <div><strong>العنوان:</strong> ${esc(ord.customer.gov)} - ${esc(ord.customer.address)}</div>
                     </div>
                     <table style="width:100%; border-collapse:collapse; font-size:12px;">
                         <tr style="background:#eee;"><th>المنتج</th><th>المقاس</th><th>اللون</th><th>السعر</th></tr>
-                        ${ord.items.map(i => `<tr><td>${i.title}</td><td>${i.size}</td><td>${i.color}</td><td>${i.price} ج.م</td></tr>`).join('')}
+                        ${ord.items.map(i => `<tr><td>${esc(i.title)}</td><td>${esc(i.size)}</td><td>${esc(i.color)}</td><td>${esc(i.price)} ج.م</td></tr>`).join('')}
                     </table>
                     <div style="border-top:1px solid #000; padding-top:4px; display:flex; justify-content:space-between; font-weight:bold;">
                         <span>الشحن: ${ord.shipping} ج.م${ord.discount ? ' | خصم: ' + ord.discount + ' ج.م' : ''}</span><span>الإجمالي الكلي: ${ord.total} ج.م</span>
@@ -603,10 +669,10 @@
 
         function exportToExcel() {
             if (orders.length === 0) { alert('لا توجد طلبات للتصدير'); return; }
-            let csv = "\uFEFFرقم الطلب,التاريخ,اسم العميل,رقم الهاتف 1,رقم الهاتف 2,المحافظة,العنوان,المنتجات,الإجمالي\n";
+            let csv = "\uFEFFرقم الطلب,التاريخ,اسم العميل,رقم الهاتف 1,رقم الهاتف 2,المحافظة,العنوان,المنتجات,الإجمالي,شركة الشحن,رقم الشحنة,ملاحظة\n";
             orders.forEach(o => {
                 const items = o.items.map(i => `${i.title} (${i.size}/${i.color})`).join(' - ');
-                csv += `"${o.orderId}","${o.dateStr}","${o.customer.name}","${o.customer.phone}","${o.customer.phone2}","${o.customer.gov}","${o.customer.address}","${items}","${o.total}"\n`;
+                csv += [o.orderId, o.dateStr, o.customer.name, o.customer.phone, o.customer.phone2, o.customer.gov, o.customer.address, items, o.total, o.shipCo, o.shipNo, o.note].map(csvCell).join(",") + "\n";
             });
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
@@ -616,21 +682,26 @@
         }
 
         function renderProductsAdmin() {
-            document.getElementById('admin-products-list').innerHTML = products.map(p => `
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; padding:8px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; font-size:12px; ${p.hidden ? 'opacity:.55;' : ''}">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <img src="${p.image}" style="width:35px; height:35px; object-fit:cover; border-radius:4px;">
-                        <strong>${p.title}</strong> (${p.price} ج.م)
-                        ${p.soldOut ? '<span style="color:#c0392b;">• نفذت الكمية</span>' : ''}${p.hidden ? '<span style="color:#888;">• مخفي</span>' : ''}
+            const el = document.getElementById('admin-products-list');
+            const opened = new Set(Array.from(el.querySelectorAll('details[open]')).map(d => d.dataset.id));
+            el.innerHTML = products.map(p => `
+                <details class="acc" data-id="${p.id}" ${opened.has(String(p.id)) ? 'open' : ''} style="${p.hidden ? 'opacity:.6;' : ''}">
+                    <summary>
+                        <span style="display:flex; align-items:center; gap:8px;"><img src="${p.image}" style="width:35px; height:35px; object-fit:cover; border-radius:4px;"><strong>${p.title}</strong></span>
+                        <span>${p.price} ج.م ${p.soldOut ? '<span style="color:#c0392b;">• نفذت</span>' : ''}${p.hidden ? '<span style="color:#888;">• مخفي</span>' : ''}</span>
+                    </summary>
+                    <div class="acc-body">
+                        <div><strong>القسم:</strong> ${p.mainCat} / ${p.subCat}</div>
+                        <div><strong>المقاسات:</strong> ${p.sizes.join('، ')} | <strong>الألوان:</strong> ${p.colors.join('، ')}</div>
+                        <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:8px;">
+                            <button onclick="editProduct(${p.id})" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:#2c6fbb;">تعديل</button>
+                            <button onclick="toggleFlag(${p.id}, 'soldOut')" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:#b9770e;">${p.soldOut ? 'متوفر' : 'نفذت'}</button>
+                            <button onclick="toggleFlag(${p.id}, 'hidden')" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:#666;">${p.hidden ? 'إظهار' : 'إخفاء'}</button>
+                            <button onclick="copyAdLink(${p.id})" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:var(--accent-dark);">رابط الإعلان</button>
+                            <button onclick="deleteProduct(${p.id})" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:var(--danger-color);">حذف</button>
+                        </div>
                     </div>
-                    <div style="display:flex; gap:4px; flex-wrap:wrap;">
-                        <button onclick="editProduct(${p.id})" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:#2c6fbb;">تعديل</button>
-                        <button onclick="toggleFlag(${p.id}, 'soldOut')" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:#b9770e;">${p.soldOut ? 'متوفر' : 'نفذت'}</button>
-                        <button onclick="toggleFlag(${p.id}, 'hidden')" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:#666;">${p.hidden ? 'إظهار' : 'إخفاء'}</button>
-                        <button onclick="copyAdLink(${p.id})" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:var(--accent-dark);">رابط الإعلان 🔗</button>
-                        <button onclick="deleteProduct(${p.id})" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:var(--danger-color);">حذف</button>
-                    </div>
-                </div>
+                </details>
             `).join('');
         }
 

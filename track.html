@@ -24,6 +24,7 @@ button{width:100%;margin-top:14px;padding:12px;border:none;border-radius:10px;ba
 .dot{width:22px;height:22px;border-radius:50%;background:#e9ecef;flex:none}
 .step.done{color:#1a1a1a}.step.done .dot{background:#27ae60}
 .step.now .dot{box-shadow:0 0 0 4px rgba(39,174,96,.25)}
+.ship{margin-top:12px;background:#f1f8f4;border:1px solid #cfe8d8;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:700;line-height:1.8}
 .cancel{background:#fdecea;color:#c0392b;padding:12px;border-radius:10px;text-align:center;font-weight:800}
 </style>
 </head>
@@ -32,7 +33,7 @@ button{width:100%;margin-top:14px;padding:12px;border:none;border-radius:10px;ba
 <main><div class="box">
 <h1>تتبع طلبك</h1>
 <p class="sub">اكتب رقم الطلب وآخر 4 أرقام من رقم هاتفك.</p>
-<label>رقم الطلب</label><input id="oid" placeholder="ZZ-123456" autocomplete="off">
+<label>رقم الطلب</label><input id="oid" placeholder="ZZ-AB12CD34" autocomplete="off">
 <label>آخر 4 أرقام من الهاتف</label><input id="p4" inputmode="numeric" maxlength="4" placeholder="1234">
 <button onclick="check()">تتبع</button>
 <div id="res"></div>
@@ -47,14 +48,19 @@ window.check = async () => {
   const id = document.getElementById('oid').value.trim().toUpperCase().replace(/[\/\s]/g, '');
   const p4 = document.getElementById('p4').value.replace(/\D/g, '');
   if (!id || p4.length !== 4) { res.innerHTML = '<div class="err">اكتب رقم الطلب وآخر 4 أرقام.</div>'; return; }
+  const tries = +(sessionStorage.getItem('zz_tr') || 0), last = +(sessionStorage.getItem('zz_trt') || 0);
+  if (tries >= 5 && Date.now() - last < 600000) { res.innerHTML = '<div class="err">محاولات كتير، جرّب بعد 10 دقايق.</div>'; return; }
+  if (Date.now() - last >= 600000) sessionStorage.setItem('zz_tr', 0);
   res.innerHTML = '<div class="sub">جاري البحث...</div>';
   try {
     const s = await getDoc(doc(db, 'tracking', id));
     const d = s.exists() ? s.data() : null;
-    if (!d || d.phone4 !== p4) { res.innerHTML = '<div class="err">لم نجد طلبًا بهذه البيانات، راجع الرقم وحاول مرة أخرى.</div>'; return; }
+    if (!d || d.phone4 !== p4) { sessionStorage.setItem('zz_tr', (+sessionStorage.getItem('zz_tr') || 0) + 1); sessionStorage.setItem('zz_trt', Date.now()); res.innerHTML = '<div class="err">لم نجد طلبًا بهذه البيانات، راجع الرقم وحاول مرة أخرى.</div>'; return; }
     if (d.status === 'cancelled') { res.innerHTML = '<div class="cancel">تم إلغاء هذا الطلب.</div>'; return; }
     const idx = STEPS.findIndex(x => x[0] === d.status);
-    res.innerHTML = STEPS.map((x, i) => `<div class="step ${i <= idx ? 'done' : ''} ${i === idx ? 'now' : ''}"><span class="dot"></span>${x[1]}</div>`).join('');
+    const e = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const ship = (d.shipNo || d.shipCo) ? `<div class="ship">🚚 ${d.shipCo ? 'شركة الشحن: ' + e(d.shipCo) + '<br>' : ''}${d.shipNo ? 'رقم الشحنة: ' + e(d.shipNo) : ''}</div>` : '';
+    res.innerHTML = STEPS.map((x, i) => `<div class="step ${i <= idx ? 'done' : ''} ${i === idx ? 'now' : ''}"><span class="dot"></span>${x[1]}</div>`).join('') + ship;
   } catch (e) { console.error(e); res.innerHTML = '<div class="err">تعذر التحقق الآن، حاول لاحقًا.</div>'; }
 };
 </script>
