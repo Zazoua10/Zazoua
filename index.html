@@ -666,8 +666,6 @@
             const nowT = Date.now();
             const hist = JSON.parse(localStorage.getItem('zz_orders_t') || '[]').filter(t => nowT - t < 864e5);
             const isDev = localStorage.getItem('zz_dev') === '1';
-            if (!isDev && hist.length && nowT - hist[hist.length - 1] < 60000) { showToast('من فضلك انتظر دقيقة قبل إرسال طلب جديد'); return; }
-            if (!isDev && hist.length >= 3) { showToast('وصلت للحد الأقصى للطلبات اليوم، تواصل معنا على واتساب'); return; }
 
             const govName = govSelect.options[govSelect.selectedIndex].text;
             const rawFee = parseInt(govSelect.options[govSelect.selectedIndex].dataset.ship || 0);
