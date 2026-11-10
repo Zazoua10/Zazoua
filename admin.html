@@ -54,12 +54,26 @@
         .admin-order-card { background: var(--bg-main); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; margin-bottom: 10px; font-size: 12px; }
 
         /* PRINT STYLES - 3 Invoices Per Page */
+        @page { size: A4; margin: 8mm; }
+        #print-area { display: none; }
         @media print {
-            body * { visibility: hidden; }
-            #print-area, #print-area * { visibility: visible; }
-            #print-area { position: absolute; top: 0; left: 0; width: 100%; background: white; }
-            .print-invoice-item { height: 31%; border: 2px dashed #000; border-radius: 8px; padding: 12px; margin-bottom: 2%; page-break-inside: avoid; display: flex; flex-direction: column; justify-content: space-between; }
+            body { padding: 0; background: #fff; }
+            body > *:not(#print-area) { display: none !important; }
+            #print-area { display: block; width: 100%; background: white; color: #000; }
+            .print-invoice-item { min-height: 90mm; border: 1.5px solid #000; border-radius: 8px; padding: 8px 12px; margin-bottom: 3mm; break-inside: avoid; page-break-inside: avoid; display: flex; flex-direction: column; gap: 5px; font-size: 11px; line-height: 1.5; }
+            .inv-brand { text-align: center; font-size: 26px; font-weight: 800; letter-spacing: 4px; line-height: 1.2; border-bottom: 2px solid #000; padding-bottom: 3px; }
+            .inv-meta { display: flex; justify-content: space-between; font-size: 11px; }
+            .inv-cust { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; border: 1px solid #000; border-radius: 6px; padding: 5px 8px; }
+            .inv-cust .full { grid-column: 1 / -1; }
+            .inv-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+            .inv-table th, .inv-table td { border: 1px solid #555; padding: 2px 6px; text-align: right; }
+            .inv-table th { background: #eee; }
+            .inv-totals { display: flex; justify-content: space-between; align-items: center; margin-top: auto; }
+            .inv-lines { display: flex; gap: 14px; font-size: 11px; }
+            .inv-total { font-size: 15px; font-weight: 800; border: 2px solid #000; border-radius: 6px; padding: 2px 12px; }
+            .inv-note { text-align: center; font-weight: 700; font-size: 11px; border: 1px dashed #000; border-radius: 6px; padding: 3px 6px; }
         }
+
     </style>
 </head>
 <body>
@@ -84,7 +98,10 @@
 
     <div class="admin-header">
         <div class="admin-title">لوحة الإدارة والمتابعة</div>
-        <a href="index.html" class="back-to-store"><i class="fa-solid fa-store"></i> المعاينة كعميل</a>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <a href="index.html" class="back-to-store"><i class="fa-solid fa-store"></i> المعاينة كعميل</a>
+            <button type="button" onclick="handleLogout()" class="back-to-store" style="border:none; cursor:pointer; background:var(--danger-color); font-family:inherit;"><i class="fa-solid fa-right-from-bracket"></i> تسجيل خروج</button>
+        </div>
     </div>
 
     <div id="sound-bar" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; padding:8px 12px; font-size:12px;">
@@ -311,7 +328,28 @@
             const email = document.getElementById('admin-email').value.trim();
             const pass = document.getElementById('admin-pass').value;
             try { await fb.login(email, pass); }
-            catch (err) { alert('بيانات الدخول غير صحيحة!'); }
+            catch (err) {
+                console.error(err);
+                const c = String(err && err.code || '');
+                let m;
+                if (location.protocol === 'file:') m = 'لازم تفتح لوحة الأدمن من رابط الموقع على الإنترنت، مش من الملف على الجهاز.';
+                else if (/invalid-credential|wrong-password|user-not-found|invalid-email/.test(c)) m = 'الإيميل أو كلمة السر غلط.';
+                else if (/too-many-requests/.test(c)) m = 'محاولات كتير، استنى شوية وجرّب تاني.';
+                else if (/network-request-failed/.test(c)) m = 'في مشكلة في الاتصال بالإنترنت.';
+                else if (/unauthorized-domain/.test(c)) m = 'الدومين ده مش مضاف في Firebase (Authorized domains).';
+                else if (/referer|api-key/.test(c)) m = 'مفتاح Firebase مقيّد ومش بيسمح بالدومين ده.';
+                else m = 'تعذر تسجيل الدخول: ' + (c || (err && err.message) || 'خطأ غير معروف');
+                alert(m);
+            }
+        }
+
+        let loggingOut = false;
+        async function handleLogout() {
+            if (!confirm('تسجيل الخروج من لوحة الإدارة؟')) return;
+            loggingOut = true;
+            try { await fb.logout(); } catch (err) { loggingOut = false; alert('تعذر تسجيل الخروج: ' + err.message); return; }
+            document.getElementById('admin-pass').value = '';
+            location.reload();
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -409,20 +447,77 @@
             const box = document.getElementById('stats-box'); if (!box) return;
             const ok = orders.filter(o => (o.status || 'new') !== 'cancelled');
             const now = Date.now(), DAY = 864e5;
-            const sum = a => a.reduce((s, o) => s + (o.total || 0), 0);
+            const money = n => Math.round(Number(n) || 0).toLocaleString('en-US');
+            const tot = o => Number(o.total) || 0;
+            const sum = a => a.reduce((s, o) => s + tot(o), 0);
             const within = d => ok.filter(o => o.createdAt && now - o.createdAt < d * DAY);
-            const card = (l, a) => `<div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; text-align:center;"><div style="font-size:11px; color:var(--text-muted);">${l}</div><div style="font-size:18px; font-weight:800;">${sum(a)} ج.م</div><div style="font-size:11px; color:var(--text-muted);">${a.length} طلب</div></div>`;
-            const cnt = {}; ok.forEach(o => o.items.forEach(i => cnt[i.title] = (cnt[i.title] || 0) + 1));
-            const top = Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 5);
-            const cp = {}; orders.forEach(o => { if (o.coupon) cp[o.coupon] = (cp[o.coupon] || 0) + 1; });
-            const st = Object.entries(STATUSES).map(([k, v]) => `${v}: <strong>${orders.filter(o => (o.status || 'new') === k).length}</strong>`).join(' &nbsp;|&nbsp; ');
-            const li = arr => arr.length ? arr.map(([n, c]) => `<div style="padding:5px 8px; background:var(--bg-main); border-radius:6px; margin-bottom:4px; font-size:12px; display:flex; justify-content:space-between;"><span>${n}</span><strong>${c}</strong></div>`).join('') : '<div style="font-size:12px; color:var(--text-muted);">لا توجد بيانات بعد.</div>';
+            const MUTED = 'color:var(--text-muted);';
+            const card = (l, a) => `<div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; text-align:center;"><div style="font-size:11px; ${MUTED}">${l}</div><div style="font-size:18px; font-weight:800;">${money(sum(a))} ج.م</div><div style="font-size:11px; ${MUTED}">${a.length} طلب</div></div>`;
+            const kpi = (l, v, sub) => `<div style="background:var(--bg-main); border:1px solid var(--border-color); border-radius:10px; padding:10px; text-align:center;"><div style="font-size:11px; ${MUTED}">${l}</div><div style="font-size:17px; font-weight:800;">${v}</div><div style="font-size:10px; ${MUTED}">${sub || '&nbsp;'}</div></div>`;
+            const panel = (t, inner) => `<div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px;"><h4 style="font-size:13px; margin-bottom:8px;">${t}</h4>${inner}</div>`;
+            const empty = '<div style="font-size:12px; color:var(--text-muted);">لا توجد بيانات بعد.</div>';
+
+            // مؤشرات عامة
+            const avg = ok.length ? sum(ok) / ok.length : 0;
+            const cancelled = orders.length - ok.length;
+            const cancelRate = orders.length ? Math.round(cancelled / orders.length * 100) : 0;
+            const delivered = orders.filter(o => o.status === 'delivered').length;
+            const deliverRate = ok.length ? Math.round(delivered / ok.length * 100) : 0;
+            const discountSum = ok.reduce((s, o) => s + (Number(o.discount) || 0), 0);
+            const phones = {};
+            ok.forEach(o => { const p = String((o.customer && o.customer.phone) || ''); if (p) phones[p] = (phones[p] || 0) + 1; });
+            const custs = Object.keys(phones).length, repeat = Object.values(phones).filter(c => c > 1).length;
+
+            // آخر 14 يوم
+            const dayKey = d => d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+            const days = [];
+            for (let i = 13; i >= 0; i--) { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - i); days.push({ k: dayKey(d), label: d.getDate(), n: 0, v: 0 }); }
+            ok.forEach(o => { if (!o.createdAt) return; const d = days.find(x => x.k === dayKey(new Date(o.createdAt))); if (d) { d.n++; d.v += tot(o); } });
+
+            // ساعات اليوم
+            const hours = Array.from({ length: 24 }, (_, h) => ({ label: h, n: 0 }));
+            ok.forEach(o => { if (o.createdAt) hours[new Date(o.createdAt).getHours()].n++; });
+            const peak = hours.reduce((a, b) => b.n > a.n ? b : a, hours[0]);
+
+            const bars = (items, h, tip) => {
+                const mx = Math.max(1, ...items.map(x => x.n));
+                return `<div style="display:flex; align-items:flex-end; gap:3px; height:${h}px;">` + items.map(x => `<div title="${esc(tip(x))}" style="flex:1; min-width:0; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; height:100%;"><div style="font-size:9px;">${x.n || ''}</div><div style="width:100%; background:var(--accent-dark); border-radius:3px 3px 0 0; height:${Math.round(x.n / mx * (h - 32))}px; min-height:${x.n ? 2 : 0}px;"></div><div style="font-size:9px; ${MUTED}">${x.label}</div></div>`).join('') + '</div>';
+            };
+            const rows = (arr, fmt) => {
+                if (!arr.length) return empty;
+                const mx = Math.max(1, ...arr.map(a => a[1].n));
+                return arr.map(([name, d]) => `<div style="margin-bottom:6px; font-size:12px;"><div style="display:flex; justify-content:space-between; gap:8px;"><span>${esc(name)}</span><strong>${fmt(d)}</strong></div><div style="height:5px; background:var(--brand-gray); border-radius:3px; margin-top:2px;"><div style="height:100%; width:${Math.round(d.n / mx * 100)}%; background:var(--accent-dark); border-radius:3px;"></div></div></div>`).join('');
+            };
+            const tally = (getKey) => {
+                const m = {};
+                ok.forEach(o => (o.items || []).forEach(i => { const k = getKey(i); if (!k) return; const e = m[k] || (m[k] = { n: 0, v: 0 }); e.n++; e.v += Number(i.price) || 0; }));
+                return Object.entries(m).sort((a, b) => b[1].n - a[1].n);
+            };
+            const gv = {};
+            ok.forEach(o => { const g = (o.customer && o.customer.gov) || 'غير محدد'; const e = gv[g] || (gv[g] = { n: 0, v: 0 }); e.n++; e.v += tot(o); });
+            const topGov = Object.entries(gv).sort((a, b) => b[1].n - a[1].n).slice(0, 8);
+            const cp = {}; orders.forEach(o => { if (o.coupon) { const e = cp[o.coupon] || (cp[o.coupon] = { n: 0 }); e.n++; } });
+            const st = Object.entries(STATUSES).map(([k, v]) => `<span style="display:inline-block; margin:0 0 4px 6px; padding:3px 10px; border-radius:12px; background:${STATUS_COLORS[k]}1a; color:${STATUS_COLORS[k]}; font-weight:700;">${v}: ${orders.filter(o => (o.status || 'new') === k).length}</span>`).join('');
+
             box.innerHTML = `
-                <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px;">${card('آخر 24 ساعة', within(1))}${card('آخر 7 أيام', within(7))}${card('آخر 30 يوم', within(30))}</div>
-                <div style="margin-bottom:14px;">${card('كل الطلبات (بدون الملغي)', ok)}</div>
-                <div style="font-size:12px; margin-bottom:14px;">${st}</div>
-                <h4 style="font-size:13px; margin-bottom:6px;">الأكثر طلبًا (عدد القطع)</h4>${li(top)}
-                <h4 style="font-size:13px; margin:14px 0 6px;">استخدام الكوبونات</h4>${li(Object.entries(cp))}`;
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; margin-bottom:8px;">${card('آخر 24 ساعة', within(1))}${card('آخر 7 أيام', within(7))}${card('آخر 30 يوم', within(30))}${card('كل الطلبات (بدون الملغي)', ok)}</div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; margin-bottom:12px;">
+                    ${kpi('متوسط قيمة الطلب', money(avg) + ' ج.م', ok.length + ' طلب')}
+                    ${kpi('نسبة التسليم', deliverRate + '%', delivered + ' من ' + ok.length)}
+                    ${kpi('نسبة الإلغاء', cancelRate + '%', cancelled + ' من ' + orders.length)}
+                    ${kpi('عملاء متكررين', repeat, 'من ' + custs + ' عميل')}
+                    ${kpi('إجمالي الخصومات', money(discountSum) + ' ج.م', 'كوبونات')}
+                </div>
+                <div style="font-size:12px; margin-bottom:12px;">${st}</div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:10px;">
+                    ${panel('الطلبات في آخر 14 يوم (رقم اليوم تحت كل عمود)', bars(days, 110, x => x.n + ' طلب - ' + money(x.v) + ' ج.م'))}
+                    ${panel('أكتر ساعات الطلب في اليوم' + (peak.n ? ' (الذروة: ' + peak.label + ':00)' : ''), bars(hours, 110, x => x.label + ':00 - ' + x.n + ' طلب'))}
+                    ${panel('أكتر المحافظات طلبًا', rows(topGov, d => d.n + ' طلب · ' + money(d.v) + ' ج.م'))}
+                    ${panel('الأكثر طلبًا (عدد القطع)', rows(tally(i => i.title).slice(0, 8), d => d.n + ' قطعة · ' + money(d.v) + ' ج.م'))}
+                    ${panel('أكتر المقاسات', rows(tally(i => i.size).slice(0, 6), d => d.n + ' قطعة'))}
+                    ${panel('أكتر الألوان', rows(tally(i => i.color).slice(0, 6), d => d.n + ' قطعة'))}
+                    ${panel('استخدام الكوبونات', rows(Object.entries(cp).sort((a, b) => b[1].n - a[1].n), d => d.n + ' مرة'))}
+                </div>`;
         }
 
         function soundOn() { return localStorage.getItem('zz_sound_off') !== '1'; }
@@ -516,7 +611,7 @@
                 orders = list; renderOrders(); renderStats(); renderLeads();
                 if (!firstSnap && added > 0) { beep(); document.title = `🔔 (${added}) طلب جديد - لوحة الإدارة`; }
                 firstSnap = false;
-            }, err => { console.error(err); alert('تعذر تحميل الطلبات: ' + err.message); });
+            }, err => { console.error(err); if (loggingOut) return; alert('تعذر تحميل الطلبات: ' + err.message); });
         }
 
         function switchTab(tab, btn) {
@@ -649,24 +744,30 @@
             const ids = Array.from(document.querySelectorAll('.order-cb:checked')).map(cb => cb.dataset.id);
             if (ids.length === 0) { alert('حدد طلب واحد على الأقل للطباعة'); return; }
             const printOrders = orders.filter(o => ids.includes(o.orderId));
-            document.getElementById('print-area').innerHTML = printOrders.map(ord => `
+            document.getElementById('print-area').innerHTML = printOrders.map(ord => {
+                const items = ord.items || [];
+                const sub = ord.subtotal != null ? ord.subtotal : items.reduce((s, i) => s + (Number(i.price) || 0), 0);
+                const p2 = ord.customer.phone2 && ord.customer.phone2 !== 'لا يوجد' ? ' &nbsp;|&nbsp; ' + esc(ord.customer.phone2) : '';
+                return `
                 <div class="print-invoice-item">
-                    <div style="display:flex; justify-content:space-between; border-bottom:2px solid #000; padding-bottom:4px;">
-                        <h2>Zazoua Store</h2><div>فاتورة طلب: ${ord.orderId}<br>${ord.dateStr}</div>
+                    <div class="inv-brand">Zazoua</div>
+                    <div class="inv-meta"><span>فاتورة رقم: <b>${esc(ord.orderId)}</b></span><span>${esc(ord.dateStr)}</span></div>
+                    <div class="inv-cust">
+                        <div><b>العميل:</b> ${esc(ord.customer.name)}</div>
+                        <div><b>الهاتف:</b> ${esc(ord.customer.phone)}${p2}</div>
+                        <div class="full"><b>العنوان:</b> ${esc(ord.customer.gov)} - ${esc(ord.customer.address)}</div>
                     </div>
-                    <div style="font-size:13px; margin:8px 0;">
-                        <div><strong>العميل:</strong> ${esc(ord.customer.name)} | <strong>الهاتف 1:</strong> ${esc(ord.customer.phone)} | <strong>الهاتف 2:</strong> ${esc(ord.customer.phone2)}</div>
-                        <div><strong>العنوان:</strong> ${esc(ord.customer.gov)} - ${esc(ord.customer.address)}</div>
-                    </div>
-                    <table style="width:100%; border-collapse:collapse; font-size:12px;">
-                        <tr style="background:#eee;"><th>المنتج</th><th>المقاس</th><th>اللون</th><th>السعر</th></tr>
-                        ${ord.items.map(i => `<tr><td>${esc(i.title)}</td><td>${esc(i.size)}</td><td>${esc(i.color)}</td><td>${esc(i.price)} ج.م</td></tr>`).join('')}
+                    <table class="inv-table">
+                        <thead><tr><th>#</th><th>المنتج</th><th>المقاس</th><th>اللون</th><th>السعر</th></tr></thead>
+                        <tbody>${items.map((i, n) => `<tr><td>${n + 1}</td><td>${esc(i.title)}</td><td>${esc(i.size)}</td><td>${esc(i.color)}</td><td>${esc(i.price)} ج.م</td></tr>`).join('')}</tbody>
                     </table>
-                    <div style="border-top:1px solid #000; padding-top:4px; display:flex; justify-content:space-between; font-weight:bold;">
-                        <span>الشحن: ${ord.shipping} ج.م${ord.discount ? ' | خصم: ' + ord.discount + ' ج.م' : ''}</span><span>الإجمالي الكلي: ${ord.total} ج.م</span>
+                    <div class="inv-totals">
+                        <div class="inv-lines"><span>المنتجات: ${esc(sub)} ج.م</span><span>الشحن: ${esc(ord.shipping)} ج.م</span>${ord.discount ? `<span>الخصم: ${esc(ord.discount)} ج.م</span>` : ''}</div>
+                        <div class="inv-total">الإجمالي: ${esc(ord.total)} ج.م</div>
                     </div>
-                </div>
-            `).join('');
+                    <div class="inv-note">ملاحظة: في حالة رفض الاستلام يتم دفع 30 ج فقط للمندوب.</div>
+                </div>`;
+            }).join('');
             window.print();
         }
 
