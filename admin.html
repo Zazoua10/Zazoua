@@ -89,7 +89,10 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">كلمة السر</label>
-                    <input type="password" id="admin-pass" class="form-input" required>
+                    <div style="position:relative;">
+                        <input type="password" id="admin-pass" class="form-input" required autocomplete="current-password" style="padding-left:40px;">
+                        <button type="button" id="pass-toggle" onclick="togglePass()" aria-label="إظهار أو إخفاء كلمة السر" style="position:absolute; left:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--text-muted); font-size:15px; padding:4px;"><i class="fa-solid fa-eye"></i></button>
+                    </div>
                 </div>
                 <button type="submit" class="submit-btn" style="width:100%; background:var(--accent-dark);">دخول</button>
             </form>
@@ -341,6 +344,13 @@
                 else m = 'تعذر تسجيل الدخول: ' + (c || (err && err.message) || 'خطأ غير معروف');
                 alert(m);
             }
+        }
+
+        function togglePass() {
+            const i = document.getElementById('admin-pass'), b = document.querySelector('#pass-toggle i');
+            const show = i.type === 'password';
+            i.type = show ? 'text' : 'password';
+            b.className = show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
         }
 
         let loggingOut = false;
