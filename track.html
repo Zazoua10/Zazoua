@@ -40,8 +40,12 @@ button{width:100%;margin-top:14px;padding:12px;border:none;border-radius:10px;ba
 </div></main>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-const db = getFirestore(initializeApp({ apiKey: "AIzaSyDsQTX9rCxxT7Dl-OhDSkrce85lM_yDaf4", authDomain: "zazoua-b4d33.firebaseapp.com", projectId: "zazoua-b4d33", storageBucket: "zazoua-b4d33.firebasestorage.app", messagingSenderId: "990100552162", appId: "1:990100552162:web:5b886a47ef93ff3ad7a1bb" }));
+const app = initializeApp({ apiKey: "AIzaSyDsQTX9rCxxT7Dl-OhDSkrce85lM_yDaf4", authDomain: "zazoua-b4d33.firebaseapp.com", projectId: "zazoua-b4d33", storageBucket: "zazoua-b4d33.firebasestorage.app", messagingSenderId: "990100552162", appId: "1:990100552162:web:5b886a47ef93ff3ad7a1bb" });
+// App Check (reCAPTCHA Enterprise / Fraud Defense) - لازم يتعمل قبل أي استخدام لـ Firestore
+try { initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider("6LeTMBouAAAAAPog_ic7r83Gn1IKcq0C9laQMCqT"), isTokenAutoRefreshEnabled: true }); } catch (e) { console.warn("AppCheck init failed", e); }
+const db = getFirestore(app);
 const STEPS = [['new', 'تم استلام الطلب'], ['confirmed', 'تم تأكيد الطلب'], ['shipped', 'تم شحن الطلب'], ['delivered', 'تم التسليم']];
 const res = document.getElementById('res');
 window.check = async () => {

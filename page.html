@@ -27,8 +27,12 @@ h1{font-size:20px;font-weight:800;margin-bottom:12px}
 <main><div class="box"><h1 id="title">...</h1><div id="body">جاري التحميل...</div><a id="wa" class="wa" target="_blank" rel="noopener">💬 تواصل معنا على واتساب</a></div></main>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-const db = getFirestore(initializeApp({ apiKey: "AIzaSyDsQTX9rCxxT7Dl-OhDSkrce85lM_yDaf4", authDomain: "zazoua-b4d33.firebaseapp.com", projectId: "zazoua-b4d33", storageBucket: "zazoua-b4d33.firebasestorage.app", messagingSenderId: "990100552162", appId: "1:990100552162:web:5b886a47ef93ff3ad7a1bb" }));
+const app = initializeApp({ apiKey: "AIzaSyDsQTX9rCxxT7Dl-OhDSkrce85lM_yDaf4", authDomain: "zazoua-b4d33.firebaseapp.com", projectId: "zazoua-b4d33", storageBucket: "zazoua-b4d33.firebasestorage.app", messagingSenderId: "990100552162", appId: "1:990100552162:web:5b886a47ef93ff3ad7a1bb" });
+// App Check (reCAPTCHA Enterprise / Fraud Defense) - لازم يتعمل قبل أي استخدام لـ Firestore
+try { initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider("6LeTMBouAAAAAPog_ic7r83Gn1IKcq0C9laQMCqT"), isTokenAutoRefreshEnabled: true }); } catch (e) { console.warn("AppCheck init failed", e); }
+const db = getFirestore(app);
 const PAGES = { about: ['من نحن', 'aboutText'], policy: ['سياسة الاستبدال والاسترجاع', 'policyText'], contact: ['تواصل معنا', 'contactText'] };
 const p = PAGES[new URLSearchParams(location.search).get('p')] ? new URLSearchParams(location.search).get('p') : 'about';
 document.getElementById('nav').innerHTML = Object.entries(PAGES).map(([k, v]) => `<a href="page.html?p=${k}" class="${k === p ? 'on' : ''}">${v[0]}</a>`).join('');
