@@ -151,6 +151,20 @@
         .pm-sticky { position: sticky; bottom: 0; z-index: 6; background: #fff; border-top: 1px solid var(--border-color); padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 -4px 14px rgba(0,0,0,.08); }
         .pm-bar-btn { flex: 1; max-width: 260px; background: var(--success-color); color: #fff; border: none; padding: 12px; border-radius: var(--radius-md); font-weight: 800; font-size: 15px; cursor: pointer; }
         @media (min-width: 768px) { .pm-sticky { display: none; } }
+
+        /* ===== طلباتي ===== */
+        .header-actions { display: flex; align-items: center; gap: 8px; }
+        .header-orders-btn { background: #fff; color: var(--accent-dark); border: 1px solid var(--border-color); padding: 7px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+        .mo-card { border: 1px solid var(--border-color); border-radius: 12px; padding: 12px; margin-bottom: 10px; background: #fff; }
+        .mo-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+        .mo-id { font-weight: 800; font-size: 13px; direction: ltr; }
+        .mo-date { font-size: 11px; color: var(--text-muted); }
+        .mo-items { font-size: 12px; line-height: 1.7; color: var(--text-main); margin-bottom: 6px; }
+        .mo-chip { display: inline-block; font-size: 12px; font-weight: 800; padding: 3px 12px; border-radius: 14px; }
+        .mo-line { font-size: 12px; margin-top: 6px; font-weight: 700; }
+        .mo-ship { margin-top: 8px; background: #f1f8f4; border: 1px solid #cfe8d8; border-radius: 8px; padding: 8px 10px; font-size: 12px; font-weight: 700; line-height: 1.8; }
+        .mo-steps { display: flex; gap: 4px; margin-top: 10px; }
+        .mo-steps span { flex: 1; height: 5px; border-radius: 3px; background: #e9ecef; }
     </style>
 </head>
 <body>
@@ -161,11 +175,14 @@
     <header class="site-header">
         <div class="header-container">
             <span class="brand-title" onclick="selectMainCategory('all')">Zazoua</span>
-            <button class="header-cart-btn" onclick="openCartModal()">
-                <i class="fa-solid fa-cart-shopping"></i>
-                <span>السلة</span>
-                <span class="cart-badge" id="header-cart-count">0</span>
-            </button>
+            <div class="header-actions">
+                <button class="header-orders-btn" type="button" onclick="openMyOrders()"><i class="fa-solid fa-box"></i> <span>طلباتي</span></button>
+                <button class="header-cart-btn" onclick="openCartModal()">
+                    <i class="fa-solid fa-cart-shopping"></i>
+                    <span>السلة</span>
+                    <span class="cart-badge" id="header-cart-count">0</span>
+                </button>
+            </div>
         </div>
     </header>
 
@@ -276,6 +293,22 @@
         </div>
     </div>
 
+    <!-- Modal طلباتي -->
+    <div class="modal-overlay" id="my-orders-modal" onclick="handleOutsideClick(event, 'my-orders-modal', closeMyOrders)">
+        <div class="modal-box" style="max-width: 520px;">
+            <div class="modal-header">
+                <span style="font-weight: 800;">طلباتي</span>
+                <button class="close-modal" onclick="closeMyOrders()">&times;</button>
+            </div>
+            <div id="my-orders-list"></div>
+            <div style="display:flex; gap:8px; margin-top:6px;">
+                <button type="button" onclick="refreshMyOrders()" style="flex:1; background:var(--accent-dark); color:#fff; border:none; padding:10px; border-radius:var(--radius-md); font-weight:800; font-size:13px; cursor:pointer;">تحديث الحالة</button>
+                <button type="button" onclick="clearMyOrders()" style="background:#fff; color:var(--danger-color); border:1px solid var(--border-color); padding:10px 14px; border-radius:var(--radius-md); font-weight:700; font-size:12px; cursor:pointer;">مسح القايمة</button>
+            </div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:10px; line-height:1.7;">القايمة محفوظة على الجهاز ده بس. لو طلبت من جهاز تاني، استخدم <a href="track.html" style="color:var(--accent-dark); font-weight:700;">صفحة تتبع الطلب</a>.</div>
+        </div>
+    </div>
+
     <!-- Modal السلة -->
     <div class="modal-overlay" id="cart-modal" onclick="handleOutsideClick(event, 'cart-modal', closeCartModal)">
         <div class="modal-box" style="max-width: 480px;">
@@ -361,6 +394,7 @@
             <div id="success-order-id" style="font-weight:800; margin-bottom:6px;"></div>
             <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">تقدر تتابع حالة طلبك من "تتبع طلبك" أسفل المتجر بآخر 4 أرقام من هاتفك.</div>
             <button id="wa-order-btn" class="submit-order-btn" style="display:none; background:#25D366; margin-bottom:8px;" onclick="sendOrderWhatsApp()">📲 أرسل تفاصيل الطلب على واتساب</button>
+            <button class="submit-order-btn" style="background:#fff; color:var(--accent-dark); border:1px solid var(--border-color); margin-bottom:8px;" onclick="closeSuccessModal(); openMyOrders()">متابعة حالة طلباتي</button>
             <button class="submit-order-btn" style="background: var(--accent-dark);" onclick="closeSuccessModal()">العودة للمتجر</button>
         </div>
     </div>
@@ -383,6 +417,7 @@
             async saveLead(l) { try { await setDoc(doc(db, 'leads', l.id), l, { merge: true }); } catch (e) {} },
             async useCoupon(code) { try { await updateDoc(doc(db, 'coupons', code), { used: increment(1) }); } catch (e) {} },
             async getCoupon(code) { const s = await getDoc(doc(db, 'coupons', code)); return s.exists() ? s.data() : null; },
+            async getTracking(id) { const s = await getDoc(doc(db, 'tracking', String(id))); return s.exists() ? s.data() : null; },
             async addOrder(o) {
                 await setDoc(doc(db, 'orders', o.orderId), o);
                 try { await setDoc(doc(db, 'tracking', o.orderId), { orderId: o.orderId, status: 'new', phone4: String(o.customer.phone).slice(-4), createdAt: o.createdAt }); } catch (e) { console.error(e); }
@@ -775,6 +810,59 @@
             installEvt.userChoice.finally(() => { installEvt = null; const b = document.getElementById('install-btn'); if (b) b.style.display = 'none'; });
         }
 
+        // ===== طلباتي =====
+        const MY_KEY = 'zz_my_orders';
+        const MY_STEPS = ['new', 'confirmed', 'shipped', 'delivered'];
+        const MY_ST = {
+            new: ['تم استلام الطلب', 'لسه ما اتشحنش، هنأكده معاك قريبًا', '#2c6fbb'],
+            confirmed: ['تم تأكيد الطلب', 'لسه ما اتشحنش، جاري تجهيزه', '#b9770e'],
+            shipped: ['اتشحن', 'طلبك اتشحن وفي الطريق ليك', '#7d3c98'],
+            delivered: ['اتسلّم', 'تم تسليم الطلب', '#1f7244'],
+            cancelled: ['ملغي', 'تم إلغاء هذا الطلب', '#c0392b'],
+            returned: ['مرتجع', 'تم إرجاع هذا الطلب', '#a04000'],
+            exchange: ['استبدال', 'طلب الاستبدال قيد المعالجة وهنتواصل معاك', '#117a8b']
+        };
+        function getMyOrders() { try { return JSON.parse(localStorage.getItem(MY_KEY) || '[]'); } catch (e) { return []; } }
+        function saveMyOrder(o) {
+            try {
+                const list = getMyOrders().filter(x => x.id !== o.orderId);
+                list.unshift({ id: o.orderId, t: o.createdAt, total: o.total, items: o.items.map(i => `${i.title} (${i.size}/${i.color})`).join(' - ').slice(0, 400) });
+                localStorage.setItem(MY_KEY, JSON.stringify(list.slice(0, 20)));
+            } catch (e) {}
+        }
+        function openMyOrders() { document.getElementById('my-orders-modal').classList.add('active'); refreshMyOrders(); }
+        function closeMyOrders() { document.getElementById('my-orders-modal').classList.remove('active'); }
+        function clearMyOrders() {
+            if (!confirm('مسح القايمة من الجهاز ده؟ (مش هيلغي أي طلب)')) return;
+            try { localStorage.removeItem(MY_KEY); } catch (e) {}
+            renderMyOrders({}, false);
+        }
+        async function refreshMyOrders() {
+            const list = getMyOrders(), st = {};
+            renderMyOrders(st, true);
+            if (!list.length) return;
+            await Promise.all(list.map(async o => { try { st[o.id] = await fb.getTracking(o.id); } catch (e) { st[o.id] = 'ERR'; } }));
+            renderMyOrders(st, false);
+        }
+        function renderMyOrders(st, loading) {
+            const list = getMyOrders(), box = document.getElementById('my-orders-list');
+            if (!list.length) { box.innerHTML = '<div style="text-align:center; padding:26px 10px; color:var(--text-muted); font-size:13px; line-height:1.8;">مفيش طلبات اتعملت من الجهاز ده لسه.</div>'; return; }
+            box.innerHTML = list.map(o => {
+                const d = st[o.id];
+                let status;
+                if (loading && d === undefined) status = '<div class="mo-line" style="color:var(--text-muted);">جاري تحديث الحالة...</div>';
+                else if (d === 'ERR' || d === undefined) status = '<div class="mo-line" style="color:var(--danger-color);">تعذر تحديث الحالة، جرّب زرار التحديث.</div>';
+                else if (d === null) status = '<div class="mo-line" style="color:var(--text-muted);">مش لاقيين الطلب ده، ممكن يكون اتحذف. كلمنا لو محتاج مساعدة.</div>';
+                else {
+                    const m = MY_ST[d.status] || MY_ST.new, idx = MY_STEPS.indexOf(d.status);
+                    status = `<span class="mo-chip" style="background:${m[2]}1a; color:${m[2]};">${m[0]}</span><div class="mo-line" style="color:${m[2]};">${m[1]}</div>`
+                        + (idx >= 0 ? `<div class="mo-steps">${MY_STEPS.map((_, k) => `<span style="${k <= idx ? 'background:' + m[2] : ''}"></span>`).join('')}</div>` : '')
+                        + ((d.status === 'shipped' || d.status === 'delivered') && (d.shipCo || d.shipNo) ? `<div class="mo-ship">${d.shipCo ? 'شركة الشحن: ' + esc(d.shipCo) + '<br>' : ''}${d.shipNo ? 'رقم الشحنة: ' + esc(d.shipNo) : ''}</div>` : '');
+                }
+                return `<div class="mo-card"><div class="mo-top"><span class="mo-id">${esc(o.id)}</span><span class="mo-date">${o.t ? new Date(o.t).toLocaleDateString('ar-EG') : ''}</span></div><div class="mo-items">${esc(o.items)}</div><div style="font-size:12px; font-weight:800; margin-bottom:6px;">الإجمالي: ${esc(o.total)} ج.م</div>${status}</div>`;
+            }).join('');
+        }
+
         // ===== حوافز السلة =====
         function renderPromoHint(sub, disc) {
             const el = document.getElementById('promo-hint'); if (!el) return;
@@ -967,7 +1055,7 @@
                 items: [...cart], subtotal, shipping: shipFee, discount: disc, coupon: calcDisc(subT).label, utm: getUtm(), total: subtotal - disc + shipFee
             });
 
-            try { await fb.addOrder(order); lastOrder = order; useCouponAfter(order); clearTimeout(leadTimer); fb.saveLead(leadData(true)); localStorage.removeItem('zz_lead_id'); document.getElementById('success-order-id').innerText = 'رقم طلبك: ' + order.orderId; localStorage.setItem('zz_orders_t', JSON.stringify([...hist, nowT])); track('Purchase', { value: order.total, name: order.orderId }); document.getElementById('wa-order-btn').style.display = settings.whatsapp ? 'block' : 'none'; } catch (err) { console.error(err); showToast('تعذر إرسال الطلب، حاول مرة أخرى'); return; }
+            try { await fb.addOrder(order); lastOrder = order; saveMyOrder(order); useCouponAfter(order); clearTimeout(leadTimer); fb.saveLead(leadData(true)); localStorage.removeItem('zz_lead_id'); document.getElementById('success-order-id').innerText = 'رقم طلبك: ' + order.orderId; localStorage.setItem('zz_orders_t', JSON.stringify([...hist, nowT])); track('Purchase', { value: order.total, name: order.orderId }); document.getElementById('wa-order-btn').style.display = settings.whatsapp ? 'block' : 'none'; } catch (err) { console.error(err); showToast('تعذر إرسال الطلب، حاول مرة أخرى'); return; }
             cart = []; saveCartState();
             closeCheckoutModal();
             document.getElementById('order-success-modal').classList.add('active');
