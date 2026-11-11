@@ -399,6 +399,27 @@
         </div>
     </div>
 
+    <!-- Modal تسجيل العملاء -->
+    <div class="modal-overlay" id="member-modal" onclick="handleOutsideClick(event, 'member-modal', closeMemberModal)">
+        <div class="modal-box" style="max-width: 420px;">
+            <div class="modal-header">
+                <span style="font-weight: 800;">🎁 سجّل معانا</span>
+                <button class="close-modal" onclick="closeMemberModal()">&times;</button>
+            </div>
+            <div style="font-size:14px; line-height:1.8; font-weight:700; background:var(--brand-gray); padding:10px 12px; border-radius:8px; margin-bottom:12px; text-align:center;">هيتم إرسال هدية لحضرتك يوم ميلادك من ( زعزوعة-Zazoua ) 🎂</div>
+            <form id="member-form" onsubmit="handleMemberSubmit(event)" novalidate>
+                <div class="form-group"><label class="form-label">الاسم *</label><input type="text" id="mem-name" class="form-input" maxlength="100" placeholder="الاسم بالكامل" autocomplete="name"></div>
+                <div class="form-group"><label class="form-label">البريد الإلكتروني *</label><input type="email" id="mem-email" class="form-input" maxlength="120" placeholder="name@example.com" autocomplete="email" style="direction:ltr; text-align:right;"></div>
+                <div class="form-group"><label class="form-label">رقم الهاتف (11 رقم - واتساب) *</label><input type="tel" id="mem-phone" class="form-input" maxlength="11" placeholder="01XXXXXXXXX" autocomplete="tel"></div>
+                <div class="form-group"><label class="form-label">تاريخ الميلاد *</label><input type="date" id="mem-birth" class="form-input" min="1930-01-01"></div>
+                <input type="text" id="mem-hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute; left:-9999px; opacity:0;">
+                <div style="font-size:10px; color:var(--text-muted); margin-bottom:10px; line-height:1.6;">بياناتك بنستخدمها لإرسال الهدية والتواصل معاك بس، ومش بنشاركها مع أي طرف. التفاصيل في <a href="page.html?p=privacy" style="color:var(--accent-dark); font-weight:700;">سياسة الخصوصية</a>.</div>
+                <button type="submit" id="mem-submit" class="submit-order-btn">سجّلني واستلم هديتي 🎁</button>
+                <button type="button" onclick="closeMemberModal()" style="width:100%; margin-top:6px; background:none; border:none; color:var(--text-muted); font-size:12px; cursor:pointer;">مش دلوقتي</button>
+            </form>
+        </div>
+    </div>
+
     <script type="module">
         try { const dv = new URLSearchParams(location.search).get('dev'); if (dv === '1') localStorage.setItem('zz_dev', '1'); if (dv === '0') localStorage.removeItem('zz_dev'); } catch (e) {}
 
@@ -417,6 +438,7 @@
             async saveLead(l) { try { await setDoc(doc(db, 'leads', l.id), l, { merge: true }); } catch (e) {} },
             async useCoupon(code) { try { await updateDoc(doc(db, 'coupons', code), { used: increment(1) }); } catch (e) {} },
             async getCoupon(code) { const s = await getDoc(doc(db, 'coupons', code)); return s.exists() ? s.data() : null; },
+            async addMember(m) { await setDoc(doc(db, 'members', m.phone), m); },
             async getTracking(id) { const s = await getDoc(doc(db, 'tracking', String(id))); return s.exists() ? s.data() : null; },
             async addOrder(o) {
                 await setDoc(doc(db, 'orders', o.orderId), o);
@@ -460,7 +482,7 @@
             renderProducts();
             populateShippingOptions();
             updateCartUI();
-            checkDirectProductUrl();
+            checkDirectProductUrl(); maybeShowMember();
         });
 
         async function loadData() {
@@ -740,7 +762,7 @@
         const HERO_MS = 4000;
         function renderHero() {
             const wrap = document.getElementById('hero-wrap');
-            heroItems = products.filter(p => !p.soldOut).slice(0, 6);
+            const picked = products.filter(p => p.hero && !p.soldOut); heroItems = (picked.length ? picked : products.filter(p => !p.soldOut)).slice(0, 8);
             if (!heroItems.length) { wrap.style.display = 'none'; return; }
             document.getElementById('hs-track').innerHTML = heroItems.map((p, i) => {
                 const img = (p.images && p.images.length) ? p.images[0] : p.image;
@@ -875,6 +897,41 @@
             if (!o.coupon || o.coupon === 'باقة') return;
             try { const u = JSON.parse(localStorage.getItem('zz_used_coupons') || '[]'); u.push(o.coupon); localStorage.setItem('zz_used_coupons', JSON.stringify(u)); } catch (e) {}
             fb.useCoupon(o.coupon);
+        }
+
+        // ===== تسجيل العملاء (هدية عيد الميلاد) =====
+        const MEM_KEY = 'zz_member', MEM_SKIP = 'zz_member_skip';
+        function maybeShowMember() {
+            try { if (localStorage.getItem(MEM_KEY)) return; if (Date.now() - (+localStorage.getItem(MEM_SKIP) || 0) < 3 * 864e5) return; } catch (e) {}
+            setTimeout(() => {
+                if (document.querySelector('.modal-overlay.active')) return;
+                const m = document.getElementById('member-modal'); if (m) m.classList.add('active');
+            }, 3500);
+        }
+        function closeMemberModal() {
+            document.getElementById('member-modal').classList.remove('active');
+            try { localStorage.setItem(MEM_SKIP, Date.now()); } catch (e) {}
+        }
+        async function handleMemberSubmit(e) {
+            e.preventDefault();
+            const v = id => document.getElementById(id).value.trim();
+            if (v('mem-hp')) { document.getElementById('member-modal').classList.remove('active'); return; }
+            const name = v('mem-name'), email = v('mem-email').toLowerCase(), birth = v('mem-birth');
+            const phone = v('mem-phone').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+            if (name.split(/\s+/).length < 2) { showToast('اكتب الاسم كامل (كلمتين على الأقل)'); return; }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { showToast('اكتب بريد إلكتروني صحيح'); return; }
+            if (!/^01[0125][0-9]{8}$/.test(phone)) { showToast('اكتب رقم هاتف مصري صحيح من 11 رقم'); return; }
+            const maxD = new Date(); maxD.setFullYear(maxD.getFullYear() - 10);
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(birth) || birth < '1930-01-01' || birth > maxD.toISOString().slice(0, 10)) { showToast('اكتب تاريخ ميلاد صحيح'); return; }
+            const btn = document.getElementById('mem-submit'); btn.disabled = true;
+            try {
+                await fb.addMember({ name: name.slice(0, 100), email: email.slice(0, 120), phone, birth, createdAt: Date.now() });
+                try { localStorage.setItem(MEM_KEY, '1'); } catch (e2) {}
+                document.getElementById('member-modal').classList.remove('active');
+                document.getElementById('member-form').reset();
+                showToast('تم التسجيل 🎉 هنبعتلك هدية يوم ميلادك');
+            } catch (err) { console.error(err); showToast('تعذر التسجيل، لو سجلت قبل كده مش محتاج تسجل تاني'); }
+            btn.disabled = false;
         }
 
         function esc(s) { return String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
