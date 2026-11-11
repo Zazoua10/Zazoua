@@ -907,6 +907,14 @@
 
         // ===== تسجيل العملاء (هدية عيد الميلاد) =====
         const MEM_KEY = 'zz_member', MEM_SKIP = 'zz_member_skip';
+        function birthOf(id) {
+            const box = document.querySelector(`.bp[data-for="${id}"]`); if (!box) return '';
+            const g = k => box.querySelector(`[data-k="${k}"]`).value;
+            const d = g('d'), m = g('m'), y = g('y');
+            if (!d && !m && !y) return '';
+            if (!d || !m || !y || new Date(y, m - 1, d).getMonth() !== m - 1) return 'invalid';
+            return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        }
         function initBirthPickers() {
             const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
             const maxY = new Date().getFullYear() - 10;
@@ -941,7 +949,7 @@
             e.preventDefault();
             const v = id => document.getElementById(id).value.trim();
             if (v('mem-hp')) { document.getElementById('member-modal').classList.remove('active'); return; }
-            const name = v('mem-name'), email = v('mem-email').toLowerCase(), birth = v('mem-birth');
+            const name = v('mem-name'), email = v('mem-email').toLowerCase(), birth = birthOf('mem-birth');
             const phone = v('mem-phone').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
             if (name.split(/\s+/).length < 2) { showToast('اكتب الاسم كامل (كلمتين على الأقل)'); return; }
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { showToast('اكتب بريد إلكتروني صحيح'); return; }
@@ -1117,7 +1125,7 @@
             if (!govSelect.value) { govSelect.classList.add('invalid'); document.getElementById('err-gov').style.display='block'; isValid = false; }
             if (addressInput.value.trim().length < 6) { addressInput.classList.add('invalid'); document.getElementById('err-address').style.display='block'; isValid = false; }
 
-            const birthVal = document.getElementById('cust-birth').value.trim();
+            const birthVal = birthOf('cust-birth');
             if (birthVal) { const maxB = new Date(); maxB.setFullYear(maxB.getFullYear() - 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(birthVal) || birthVal < '1930-01-01' || birthVal > maxB.toISOString().slice(0, 10)) { isValid = false; showToast('اكتب تاريخ ميلاد صحيح أو سيبه فاضي'); } }
             if (!isValid) return;
             if (document.getElementById('hp-field').value) { cart = []; saveCartState(); closeCheckoutModal(); return; }
