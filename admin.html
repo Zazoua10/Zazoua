@@ -701,7 +701,7 @@
             fb.watchOrders(list => {
                 list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
                 const added = list.length - orders.length;
-                orders = list; renderOrders(); renderStats(); renderStatsExtra(); renderLeads();
+                orders = list; renderOrders(); renderStats(); renderStatsExtra(); renderLeads(); renderMembers();
                 if (!firstSnap && added > 0) { beep(); document.title = `🔔 (${added}) طلب جديد - لوحة الإدارة`; }
                 firstSnap = false;
             }, err => { console.error(err); if (loggingOut) return; alert('تعذر تحميل الطلبات: ' + err.message); });
@@ -765,6 +765,7 @@
             if (prev.length) h += chip('#2c6fbb', `عميل متكرر (${prev.length})`);
             const bad = prev.filter(x => ['cancelled', 'returned'].includes(x.status || 'new')).length;
             if (bad) h += chip('#b9770e', `${bad} ملغي/مرتجع سابق`);
+            if (o.customer && o.customer.birth) { const b = o.customer.birth; h += chip('#8e44ad', 'ميلاده ' + b.slice(8) + '/' + b.slice(5, 7) + '/' + b.slice(0, 4)); }
             return h;
         }
 
@@ -777,7 +778,7 @@
         }
 
         async function sendBirthdayGift(phone) {
-            const m = members.find(x => x.phone === phone); if (!m) return;
+            const m = allMembers().find(x => x.phone === phone); if (!m) return;
             const d = bdayInfo(m.birth);
             const age = new Date(Date.now() + (d || 0) * 864e5).getFullYear() - (+String(m.birth).slice(0, 4));
             if (!(age > 0 && age <= 100)) { alert('تاريخ الميلاد غير صالح لحساب الخصم'); return; }
@@ -805,6 +806,15 @@
             else { d.value = ''; m.value = ''; }
             renderMembers();
         }
+        // الأعضاء المسجلين + أصحاب تاريخ الميلاد اللي كتبوه في طلب (من غير ما يسجلوا)
+        function allMembers() {
+            const have = new Set(members.map(m => String(m.phone))), fo = {};
+            orders.forEach(o => {
+                const c = o.customer || {}, ph = String(c.phone || '');
+                if (c.birth && ph && !have.has(ph) && (!fo[ph] || (o.createdAt || 0) > (fo[ph].createdAt || 0))) fo[ph] = { name: c.name, phone: ph, email: '', birth: c.birth, createdAt: o.createdAt || 0, fromOrder: true };
+            });
+            return [...members, ...Object.values(fo)];
+        }
         function bdayInfo(b) {
             const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(b || ''); if (!m) return null;
             const t = new Date(); t.setHours(0, 0, 0, 0);
@@ -814,13 +824,14 @@
         }
         function renderMembers() {
             const el = document.getElementById('members-list'); if (!el) return;
+            const all = allMembers();
             const q = (document.getElementById('member-search') ? document.getElementById('member-search').value : '').trim().toLowerCase();
-            document.getElementById('members-count').textContent = members.length ? '(' + members.length + ' عضو)' : '';
-            const list = members.map(m => ({ ...m, d: bdayInfo(m.birth) }))
+            document.getElementById('members-count').textContent = all.length ? '(' + all.length + ' عضو)' : '';
+            const list = all.map(m => ({ ...m, d: bdayInfo(m.birth) }))
                 .filter(m => !q || [m.name, m.phone, m.email].join(' ').toLowerCase().includes(q))
                 .filter(m => { const p = String(m.birth || '').split('-'); return (!mv('mf-month') || +p[1] === +mv('mf-month')) && (!mv('mf-day') || +p[2] === +mv('mf-day')); })
                 .sort((a, b) => (a.d == null ? 999 : a.d) - (b.d == null ? 999 : b.d));
-            document.getElementById('members-count').textContent = '(' + list.length + ' من ' + members.length + ' عضو)';
+            document.getElementById('members-count').textContent = '(' + list.length + ' من ' + all.length + ' عضو)';
             el.innerHTML = list.length ? list.map(m => {
                 const age = m.birth ? new Date(Date.now() + (m.d || 0) * 864e5).getFullYear() - (+String(m.birth).slice(0, 4)) : 0;
                 const ph = String(m.phone || '').replace(/\D/g, '');
@@ -829,19 +840,21 @@
                 const bd = m.birth ? new Date(m.birth + 'T12:00:00').toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
                 return `<div style="padding:8px 10px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; font-size:12px; line-height:1.9;">
                     <div style="display:flex; justify-content:space-between; gap:8px; align-items:center;"><span><strong>${esc(m.name)}</strong>${tag}</span><span>${wa} <button onclick="deleteMember('${esc(m.phone)}')" style="cursor:pointer; border:none; color:#fff; background:var(--danger-color); padding:4px 8px; border-radius:4px; font-size:11px; margin-right:4px;">حذف</button></span></div>
-                    <div style="color:var(--text-muted);">${esc(m.phone)} · ${esc(m.email)} · ميلاده: ${esc(bd)}${age ? ' · هيكمل ' + age + ' سنة · الخصم ' + age + '%' : ''}</div>
+                    <div style="color:var(--text-muted);">${esc(m.phone)} · ${m.fromOrder ? 'من طلب' : esc(m.email)} · ميلاده: ${esc(bd)}${age ? ' · هيكمل ' + age + ' سنة · الخصم ' + age + '%' : ''}</div>
                 </div>`;
             }).join('') : '<div style="font-size:12px; color:var(--text-muted);">لا يوجد أعضاء مسجلين بعد.</div>';
         }
         async function deleteMember(phone) {
+            if (!members.some(m => m.phone === phone)) { alert('ده عميل تاريخ ميلاده جاي من طلب مش من تسجيل، فمش بيتحذف من هنا.'); return; }
             if (!confirm('حذف هذا العضو؟')) return;
             try { await fb.deleteMember(phone); } catch (err) { alert('فشل الحذف: ' + err.message); return; }
             members = members.filter(m => m.phone !== phone); renderMembers();
         }
         function exportMembers() {
-            if (!members.length) { alert('لا يوجد أعضاء للتصدير'); return; }
+            const all = allMembers();
+            if (!all.length) { alert('لا يوجد أعضاء للتصدير'); return; }
             let csv = "\uFEFFالاسم,البريد,الهاتف,تاريخ الميلاد,تاريخ التسجيل\n";
-            members.forEach(m => { csv += [m.name, m.email, m.phone, m.birth, m.createdAt ? new Date(m.createdAt).toLocaleDateString('ar-EG') : ''].map(csvCell).join(',') + '\n'; });
+            all.forEach(m => { csv += [m.name, m.email, m.phone, m.birth, m.createdAt ? new Date(m.createdAt).toLocaleDateString('ar-EG') : ''].map(csvCell).join(',') + '\n'; });
             const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' })); a.download = 'Zazoua_Members.csv'; a.click();
         }
 
