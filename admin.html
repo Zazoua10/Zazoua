@@ -919,6 +919,7 @@
                     <div class="acc-body">
                         <div style="color:var(--text-muted);">${esc(ord.dateStr)}${ord.coupon ? ` — كوبون ${esc(ord.coupon)}: -${esc(ord.discount)} ج.م` : ''}</div>
                         <div><strong>الهاتف 1:</strong> ${esc(ord.customer.phone)} | <strong>الهاتف 2:</strong> ${esc(ord.customer.phone2)}</div>
+                        ${ord.customer.birth ? `<div><strong>تاريخ الميلاد:</strong> ${esc(ord.customer.birth)}</div>` : ''}
                         <div><strong>العنوان:</strong> ${esc(ord.customer.gov)} - ${esc(ord.customer.address)}</div>
                         ${orderInfo(ord)}
                         <div><strong>المنتجات:</strong> ${ord.items.map(i => `${esc(i.title)} (${esc(i.size)}/${esc(i.color)})`).join(' - ')}</div>

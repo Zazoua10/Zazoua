@@ -362,6 +362,10 @@
                     <div class="error-hint" id="err-address">يرجى كتابة العنوان التفصيلي بوضوح</div>
                 </div>
                 <div class="form-group">
+                    <label class="form-label">تاريخ ميلادك 🎂 (اختياري - هنبعتلك هدية يوم ميلادك من زعزوعة-Zazoua)</label>
+                    <input type="date" id="cust-birth" class="form-input" min="1930-01-01">
+                </div>
+                <div class="form-group">
                     <label class="form-label">كود الخصم (اختياري)</label>
                     <div style="display:flex; gap:6px;">
                         <input type="text" id="cust-coupon" class="form-input" placeholder="اكتب كود الخصم هنا">
@@ -1092,6 +1096,8 @@
             if (!govSelect.value) { govSelect.classList.add('invalid'); document.getElementById('err-gov').style.display='block'; isValid = false; }
             if (addressInput.value.trim().length < 6) { addressInput.classList.add('invalid'); document.getElementById('err-address').style.display='block'; isValid = false; }
 
+            const birthVal = document.getElementById('cust-birth').value.trim();
+            if (birthVal) { const maxB = new Date(); maxB.setFullYear(maxB.getFullYear() - 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(birthVal) || birthVal < '1930-01-01' || birthVal > maxB.toISOString().slice(0, 10)) { isValid = false; showToast('اكتب تاريخ ميلاد صحيح أو سيبه فاضي'); } }
             if (!isValid) return;
             if (document.getElementById('hp-field').value) { cart = []; saveCartState(); closeCheckoutModal(); return; }
             const nowT = Date.now();
@@ -1108,7 +1114,7 @@
             const order = ({
                 status: 'new', createdAt: Date.now(), orderId: 'ZZ-' + (() => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', b = crypto.getRandomValues(new Uint8Array(8)); return Array.from(b, x => A[x % A.length]).join(''); })(),
                 dateStr: new Date().toLocaleString('ar-EG'),
-                customer: { name: nameInput.value.trim(), phone: cleanPhone, phone2: phone2Input.value.trim() || 'لا يوجد', address: addressInput.value.trim(), gov: govName },
+                customer: { name: nameInput.value.trim(), phone: cleanPhone, phone2: phone2Input.value.trim() || 'لا يوجد', address: addressInput.value.trim(), gov: govName, ...(birthVal ? { birth: birthVal } : {}) },
                 items: [...cart], subtotal, shipping: shipFee, discount: disc, coupon: calcDisc(subT).label, utm: getUtm(), total: subtotal - disc + shipFee
             });
 
