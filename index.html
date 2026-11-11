@@ -363,7 +363,7 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">تاريخ ميلادك 🎂 (اختياري - هنبعتلك هدية يوم ميلادك من زعزوعة-Zazoua)</label>
-                    <input type="date" id="cust-birth" class="form-input" min="1930-01-01">
+                    <div class="bp" data-for="cust-birth" style="display:flex; gap:6px;"></div><input type="hidden" id="cust-birth">
                 </div>
                 <div class="form-group">
                     <label class="form-label">كود الخصم (اختياري)</label>
@@ -415,7 +415,7 @@
                 <div class="form-group"><label class="form-label">الاسم *</label><input type="text" id="mem-name" class="form-input" maxlength="100" placeholder="الاسم بالكامل" autocomplete="name"></div>
                 <div class="form-group"><label class="form-label">البريد الإلكتروني *</label><input type="email" id="mem-email" class="form-input" maxlength="120" placeholder="name@example.com" autocomplete="email" style="direction:ltr; text-align:right;"></div>
                 <div class="form-group"><label class="form-label">رقم الهاتف (11 رقم - واتساب) *</label><input type="tel" id="mem-phone" class="form-input" maxlength="11" placeholder="01XXXXXXXXX" autocomplete="tel"></div>
-                <div class="form-group"><label class="form-label">تاريخ الميلاد *</label><input type="date" id="mem-birth" class="form-input" min="1930-01-01"></div>
+                <div class="form-group"><label class="form-label">تاريخ الميلاد *</label><div class="bp" data-for="mem-birth" style="display:flex; gap:6px;"></div><input type="hidden" id="mem-birth"></div>
                 <input type="text" id="mem-hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute; left:-9999px; opacity:0;">
                 <div style="font-size:10px; color:var(--text-muted); margin-bottom:10px; line-height:1.6;">بياناتك بنستخدمها لإرسال الهدية والتواصل معاك بس، ومش بنشاركها مع أي طرف. التفاصيل في <a href="page.html?p=privacy" style="color:var(--accent-dark); font-weight:700;">سياسة الخصوصية</a>.</div>
                 <button type="submit" id="mem-submit" class="submit-order-btn">سجّلني واستلم هديتي 🎁</button>
@@ -477,7 +477,7 @@
             document.getElementById('products-grid').innerHTML = Array(8).fill('<div class="sk-card"><div class="sk sk-img"></div><div class="sk sk-line" style="width:70%"></div><div class="sk sk-line" style="width:40%"></div></div>').join('');
             document.getElementById('hs-track').innerHTML = '<div class="sk" style="position:absolute; top:0; right:0; bottom:0; left:0;"></div>';
             document.getElementById('hero-wrap').style.display = 'block';
-            heroBind();
+            heroBind(); initBirthPickers();
             if (!navigator.share) document.getElementById('share-btn').style.display = 'none';
             await loadData();
             renderHero();
@@ -905,6 +905,25 @@
 
         // ===== تسجيل العملاء (هدية عيد الميلاد) =====
         const MEM_KEY = 'zz_member', MEM_SKIP = 'zz_member_skip';
+        function initBirthPickers() {
+            const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+            const maxY = new Date().getFullYear() - 10;
+            const opt = (v, t) => `<option value="${v}">${t}</option>`;
+            const days = Array.from({ length: 31 }, (_, i) => opt(i + 1, i + 1)).join('');
+            const mons = months.map((m, i) => opt(i + 1, m)).join('');
+            let yrs = ''; for (let y = maxY; y >= 1930; y--) yrs += opt(y, y);
+            document.querySelectorAll('.bp').forEach(box => {
+                const h = document.getElementById(box.dataset.for);
+                box.innerHTML = `<select class="form-select" data-k="d" aria-label="اليوم">${opt('', 'اليوم')}${days}</select><select class="form-select" data-k="m" aria-label="الشهر">${opt('', 'الشهر')}${mons}</select><select class="form-select" data-k="y" aria-label="السنة">${opt('', 'السنة')}${yrs}</select>`;
+                box.addEventListener('change', () => {
+                    const g = k => box.querySelector(`[data-k="${k}"]`).value;
+                    const d = g('d'), m = g('m'), y = g('y');
+                    if (!d && !m && !y) { h.value = ''; return; }
+                    if (!d || !m || !y || new Date(y, m - 1, d).getMonth() !== m - 1) { h.value = 'invalid'; return; }
+                    h.value = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                });
+            });
+        }
         function maybeShowMember() {
             try { if (localStorage.getItem(MEM_KEY)) return; if (Date.now() - (+localStorage.getItem(MEM_SKIP) || 0) < 3 * 864e5) return; } catch (e) {}
             setTimeout(() => {
