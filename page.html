@@ -33,7 +33,16 @@ const app = initializeApp({ apiKey: "AIzaSyDsQTX9rCxxT7Dl-OhDSkrce85lM_yDaf4", a
 // App Check (reCAPTCHA Enterprise / Fraud Defense) - لازم يتعمل قبل أي استخدام لـ Firestore
 try { initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider("6LeTMBouAAAAAPog_ic7r83Gn1IKcq0C9laQMCqT"), isTokenAutoRefreshEnabled: true }); } catch (e) { console.warn("AppCheck init failed", e); }
 const db = getFirestore(app);
-const PAGES = { about: ['من نحن', 'aboutText'], policy: ['سياسة الاستبدال والاسترجاع', 'policyText'], contact: ['تواصل معنا', 'contactText'] };
+const PAGES = { about: ['من نحن', 'aboutText'], policy: ['سياسة الاستبدال والاسترجاع', 'policyText'], contact: ['تواصل معنا', 'contactText'], faq: ['الأسئلة الشائعة', 'faqText'], privacy: ['سياسة الخصوصية', 'privacyText'] };
+const DEFAULT_PRIVACY = `بنحترم خصوصيتك. الصفحة دي بتوضح إزاي بنتعامل مع بياناتك:
+
+- البيانات اللي بنجمعها: الاسم، أرقام الهاتف، المحافظة والعنوان، ومحتوى طلبك، وده بس اللي بتكتبه بنفسك في صفحة الطلب.
+- بنستخدمها في: تجهيز طلبك وشحنه، والتواصل معاك بخصوص الطلب، وتتبع حالته.
+- لو بدأت تكتب طلب ومكمّلتوش، ممكن نحتفظ بالبيانات اللي كتبتها عشان نتواصل معاك ونساعدك تكمّل الطلب.
+- بنشارك بيانات التوصيل (الاسم والهاتف والعنوان) مع شركة الشحن بس عشان توصّلك الطلب.
+- الموقع بيستخدم أدوات تحليل وإعلانات (زي Meta Pixel وTikTok Pixel وMicrosoft Clarity) بتجمع بيانات عن استخدامك للموقع عن طريق ملفات الارتباط (Cookies) لتحسين الخدمة وقياس الإعلانات.
+- مش بنبيع بياناتك لأي طرف.
+- تقدر تطلب حذف بياناتك أو تعديلها في أي وقت بالتواصل معانا من صفحة (تواصل معنا).`;
 const p = PAGES[new URLSearchParams(location.search).get('p')] ? new URLSearchParams(location.search).get('p') : 'about';
 document.getElementById('nav').innerHTML = Object.entries(PAGES).map(([k, v]) => `<a href="page.html?p=${k}" class="${k === p ? 'on' : ''}">${v[0]}</a>`).join('');
 document.getElementById('title').textContent = PAGES[p][0];
@@ -41,7 +50,7 @@ document.title = PAGES[p][0] + ' - Zazoua';
 try {
   const s = await getDoc(doc(db, 'settings', 'main'));
   const d = s.exists() ? s.data() : {};
-  document.getElementById('body').textContent = d[PAGES[p][1]] || 'سيتم إضافة المحتوى قريبًا.';
+  document.getElementById('body').textContent = d[PAGES[p][1]] || (p === 'privacy' ? DEFAULT_PRIVACY : 'سيتم إضافة المحتوى قريبًا.');
   let n = String(d.whatsapp || '').replace(/\D/g, '');
   if (n.startsWith('0')) n = '20' + n.slice(1);
   if (p === 'contact' && n) { const a = document.getElementById('wa'); a.href = 'https://wa.me/' + n; a.style.display = 'block'; }

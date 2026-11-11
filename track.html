@@ -61,6 +61,8 @@ window.check = async () => {
     const d = s.exists() ? s.data() : null;
     if (!d || d.phone4 !== p4) { sessionStorage.setItem('zz_tr', (+sessionStorage.getItem('zz_tr') || 0) + 1); sessionStorage.setItem('zz_trt', Date.now()); res.innerHTML = '<div class="err">لم نجد طلبًا بهذه البيانات، راجع الرقم وحاول مرة أخرى.</div>'; return; }
     if (d.status === 'cancelled') { res.innerHTML = '<div class="cancel">تم إلغاء هذا الطلب.</div>'; return; }
+    if (d.status === 'returned') { res.innerHTML = '<div class="cancel">تم إرجاع هذا الطلب.</div>'; return; }
+    if (d.status === 'exchange') { res.innerHTML = '<div class="ship">طلب الاستبدال قيد المعالجة، وهنتواصل معاك قريبًا.</div>'; return; }
     const idx = STEPS.findIndex(x => x[0] === d.status);
     const e = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const ship = (d.shipNo || d.shipCo) ? `<div class="ship">🚚 ${d.shipCo ? 'شركة الشحن: ' + e(d.shipCo) + '<br>' : ''}${d.shipNo ? 'رقم الشحنة: ' + e(d.shipNo) : ''}</div>` : '';

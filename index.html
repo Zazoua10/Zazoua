@@ -9,6 +9,9 @@
     <meta property="og:title" content="Zazoua Store - المتجر الرسمي">
     <meta property="og:description" content="ملابس كاجوال بتوصلك لحد البيت في كل مصر">
     <meta name="theme-color" content="#121212">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <meta property="og:site_name" content="Zazoua">
     <meta property="og:locale" content="ar_EG">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23121212'/%3E%3Ctext x='32' y='44' font-size='36' font-weight='800' text-anchor='middle' fill='white' font-family='Arial'%3EZ%3C/text%3E%3C/svg%3E">
@@ -127,9 +130,11 @@
         </div>
         <div style="display:flex; gap:8px; margin-bottom:12px;">
             <input type="search" placeholder="ابحث عن منتج..." class="form-input" style="flex:1;" oninput="searchQ = this.value.trim().toLowerCase(); renderProducts();">
+            <button id="fav-filter" type="button" onclick="toggleFavFilter()" style="border:1px solid var(--border-color); background:#fff; border-radius:8px; padding:0 12px; font-weight:700; cursor:pointer; white-space:nowrap;">♡ المفضلة</button>
             <select class="form-select" style="width:auto;" onchange="sortBy = this.value; renderProducts();"><option value="new">الأحدث</option><option value="low">الأرخص</option><option value="high">الأعلى سعرًا</option></select>
         </div>
         <div class="products-grid" id="products-grid"></div>
+        <div id="recent-section" style="display:none; margin-top:18px;"><div style="font-weight:800; font-size:14px; margin-bottom:8px;">شاهدتها مؤخرًا</div><div id="recent-list" style="display:flex; gap:10px; overflow-x:auto; padding-bottom:6px;"></div></div>
     </main>
 
     <section id="reviews-section" style="display:none; max-width:900px; margin:20px auto 0; padding:0 14px;">
@@ -142,6 +147,8 @@
         <a href="page.html?p=policy" style="color:var(--text-main); margin:0 8px;">الاستبدال والاسترجاع</a>
         <a href="page.html?p=contact" style="color:var(--text-main); margin:0 8px;">تواصل معنا</a>
         <a href="track.html" style="color:var(--text-main); margin:0 8px;">تتبع طلبك</a>
+        <a href="page.html?p=faq" style="color:var(--text-main); margin:0 8px;">الأسئلة الشائعة</a>
+        <a href="page.html?p=privacy" style="color:var(--text-main); margin:0 8px;">سياسة الخصوصية</a>
     </footer>
 
     <div class="bottom-cart-bar" id="cart-bar" style="display: none;">
@@ -164,6 +171,7 @@
             </div>
             <img id="pmodal-img" style="width:100%; height:230px; object-fit:cover; border-radius:8px; margin-bottom:10px;" src="" alt="">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <button id="pmodal-fav" type="button" onclick="toggleFav(activeProduct.id)" style="background:none; border:none; font-size:24px; cursor:pointer; color:#c0392b;">♡</button>
                 <h2 id="pmodal-name" style="font-size: 17px; font-weight: 800;"></h2>
                 <span id="pmodal-price" style="font-size: 18px; font-weight: 900; color: var(--accent-dark);"></span>
             </div>
@@ -185,6 +193,12 @@
             <button type="button" class="direct-buy-btn" onclick="buyCurrentProductDirectly()"><i class="fa-solid fa-bag-shopping"></i> طلب المنتج الان</button>
             <button type="button" class="add-to-cart-action-btn" onclick="addCurrentProductToCart()"><i class="fa-solid fa-cart-plus"></i> إضافة للسلة</button>
             <button type="button" class="copy-ad-link-btn" onclick="copyActiveProductLink()"><i class="fa-solid fa-link"></i> نسخ رابط المنتج</button>
+            <a id="pmodal-wa" target="_blank" rel="noopener" style="display:none; margin-top:8px; text-align:center; background:#25D366; color:#fff; padding:11px; border-radius:10px; font-weight:800; font-size:13px; text-decoration:none;">اسأل عن المنتج على واتساب</a>
+            <div id="pmodal-notify" style="display:none; margin-top:10px; padding:10px; background:var(--brand-gray); border-radius:8px; font-size:12px;">
+                <div style="font-weight:800; margin-bottom:6px;">المنتج نفذ حاليًا. اترك رقمك ونبلغك لما يتوفر</div>
+                <div style="display:flex; gap:6px;"><input type="tel" id="notify-phone" class="form-input" placeholder="01XXXXXXXXX" maxlength="11"><button type="button" onclick="submitNotify()" style="background:var(--accent-dark); color:#fff; border:none; border-radius:8px; padding:0 14px; font-weight:800; cursor:pointer;">أبلغني</button></div>
+            </div>
+            <div id="pmodal-related"></div>
         </div>
     </div>
 
@@ -248,6 +262,7 @@
                     </div>
                     <div id="coupon-msg" style="font-size:12px; font-weight:700; margin-top:4px;"></div>
                 </div>
+                <div id="promo-hint" style="display:none; background:#f1f8f4; border:1px solid #cfe8d8; color:#1f7244; font-size:12px; font-weight:700; padding:8px 10px; border-radius:8px; margin-top:10px;"></div>
                 <div style="background: var(--brand-gray); padding: 10px; border-radius: 8px; margin: 12px 0;">
                     <div style="display: flex; justify-content: space-between; font-size: 12px;"><span>إجمالي المنتجات:</span><span id="checkout-subtotal">0 ج.م</span></div>
                     <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top:4px;"><span>مصاريف الشحن:</span><span id="checkout-shipping">اختر المحافظة</span></div>
@@ -281,7 +296,7 @@
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
-        import { getFirestore, collection, getDocs, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, setDoc, getDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         const app = initializeApp({ apiKey: "AIzaSyDsQTX9rCxxT7Dl-OhDSkrce85lM_yDaf4", authDomain: "zazoua-b4d33.firebaseapp.com", projectId: "zazoua-b4d33", storageBucket: "zazoua-b4d33.firebasestorage.app", messagingSenderId: "990100552162", appId: "1:990100552162:web:5b886a47ef93ff3ad7a1bb" });
 // App Check (reCAPTCHA Enterprise / Fraud Defense) - لازم يتعمل قبل أي استخدام لـ Firestore
         try { initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider("6LeTMBouAAAAAPog_ic7r83Gn1IKcq0C9laQMCqT"), isTokenAutoRefreshEnabled: true }); } catch (e) { console.warn("AppCheck init failed", e); }
@@ -292,6 +307,7 @@
             async getSettings() { const s = await getDoc(doc(db, 'settings', 'main')); return s.exists() ? s.data() : {}; },
             async getReviews() { const s = await getDocs(collection(db, 'reviews')); return s.docs.map(d => d.data()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); },
             async saveLead(l) { try { await setDoc(doc(db, 'leads', l.id), l, { merge: true }); } catch (e) {} },
+            async useCoupon(code) { try { await updateDoc(doc(db, 'coupons', code), { used: increment(1) }); } catch (e) {} },
             async getCoupon(code) { const s = await getDoc(doc(db, 'coupons', code)); return s.exists() ? s.data() : null; },
             async addOrder(o) {
                 await setDoc(doc(db, 'orders', o.orderId), o);
@@ -325,7 +341,7 @@
         document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('products-grid').innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:30px; color:var(--text-muted);">جاري تحميل المنتجات...</div>';
             await loadData();
-            renderReviews();
+            renderReviews(); renderRecent();
             renderSubCategories();
             renderProducts();
             populateShippingOptions();
@@ -335,7 +351,7 @@
 
         async function loadData() {
             try {
-                products = (await fb.getProducts()).filter(p => !p.hidden);
+                products = (await fb.getProducts()).filter(p => !p.hidden); applyOffers();
                 try { settings = await fb.getSettings(); initPixels(); if (settings.banner) document.querySelector('.announcement').innerText = settings.banner; let wn = String(settings.whatsapp || '').replace(/\D/g, ''); if (wn.startsWith('0')) wn = '20' + wn.slice(1); if (wn) { const wf = document.getElementById('wa-float'); wf.href = 'https://wa.me/' + wn; wf.style.display = 'flex'; } } catch (e) { console.error(e); }
                 try { reviews = await fb.getReviews(); } catch (e) { console.error(e); }
                 const s = await fb.getShipping();
@@ -384,16 +400,18 @@
             if (currentMainCat !== 'all') filtered = filtered.filter(p => p.mainCat === currentMainCat);
             if (currentSubCat !== 'all') filtered = filtered.filter(p => p.subCat === currentSubCat);
 
+            if (favOnly) filtered = filtered.filter(p => favs.includes(p.id));
             if (searchQ) filtered = filtered.filter(p => (p.title + ' ' + p.subCat).toLowerCase().includes(searchQ));
             if (sortBy === 'low') filtered = [...filtered].sort((a, b) => a.price - b.price);
             if (sortBy === 'high') filtered = [...filtered].sort((a, b) => b.price - a.price);
             document.getElementById('products-count').innerText = `(${filtered.length} منتج)`;
             grid.innerHTML = filtered.map(product => `
                 <div class="product-card" onclick="openProductModal(${product.id})">
-                    <div class="product-img-wrapper"><img src="${product.image}" alt="${product.title}" class="product-img" style="${product.soldOut ? 'opacity:.5;' : ''}"></div>
+                    <div class="product-img-wrapper" style="position:relative;"><span onclick="event.stopPropagation(); toggleFav(${product.id})" style="position:absolute; top:6px; left:6px; z-index:2; background:rgba(255,255,255,.92); border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-size:17px; color:#c0392b; cursor:pointer;">${favs.includes(product.id) ? '♥' : '♡'}</span><img src="${product.image}" alt="${product.title}" class="product-img" loading="lazy" style="${product.soldOut ? 'opacity:.5;' : ''}"></div>
                     <div class="product-info">
                         <h3 class="product-title">${product.title}${product.soldOut ? ' <span style="color:#c0392b; font-size:11px;">(نفذت الكمية)</span>' : ''}</h3>
                         <div class="product-price">${product.oldPrice > product.price ? `<s style="color:var(--text-muted); font-size:12px; font-weight:600;">${product.oldPrice}</s> ` : ''}${product.price} ج.م${product.oldPrice > product.price ? ` <span style="background:var(--danger-color); color:#fff; font-size:10px; padding:1px 6px; border-radius:10px;">-${Math.round((1 - product.price / product.oldPrice) * 100)}%</span>` : ''}</div>
+                        ${offerLeft(product) ? `<div style="font-size:10px; color:var(--danger-color); font-weight:700; margin:2px 0;">${offerLeft(product)}</div>` : ''}
                         <button class="open-details-btn"><i class="fa-solid fa-cart-shopping"></i> عرض المنتج والطلب</button>
                     </div>
                 </div>
@@ -409,7 +427,7 @@
             document.getElementById('pmodal-title').innerText = activeProduct.title;
             document.getElementById('pmodal-name').innerText = activeProduct.title;
             document.getElementById('pmodal-price').innerText = `${activeProduct.price} ج.م`;
-            setupGallery(activeProduct); showSizeChart(activeProduct);
+            setupGallery(activeProduct); showSizeChart(activeProduct); rememberViewed(activeProduct.id); showModalExtras(activeProduct);
             renderPiecesSelectors();
             document.getElementById('product-page-modal').classList.add('active');
             history.pushState(null, '', `?product=${id}`);
@@ -473,11 +491,18 @@
             return t && (sub - getDiscount(sub)) >= t ? 0 : fee;
         }
 
-        function getDiscount(subtotal) {
-            if (!appliedCoupon) return 0;
-            const d = appliedCoupon.type === 'percent' ? Math.round(subtotal * appliedCoupon.value / 100) : Number(appliedCoupon.value);
-            return Math.max(0, Math.min(d, subtotal));
+        function calcDisc(subtotal) {
+            let d = 0, label = '';
+            if (appliedCoupon && !(appliedCoupon.minOrder > subtotal)) {
+                d = appliedCoupon.type === 'percent' ? Math.round(subtotal * appliedCoupon.value / 100) : Number(appliedCoupon.value);
+                label = appliedCoupon.code;
+            }
+            const bq = Number(settings.bundleQty) || 0, bp = Number(settings.bundlePct) || 0;
+            if (bq && bp && cart.length >= bq) { const b = Math.round(subtotal * bp / 100); if (b > d) { d = b; label = 'باقة'; } }
+            d = Math.max(0, Math.min(d, subtotal));
+            return { d, label: d ? label : '' };
         }
+        function getDiscount(subtotal) { return calcDisc(subtotal).d; }
 
         function calculateCartShipping() {
             const select = document.getElementById('cust-gov');
@@ -487,6 +512,7 @@
             const subtotal = cart.reduce((s, i) => s + i.price, 0);
             const disc = getDiscount(subtotal);
             document.getElementById('discount-row').style.display = disc ? 'flex' : 'none';
+            renderPromoHint(subtotal, disc);
             document.getElementById('checkout-discount').innerText = `- ${disc} ج.م`;
             document.getElementById('checkout-shipping').innerText = select.value ? (shipFee === 0 && rawFee > 0 ? 'مجاني 🎉' : `${shipFee} ج.م`) : 'اختر المحافظة';
             document.getElementById('checkout-total').innerText = `${subtotal - disc + (select.value ? shipFee : 0)} ج.م`;
@@ -498,10 +524,104 @@
             if (!code) { appliedCoupon = null; msg.innerText = ''; calculateCartShipping(); return; }
             try {
                 const c = await fb.getCoupon(code);
-                if (c && c.active) { appliedCoupon = c; msg.style.color = 'var(--success-color)'; msg.innerText = 'تم تطبيق الخصم ✅'; }
+                const sub0 = cart.reduce((s, i) => s + i.price, 0);
+                const usedLocal = JSON.parse(localStorage.getItem('zz_used_coupons') || '[]');
+                const fail = t => { appliedCoupon = null; msg.style.color = 'var(--danger-color)'; msg.innerText = t; };
+                if (c && c.active && c.expires > 0 && Date.now() > c.expires) fail('انتهت صلاحية الكود');
+                else if (c && c.active && c.maxUses > 0 && (c.used || 0) >= c.maxUses) fail('تم استهلاك هذا الكود');
+                else if (c && c.active && usedLocal.includes(code)) fail('استخدمت هذا الكود من قبل');
+                else if (c && c.active && c.minOrder > sub0) fail('الحد الأدنى للطلب ' + c.minOrder + ' ج.م لاستخدام الكود');
+                else if (c && c.active) { appliedCoupon = c; msg.style.color = 'var(--success-color)'; msg.innerText = 'تم تطبيق الخصم'; }
                 else { appliedCoupon = null; msg.style.color = 'var(--danger-color)'; msg.innerText = 'الكود غير صحيح أو منتهي'; }
             } catch (e) { console.error(e); appliedCoupon = null; msg.style.color = 'var(--danger-color)'; msg.innerText = 'تعذر التحقق من الكود'; }
             calculateCartShipping();
+        }
+
+        // ===== UTM / مصدر الطلب =====
+        (function () {
+            try {
+                const q = new URLSearchParams(location.search), cur = {};
+                ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'fbclid', 'ttclid'].forEach(k => { if (q.get(k)) cur[k] = q.get(k).slice(0, 80); });
+                if (Object.keys(cur).length) localStorage.setItem('zz_utm', JSON.stringify({ ...cur, ref: document.referrer.slice(0, 120) }));
+                else if (!localStorage.getItem('zz_utm') && document.referrer && !document.referrer.includes(location.host)) localStorage.setItem('zz_utm', JSON.stringify({ ref: document.referrer.slice(0, 120) }));
+            } catch (e) {}
+        })();
+        function getUtm() {
+            try {
+                const u = JSON.parse(localStorage.getItem('zz_utm') || '{}');
+                let src = u.utm_source || (u.fbclid ? 'facebook' : u.ttclid ? 'tiktok' : '');
+                if (!src && u.ref) { try { src = new URL(u.ref).hostname.replace(/^www\./, ''); } catch (e) {} }
+                return { source: (src || 'direct').slice(0, 60), medium: (u.utm_medium || '').slice(0, 60), campaign: (u.utm_campaign || '').slice(0, 80), content: (u.utm_content || '').slice(0, 80) };
+            } catch (e) { return { source: 'direct', medium: '', campaign: '', content: '' }; }
+        }
+
+        // ===== المفضلة وشوهدت مؤخرًا =====
+        let favs = JSON.parse(localStorage.getItem('zz_favs') || '[]'), recent = JSON.parse(localStorage.getItem('zz_recent') || '[]'), favOnly = false;
+        function toggleFav(id) {
+            favs = favs.includes(id) ? favs.filter(x => x !== id) : [...favs, id];
+            localStorage.setItem('zz_favs', JSON.stringify(favs));
+            renderProducts();
+            const b = document.getElementById('pmodal-fav'); if (b && activeProduct) b.innerText = favs.includes(activeProduct.id) ? '♥' : '♡';
+        }
+        function toggleFavFilter() {
+            favOnly = !favOnly;
+            const b = document.getElementById('fav-filter'); b.style.background = favOnly ? 'var(--accent-dark)' : '#fff'; b.style.color = favOnly ? '#fff' : '';
+            renderProducts();
+        }
+        function rememberViewed(id) { recent = [id, ...recent.filter(x => x !== id)].slice(0, 8); localStorage.setItem('zz_recent', JSON.stringify(recent)); renderRecent(); }
+        function renderRecent() {
+            const list = recent.map(id => products.find(p => p.id == id)).filter(Boolean);
+            document.getElementById('recent-section').style.display = list.length ? 'block' : 'none';
+            document.getElementById('recent-list').innerHTML = list.map(p => `<div onclick="openProductModal(${p.id})" style="flex:none; width:96px; cursor:pointer;"><img src="${p.image}" loading="lazy" style="width:96px; height:96px; object-fit:cover; border-radius:8px;"><div style="font-size:11px; font-weight:700; margin-top:3px;">${esc(p.title)}</div><div style="font-size:11px; color:var(--text-muted);">${p.price} ج.م</div></div>`).join('');
+        }
+
+        // ===== العروض المحدودة =====
+        function applyOffers() {
+            let ch = false;
+            products.forEach(p => { if (p.offerEnds && Date.now() > p.offerEnds) { if (p.oldPrice > p.price) p.price = p.oldPrice; p.oldPrice = 0; p.offerEnds = 0; ch = true; } });
+            return ch;
+        }
+        function offerLeft(p) {
+            if (!p.offerEnds || !(p.oldPrice > p.price)) return '';
+            const ms = p.offerEnds - Date.now(); if (ms <= 0) return '';
+            const h = Math.floor(ms / 36e5), m = Math.floor(ms % 36e5 / 6e4);
+            return h >= 48 ? `ينتهي العرض بعد ${Math.floor(h / 24)} يوم` : h >= 1 ? `ينتهي العرض بعد ${h} ساعة و${m} دقيقة` : `ينتهي العرض بعد ${m} دقيقة`;
+        }
+        setInterval(() => { if (products.some(p => p.offerEnds)) { applyOffers(); renderProducts(); } }, 60000);
+
+        // ===== إضافات صفحة المنتج =====
+        function waNum() { let n = String(settings.whatsapp || '').replace(/\D/g, ''); if (n.startsWith('0')) n = '20' + n.slice(1); return n; }
+        function showModalExtras(p) {
+            document.getElementById('pmodal-fav').innerText = favs.includes(p.id) ? '♥' : '♡';
+            let o = document.getElementById('pmodal-offer');
+            if (!o) { o = document.createElement('div'); o.id = 'pmodal-offer'; o.style.cssText = 'font-size:12px; color:var(--danger-color); font-weight:700; margin-bottom:8px;'; document.getElementById('pmodal-price').parentElement.after(o); }
+            o.innerText = p.oldPrice > p.price ? `السعر قبل الخصم ${p.oldPrice} ج.م${offerLeft(p) ? ' · ' + offerLeft(p) : ''}` : '';
+            const wa = document.getElementById('pmodal-wa'), n = waNum();
+            wa.style.display = n ? 'block' : 'none';
+            if (n) wa.href = `https://wa.me/${n}?text=${encodeURIComponent('أهلاً، عايز أسأل عن: ' + p.title + ' - ' + location.origin + location.pathname + '?product=' + p.id)}`;
+            document.getElementById('pmodal-notify').style.display = p.soldOut ? 'block' : 'none';
+            const rel = products.filter(x => x.id !== p.id && !x.soldOut && (x.mainCat === p.mainCat || x.subCat === p.subCat)).sort((a, b) => (b.subCat === p.subCat) - (a.subCat === p.subCat)).slice(0, 4);
+            document.getElementById('pmodal-related').innerHTML = rel.length ? `<div style="font-weight:800; font-size:13px; margin:16px 0 8px;">منتجات مقترحة</div><div style="display:flex; gap:10px; overflow-x:auto;">${rel.map(x => `<div onclick="openProductModal(${x.id}); document.querySelector('#product-page-modal .modal-box').scrollTop = 0;" style="flex:none; width:90px; cursor:pointer;"><img src="${x.image}" loading="lazy" style="width:90px; height:90px; object-fit:cover; border-radius:8px;"><div style="font-size:11px; font-weight:700; margin-top:3px;">${esc(x.title)}</div><div style="font-size:11px; color:var(--text-muted);">${x.price} ج.م</div></div>`).join('')}</div>` : '';
+        }
+        function submitNotify() {
+            const ph = document.getElementById('notify-phone').value.trim().replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+            if (!/^01[0125][0-9]{8}$/.test(ph) || !activeProduct) { showToast('اكتب رقم هاتف صحيح'); return; }
+            fb.saveLead({ id: 'N' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: '', phone: ph, phone2: '', gov: '', address: '', items: ('نبلغه لما يتوفر: ' + activeProduct.title).slice(0, 900), total: 0, ordered: false, updatedAt: Date.now() });
+            document.getElementById('notify-phone').value = ''; showToast('تمام، هنبلغك أول ما يتوفر');
+        }
+
+        // ===== حوافز السلة =====
+        function renderPromoHint(sub, disc) {
+            const el = document.getElementById('promo-hint'); if (!el) return;
+            const m = [], ft = Number(settings.freeShipFrom) || 0, bq = Number(settings.bundleQty) || 0, bp = Number(settings.bundlePct) || 0;
+            if (ft) { const left = ft - (sub - disc); m.push(left > 0 ? `باقي ${left} ج.م وتاخد شحن مجاني` : 'الشحن مجاني على طلبك'); }
+            if (bq && bp) m.push(cart.length >= bq ? `خصم الباقة ${bp}% متطبق` : `أضف ${bq - cart.length} قطعة كمان وخد خصم ${bp}%`);
+            el.style.display = m.length ? 'block' : 'none'; el.innerHTML = m.map(esc).join('<br>');
+        }
+        function useCouponAfter(o) {
+            if (!o.coupon || o.coupon === 'باقة') return;
+            try { const u = JSON.parse(localStorage.getItem('zz_used_coupons') || '[]'); u.push(o.coupon); localStorage.setItem('zz_used_coupons', JSON.stringify(u)); } catch (e) {}
+            fb.useCoupon(o.coupon);
         }
 
         function esc(s) { return String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -563,6 +683,7 @@
 
         function initPixels() {
             const clean = v => String(v || '').replace(/[^\w]/g, '');
+            if (clean(settings.clarityId)) { (function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src='https://www.clarity.ms/tag/'+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,'clarity','script',clean(settings.clarityId)); }
             if (clean(settings.metaPixel)) {
                 !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
                 fbq('init', clean(settings.metaPixel)); fbq('track', 'PageView');
@@ -636,7 +757,7 @@
             document.getElementById('cust-gov').value = ""; document.getElementById('cust-phone2').value = "";
             document.getElementById('checkout-shipping').innerText = "اختر المحافظة";
             document.getElementById('checkout-total').innerText = `${subtotal} ج.م`;
-            track('InitiateCheckout', { value: subtotal });
+            track('InitiateCheckout', { value: subtotal }); renderPromoHint(subtotal, 0);
             const pn = document.getElementById('payment-note'); pn.innerText = settings.paymentText || ''; pn.style.display = settings.paymentText ? 'block' : 'none';
             appliedCoupon = null; document.getElementById('cust-coupon').value = ''; document.getElementById('coupon-msg').innerText = ''; document.getElementById('discount-row').style.display = 'none';
             document.getElementById('checkout-modal').classList.add('active');
@@ -678,10 +799,10 @@
                 status: 'new', createdAt: Date.now(), orderId: 'ZZ-' + (() => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', b = crypto.getRandomValues(new Uint8Array(8)); return Array.from(b, x => A[x % A.length]).join(''); })(),
                 dateStr: new Date().toLocaleString('ar-EG'),
                 customer: { name: nameInput.value.trim(), phone: cleanPhone, phone2: phone2Input.value.trim() || 'لا يوجد', address: addressInput.value.trim(), gov: govName },
-                items: [...cart], subtotal, shipping: shipFee, discount: disc, coupon: appliedCoupon ? appliedCoupon.code : '', total: subtotal - disc + shipFee
+                items: [...cart], subtotal, shipping: shipFee, discount: disc, coupon: calcDisc(subT).label, utm: getUtm(), total: subtotal - disc + shipFee
             });
 
-            try { await fb.addOrder(order); lastOrder = order; clearTimeout(leadTimer); fb.saveLead(leadData(true)); localStorage.removeItem('zz_lead_id'); document.getElementById('success-order-id').innerText = 'رقم طلبك: ' + order.orderId; localStorage.setItem('zz_orders_t', JSON.stringify([...hist, nowT])); track('Purchase', { value: order.total }); document.getElementById('wa-order-btn').style.display = settings.whatsapp ? 'block' : 'none'; } catch (err) { console.error(err); showToast('تعذر إرسال الطلب، حاول مرة أخرى'); return; }
+            try { await fb.addOrder(order); lastOrder = order; useCouponAfter(order); clearTimeout(leadTimer); fb.saveLead(leadData(true)); localStorage.removeItem('zz_lead_id'); document.getElementById('success-order-id').innerText = 'رقم طلبك: ' + order.orderId; localStorage.setItem('zz_orders_t', JSON.stringify([...hist, nowT])); track('Purchase', { value: order.total, name: order.orderId }); document.getElementById('wa-order-btn').style.display = settings.whatsapp ? 'block' : 'none'; } catch (err) { console.error(err); showToast('تعذر إرسال الطلب، حاول مرة أخرى'); return; }
             cart = []; saveCartState();
             closeCheckoutModal();
             document.getElementById('order-success-modal').classList.add('active');
@@ -702,5 +823,6 @@
         }
     </script>
 <a id="wa-float" class="wa-float" target="_blank" rel="noopener" aria-label="واتساب" onclick="try{if(window.fbq)fbq('track','Contact')}catch(e){}"><i class="fa-brands fa-whatsapp"></i></a>
+<script>if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));</script>
 </body>
 </html>

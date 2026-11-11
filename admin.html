@@ -127,6 +127,7 @@
         <button class="tab-btn" onclick="switchTab('stats', this)"><i class="fa-solid fa-chart-line"></i> الإحصائيات</button>
         <button class="tab-btn" onclick="switchTab('reviews', this)"><i class="fa-solid fa-star"></i> التقييمات</button>
         <button class="tab-btn" onclick="switchTab('leads', this)"><i class="fa-solid fa-user-clock"></i> عملاء مهتمين</button>
+        <button class="tab-btn" onclick="switchTab('blacklist', this)"><i class="fa-solid fa-ban"></i> القائمة السوداء</button>
     </div>
 
     <div class="admin-content">
@@ -140,12 +141,13 @@
             <div>
                 <button onclick="printSelectedInvoices()" class="submit-btn" style="background:var(--accent-dark); font-size:12px;"><i class="fa-solid fa-print"></i> طباعة الفواتير المحددة (3/صفحة)</button>
                 <button onclick="deleteSelectedOrders()" class="submit-btn" style="background:var(--danger-color); font-size:12px;"><i class="fa-solid fa-trash"></i> حذف المحدد</button>
+                <button onclick="exportForCarrier()" class="submit-btn" style="background:#2c6fbb; font-size:12px;"><i class="fa-solid fa-truck"></i> تصدير لشركة الشحن</button>
                 <button onclick="exportToExcel()" class="submit-btn" style="background:#1f7244; font-size:12px;"><i class="fa-solid fa-file-excel"></i> تصدير Excel</button>
             </div>
         </div>
         <input id="order-search" oninput="renderOrders()" placeholder="بحث بالاسم أو الهاتف أو رقم الطلب أو رقم الشحنة" style="width:100%; padding:9px 10px; margin-bottom:8px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;">
         <select id="order-filter" class="form-select" onchange="renderOrders()" style="margin-bottom:10px;">
-            <option value="all">كل الطلبات</option><option value="new">جديد</option><option value="confirmed">تم التأكيد</option><option value="shipped">اتشحن</option><option value="delivered">اتسلّم</option><option value="cancelled">ملغي</option>
+            <option value="all">كل الطلبات</option><option value="new">جديد</option><option value="confirmed">تم التأكيد</option><option value="shipped">اتشحن</option><option value="delivered">اتسلّم</option><option value="cancelled">ملغي</option><option value="returned">مرتجع</option><option value="exchange">استبدال</option>
         </select>
         <div id="admin-orders-list"></div>
     </div>
@@ -203,6 +205,10 @@
                 </div>
             </div>
 
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div class="form-group"><label class="form-label">سعر التكلفة (لحساب الربح، لا يظهر للعميل)</label><input type="number" id="prod-cost" class="form-input" min="0"></div>
+                <div class="form-group"><label class="form-label">ينتهي العرض في (اختياري)</label><input type="datetime-local" id="prod-offer-ends" class="form-input"></div>
+            </div>
             <div class="form-group"><label class="form-label">جدول المقاسات لهذا المنتج (اختياري، يظهر للعميل)</label><textarea id="prod-sizechart" class="form-input" rows="3" placeholder="M: صدر 100 - طول 70"></textarea></div>
             <button type="submit" id="prod-save-btn" class="submit-btn" style="background:var(--accent-dark); width: 100%; margin-top: 10px;">حفظ المنتج</button>
             <button type="button" id="prod-cancel-btn" onclick="cancelEdit()" class="submit-btn" style="display:none; background:#888; width:100%; margin-top:6px;">إلغاء التعديل</button>
@@ -225,11 +231,18 @@
 
     <!-- TAB 4: COUPONS -->
     <div id="tab-coupons" class="admin-section">
-        <form onsubmit="handleAddCoupon(event)" style="display:grid; grid-template-columns: 2fr 1fr 1fr auto; gap:8px; margin-bottom:15px; align-items:end;">
-            <div class="form-group" style="margin:0;"><label class="form-label">الكود / الجملة</label><input type="text" id="cp-code" class="form-input" placeholder="مثال: خصم الجمعة" required></div>
-            <div class="form-group" style="margin:0;"><label class="form-label">النوع</label><select id="cp-type" class="form-select"><option value="percent">نسبة %</option><option value="fixed">مبلغ ثابت</option></select></div>
-            <div class="form-group" style="margin:0;"><label class="form-label">القيمة</label><input type="number" id="cp-value" class="form-input" min="1" required></div>
-            <button type="submit" class="submit-btn">إضافة</button>
+        <form onsubmit="handleAddCoupon(event)" style="margin-bottom:15px;">
+            <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap:8px; align-items:end;">
+                <div class="form-group" style="margin:0;"><label class="form-label">الكود / الجملة</label><input type="text" id="cp-code" class="form-input" placeholder="مثال: خصم الجمعة" required></div>
+                <div class="form-group" style="margin:0;"><label class="form-label">النوع</label><select id="cp-type" class="form-select"><option value="percent">نسبة %</option><option value="fixed">مبلغ ثابت</option></select></div>
+                <div class="form-group" style="margin:0;"><label class="form-label">القيمة</label><input type="number" id="cp-value" class="form-input" min="1" required></div>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr auto; gap:8px; align-items:end; margin-top:8px;">
+                <div class="form-group" style="margin:0;"><label class="form-label">ينتهي في (اختياري)</label><input type="date" id="cp-exp" class="form-input"></div>
+                <div class="form-group" style="margin:0;"><label class="form-label">حد أدنى للطلب</label><input type="number" id="cp-min" class="form-input" min="0"></div>
+                <div class="form-group" style="margin:0;"><label class="form-label">أقصى عدد استخدامات</label><input type="number" id="cp-max" class="form-input" min="0"></div>
+                <button type="submit" class="submit-btn">إضافة</button>
+            </div>
         </form>
         <div id="coupons-list"></div>
     </div>
@@ -242,6 +255,14 @@
             <div class="form-group"><label class="form-label">شحن مجاني للطلبات من (ج.م) — اتركه فارغًا لإلغائه</label><input type="number" id="set-free" class="form-input" min="0"></div>
             <div class="form-group"><label class="form-label">جدول مقاسات عام (يظهر لأي منتج ليس له جدول خاص)</label><textarea id="set-sizechart" class="form-input" rows="3"></textarea></div>
             <div class="form-group"><label class="form-label">طرق الدفع (تظهر للعميل عند إتمام الطلب)</label><textarea id="set-payment" class="form-input" rows="3" placeholder="الدفع عند الاستلام. أو التحويل على إنستا باي / فودافون كاش على رقم ..."></textarea></div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div class="form-group"><label class="form-label">عرض الباقة: عدد القطع</label><input type="number" id="set-bq" class="form-input" min="0" placeholder="مثال: 2"></div>
+                <div class="form-group"><label class="form-label">نسبة خصم الباقة %</label><input type="number" id="set-bp" class="form-input" min="0" max="90" placeholder="مثال: 10"></div>
+            </div>
+            <div class="form-group"><label class="form-label">Microsoft Clarity Project ID (اختياري)</label><input type="text" id="set-clarity" class="form-input"></div>
+            <div class="form-group"><label class="form-label">صفحة "الأسئلة الشائعة" (اكتبها: س: ... ج: ...)</label><textarea id="set-faq" class="form-input" rows="5"></textarea></div>
+            <div class="form-group"><label class="form-label">صفحة "سياسة الخصوصية" (اتركها فارغة لاستخدام نص عام جاهز)</label><textarea id="set-privacy" class="form-input" rows="5"></textarea></div>
+            <button type="button" onclick="backupAll()" class="submit-btn" style="background:#1f7244; width:100%; margin-bottom:8px;">تنزيل نسخة احتياطية من كل البيانات</button>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                 <div class="form-group"><label class="form-label">Meta Pixel ID</label><input type="text" id="set-meta" class="form-input" placeholder="أرقام فقط"></div>
                 <div class="form-group"><label class="form-label">TikTok Pixel ID</label><input type="text" id="set-tiktok" class="form-input" placeholder="مثال: C1234ABCD"></div>
@@ -268,6 +289,16 @@
     <div id="tab-leads" class="admin-section">
         <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">بيانات عملاء بدأوا كتابة طلب ولم يُكملوه (تُحفظ أثناء الكتابة، ولا يظهر من أتمّ طلبه). تواصل معهم بلطف عبر واتساب.</div>
         <div id="leads-list"></div>
+    </div>
+
+    <div id="tab-blacklist" class="admin-section">
+        <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">أرقام عملاء رفضوا الاستلام أو يسببون مشاكل. بيظهر تحذير في أي طلب جديد منهم.</div>
+        <form onsubmit="handleAddBlack(event)" style="display:grid; grid-template-columns:1fr 2fr auto; gap:8px; margin-bottom:12px;">
+            <input type="tel" id="bl-phone" class="form-input" placeholder="رقم الهاتف" required>
+            <input type="text" id="bl-reason" class="form-input" placeholder="السبب (اختياري)">
+            <button type="submit" class="submit-btn">إضافة</button>
+        </form>
+        <div id="blacklist-list"></div>
     </div>
 
     <div id="tab-stats" class="admin-section"><div id="stats-box"></div></div>
@@ -310,6 +341,12 @@
             saveCoupon: (c) => setDoc(doc(db, 'coupons', c.id), c),
             deleteCoupon: (id) => deleteDoc(doc(db, 'coupons', id)),
             watchOrders: (cb, err) => onSnapshot(collection(db, 'orders'), s => cb(s.docs.map(d => d.data())), err),
+            getCosts: async () => { const m = {}; (await list('costs')).forEach(x => m[x.id] = x.cost); return m; },
+            saveCost: (id, cost) => setDoc(doc(db, 'costs', String(id)), { id: String(id), cost }),
+            deleteCost: (id) => deleteDoc(doc(db, 'costs', String(id))),
+            getBlacklist: () => list('blacklist'),
+            saveBlack: (b) => setDoc(doc(db, 'blacklist', b.phone), b),
+            deleteBlack: (p) => deleteDoc(doc(db, 'blacklist', String(p))),
             getOrders: async () => (await list('orders')).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
         };
     </script>
@@ -323,7 +360,9 @@
 
         let products = [];
         let shippingRates = [];
-        let orders = [], coupons = [], settings = {}, reviews = [], leads = [];
+        let orders = [], coupons = [], settings = {}, reviews = [], leads = [], blacklist = [], costsMap = {};
+        let IS_OWNER = true;
+        const OWNER_EMAIL = 'trader872007@gmail.com';
         let currentImages = [];
 
         async function handleLogin(e) {
@@ -364,22 +403,32 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             fb.onAuth(user => {
-                if (user) { document.getElementById('login-overlay').style.display = 'none'; loadAdminData(); }
+                if (user) { IS_OWNER = (user.email || '').toLowerCase() === OWNER_EMAIL; applyRole(); document.getElementById('login-overlay').style.display = 'none'; loadAdminData(); }
                 else document.getElementById('login-overlay').style.display = 'flex';
             });
         });
+
+        function applyRole() {
+            if (IS_OWNER) return;
+            document.querySelectorAll('.tab-btn').forEach(b => { if (!/'(orders|leads|blacklist)'/.test(b.getAttribute('onclick'))) b.style.display = 'none'; });
+            const d = document.querySelector('[onclick="deleteSelectedOrders()"]'); if (d) d.style.display = 'none';
+        }
 
         async function loadAdminData() {
             try {
                 products = await fb.getProducts();
                 shippingRates = await fb.getShipping();
-                if (shippingRates.length === 0) { for (const r of defaultShippingRates) await fb.saveShipping(r); shippingRates = [...defaultShippingRates]; }
-                coupons = await fb.getCoupons();
-                reviews = await fb.getReviews();
-                leads = await fb.getLeads();
                 settings = await fb.getSettings();
+                leads = await fb.getLeads();
+                blacklist = await fb.getBlacklist();
+                if (IS_OWNER) {
+                    if (shippingRates.length === 0) { for (const r of defaultShippingRates) await fb.saveShipping(r); shippingRates = [...defaultShippingRates]; }
+                    coupons = await fb.getCoupons();
+                    reviews = await fb.getReviews();
+                    costsMap = await fb.getCosts();
+                }
             } catch (err) { console.error(err); alert('تعذر تحميل البيانات: ' + err.message); }
-            renderProductsAdmin(); renderShipping(); renderCoupons(); renderReviews(); renderLeads(); fillSettings(); startOrderWatch();
+            renderProductsAdmin(); renderShipping(); renderCoupons(); renderReviews(); renderLeads(); renderBlacklist(); fillSettings(); startOrderWatch();
         }
 
 
@@ -387,11 +436,12 @@
 
         function renderCoupons() {
             document.getElementById('coupons-list').innerHTML = coupons.length ? coupons.map(c => `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; font-size:12px; ${c.active ? '' : 'opacity:.55;'}">
-                    <span><strong>${c.code}</strong> — ${c.type === 'percent' ? c.value + '%' : c.value + ' ج.م'} ${c.active ? '' : '(متوقف)'}</span>
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 10px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; font-size:12px; ${c.active ? '' : 'opacity:.55;'}">
+                    <span><strong>${esc(c.code)}</strong> — ${c.type === 'percent' ? c.value + '%' : c.value + ' ج.م'} ${c.active ? '' : '(متوقف)'}
+                        <span style="color:var(--text-muted);">| استخدم ${c.used || 0}${c.maxUses ? ' من ' + c.maxUses : ''}${c.minOrder ? ' | حد أدنى ' + c.minOrder : ''}${c.expires ? ' | ينتهي ' + new Date(c.expires).toLocaleDateString('ar-EG') : ''}${c.expires && Date.now() > c.expires ? ' (منتهي)' : ''}</span></span>
                     <span>
-                        <button onclick="toggleCoupon('${c.id}')" style="cursor:pointer; border:none; color:#fff; background:#666; padding:4px 8px; border-radius:4px; font-size:11px;">${c.active ? 'إيقاف' : 'تفعيل'}</button>
-                        <button onclick="deleteCoupon('${c.id}')" style="cursor:pointer; border:none; color:#fff; background:var(--danger-color); padding:4px 8px; border-radius:4px; font-size:11px; margin-right:4px;">حذف</button>
+                        <button onclick="toggleCoupon('${c.id}')" style="cursor:pointer; border:none; color:#fff; padding:4px 8px; border-radius:4px; font-size:11px; background:#666;">${c.active ? 'إيقاف' : 'تفعيل'}</button>
+                        <button onclick="deleteCoupon('${c.id}')" style="cursor:pointer; border:none; color:#fff; padding:4px 8px; border-radius:4px; font-size:11px; background:var(--danger-color); margin-right:4px;">حذف</button>
                     </span>
                 </div>`).join('') : '<div style="color:var(--text-muted); font-size:12px;">لا توجد كوبونات بعد.</div>';
         }
@@ -403,7 +453,8 @@
             const value = parseFloat(document.getElementById('cp-value').value);
             if (!code) return;
             if (type === 'percent' && value > 100) { alert('النسبة لا تزيد عن 100'); return; }
-            const c = { id: code, code, type, value, active: true };
+            const exp = document.getElementById('cp-exp').value;
+            const c = { id: code, code, type, value, active: true, expires: exp ? new Date(exp + 'T23:59:59').getTime() : 0, minOrder: parseFloat(document.getElementById('cp-min').value) || 0, maxUses: parseInt(document.getElementById('cp-max').value) || 0, used: 0 };
             try { await fb.saveCoupon(c); } catch (err) { alert('فشل الحفظ: ' + err.message); return; }
             coupons = [...coupons.filter(x => x.id !== c.id), c];
             renderCoupons(); e.target.reset();
@@ -426,6 +477,11 @@
             document.getElementById('set-wa').value = settings.whatsapp || '';
             document.getElementById('set-banner').value = settings.banner || '';
             document.getElementById('set-free').value = settings.freeShipFrom || '';
+            document.getElementById('set-bq').value = settings.bundleQty || '';
+            document.getElementById('set-bp').value = settings.bundlePct || '';
+            document.getElementById('set-clarity').value = settings.clarityId || '';
+            document.getElementById('set-faq').value = settings.faqText || '';
+            document.getElementById('set-privacy').value = settings.privacyText || '';
             document.getElementById('set-sizechart').value = settings.sizeChartText || '';
             document.getElementById('set-payment').value = settings.paymentText || '';
             document.getElementById('set-meta').value = settings.metaPixel || '';
@@ -441,6 +497,11 @@
                 whatsapp: document.getElementById('set-wa').value.trim(),
                 banner: document.getElementById('set-banner').value.trim(),
                 freeShipFrom: parseFloat(document.getElementById('set-free').value) || 0,
+                bundleQty: parseInt(document.getElementById('set-bq').value) || 0,
+                bundlePct: parseFloat(document.getElementById('set-bp').value) || 0,
+                clarityId: document.getElementById('set-clarity').value.trim(),
+                faqText: document.getElementById('set-faq').value,
+                privacyText: document.getElementById('set-privacy').value,
                 sizeChartText: document.getElementById('set-sizechart').value,
                 paymentText: document.getElementById('set-payment').value,
                 metaPixel: document.getElementById('set-meta').value.trim(),
@@ -455,7 +516,7 @@
 
         function renderStats() {
             const box = document.getElementById('stats-box'); if (!box) return;
-            const ok = orders.filter(o => (o.status || 'new') !== 'cancelled');
+            const ok = orders.filter(o => !['cancelled', 'returned'].includes(o.status || 'new'));
             const now = Date.now(), DAY = 864e5;
             const money = n => Math.round(Number(n) || 0).toLocaleString('en-US');
             const tot = o => Number(o.total) || 0;
@@ -618,7 +679,7 @@
             fb.watchOrders(list => {
                 list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
                 const added = list.length - orders.length;
-                orders = list; renderOrders(); renderStats(); renderLeads();
+                orders = list; renderOrders(); renderStats(); renderStatsExtra(); renderLeads();
                 if (!firstSnap && added > 0) { beep(); document.title = `🔔 (${added}) طلب جديد - لوحة الإدارة`; }
                 firstSnap = false;
             }, err => { console.error(err); if (loggingOut) return; alert('تعذر تحميل الطلبات: ' + err.message); });
@@ -670,10 +731,102 @@
             else { pv.style.display = 'none'; ph.style.display = 'block'; }
         }
 
-        const STATUSES = { new: 'جديد', confirmed: 'تم التأكيد', shipped: 'اتشحن', delivered: 'اتسلّم', cancelled: 'ملغي' };
+        const normPhone = p => String(p || '').replace(/\D/g, '');
+        const blackOf = p => normPhone(p) ? blacklist.find(b => b.phone === normPhone(p)) : null;
+        const chip = (bg, t) => ` <span style="background:${bg}; color:#fff; font-size:10px; padding:1px 6px; border-radius:10px;">${t}</span>`;
+
+        function orderBadges(o) {
+            const ph = normPhone(o.customer.phone);
+            const prev = orders.filter(x => x.orderId !== o.orderId && normPhone(x.customer.phone) === ph);
+            let h = '';
+            if (blackOf(o.customer.phone) || blackOf(o.customer.phone2)) h += chip('#c0392b', 'قائمة سوداء');
+            if (prev.length) h += chip('#2c6fbb', `عميل متكرر (${prev.length})`);
+            const bad = prev.filter(x => ['cancelled', 'returned'].includes(x.status || 'new')).length;
+            if (bad) h += chip('#b9770e', `${bad} ملغي/مرتجع سابق`);
+            return h;
+        }
+
+        function orderInfo(o) {
+            const b = blackOf(o.customer.phone) || blackOf(o.customer.phone2), u = o.utm || {};
+            const btn = (bg, fn, t) => `<button onclick="${fn}" style="cursor:pointer; border:none; color:#fff; background:${bg}; padding:3px 8px; border-radius:4px; font-size:11px;">${t}</button>`;
+            return (b ? `<div style="color:#c0392b; font-weight:800;">تحذير: رقم العميل في القائمة السوداء${b.reason ? ' - ' + esc(b.reason) : ''}</div>` : '')
+                + (u.source ? `<div style="color:var(--text-muted);"><strong>مصدر الطلب:</strong> ${esc(u.source)}${u.campaign ? ' / ' + esc(u.campaign) : ''}${u.medium ? ' (' + esc(u.medium) + ')' : ''}</div>` : '')
+                + `<div style="margin:4px 0;">${b ? btn('#666', `removeBlack('${b.phone}')`, 'إزالة من القائمة السوداء') : btn('#c0392b', `blacklistCustomer('${o.orderId}')`, 'علّم العميل كمرفوض')}</div>`;
+        }
+
+        function renderBlacklist() {
+            const el = document.getElementById('blacklist-list'); if (!el) return;
+            el.innerHTML = blacklist.length ? blacklist.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).map(b => `
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 10px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; font-size:12px;">
+                    <span><strong>${esc(b.phone)}</strong>${b.name ? ' — ' + esc(b.name) : ''}${b.reason ? ' — ' + esc(b.reason) : ''}</span>
+                    <button onclick="removeBlack('${b.phone}')" style="cursor:pointer; border:none; color:#fff; background:var(--danger-color); padding:4px 8px; border-radius:4px; font-size:11px;">إزالة</button>
+                </div>`).join('') : '<div style="font-size:12px; color:var(--text-muted);">القائمة فارغة.</div>';
+        }
+        async function addBlack(entry) {
+            try { await fb.saveBlack(entry); } catch (err) { alert('فشل الحفظ: ' + err.message); return false; }
+            blacklist = [...blacklist.filter(x => x.phone !== entry.phone), entry]; renderBlacklist(); renderOrders(); return true;
+        }
+        async function handleAddBlack(e) {
+            e.preventDefault();
+            const phone = normPhone(document.getElementById('bl-phone').value);
+            if (phone.length < 10) { alert('رقم غير صحيح'); return; }
+            if (await addBlack({ phone, name: '', reason: document.getElementById('bl-reason').value.trim().slice(0, 120), createdAt: Date.now() })) e.target.reset();
+        }
+        async function blacklistCustomer(orderId) {
+            const o = orders.find(x => x.orderId === orderId); if (!o) return;
+            const reason = prompt('سبب الإضافة للقائمة السوداء (اختياري):', 'رفض الاستلام'); if (reason === null) return;
+            await addBlack({ phone: normPhone(o.customer.phone), name: String(o.customer.name || '').slice(0, 100), reason: reason.slice(0, 120), createdAt: Date.now() });
+        }
+        async function removeBlack(phone) {
+            try { await fb.deleteBlack(phone); } catch (err) { alert('فشل الحذف: ' + err.message); return; }
+            blacklist = blacklist.filter(x => x.phone !== phone); renderBlacklist(); renderOrders();
+        }
+
+        function renderStatsExtra() {
+            const box = document.getElementById('stats-box'); if (!box || !IS_OWNER) return;
+            const dead = o => ['cancelled', 'returned'].includes(o.status || 'new');
+            const li = arr => arr.length ? arr.map(([n, c]) => `<div style="padding:5px 8px; background:var(--bg-main); border-radius:6px; margin-bottom:4px; font-size:12px; display:flex; justify-content:space-between; gap:8px;"><span>${esc(n)}</span><strong>${c}</strong></div>`).join('') : '<div style="font-size:12px; color:var(--text-muted);">لا توجد بيانات بعد.</div>';
+            const src = {};
+            orders.forEach(o => { const s = (o.utm && o.utm.source) || 'غير معروف', k = o.utm && o.utm.campaign ? s + ' / ' + o.utm.campaign : s; src[k] = src[k] || { n: 0, rev: 0 }; src[k].n++; if (!dead(o)) src[k].rev += o.total || 0; });
+            let rev = 0, cost = 0, disc = 0, counted = 0, partial = 0;
+            orders.filter(o => !dead(o)).forEach(o => {
+                let c = 0, known = true;
+                o.items.forEach(i => { if (costsMap[i.id] == null) known = false; else c += Number(costsMap[i.id]); });
+                if (known) { rev += o.items.reduce((s, i) => s + i.price, 0); cost += c; disc += o.discount || 0; counted++; } else partial++;
+            });
+            const profit = rev - disc - cost;
+            const n = k => orders.filter(o => (o.status || 'new') === k).length;
+            box.insertAdjacentHTML('beforeend', `
+                <h3 style="font-size:14px; margin:22px 0 8px;">الربح (من الطلبات اللي كل منتجاتها ليها سعر تكلفة)</h3>
+                <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
+                    <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; text-align:center;"><div style="font-size:11px; color:var(--text-muted);">صافي الربح</div><div style="font-size:18px; font-weight:800; color:${profit >= 0 ? 'var(--success-color)' : 'var(--danger-color)'};">${Math.round(profit)} ج.م</div></div>
+                    <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; text-align:center;"><div style="font-size:11px; color:var(--text-muted);">هامش الربح</div><div style="font-size:18px; font-weight:800;">${rev ? Math.round(profit / rev * 100) : 0}%</div></div>
+                    <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; text-align:center;"><div style="font-size:11px; color:var(--text-muted);">طلبات محسوبة</div><div style="font-size:18px; font-weight:800;">${counted}</div></div>
+                </div>
+                ${partial ? `<div style="font-size:11px; color:var(--text-muted); margin-top:4px;">${partial} طلب غير محسوب لأن منتجاته من غير سعر تكلفة. الربح هنا قبل مصاريف الشحن.</div>` : ''}
+                <h3 style="font-size:14px; margin:22px 0 8px;">مصدر الطلبات</h3>${li(Object.entries(src).sort((a, b) => b[1].n - a[1].n).slice(0, 8).map(([k, v]) => [k, `${v.n} طلب — ${v.rev} ج.م`]))}
+                <h3 style="font-size:14px; margin:22px 0 8px;">المرتجعات والإلغاء</h3>${li([['مرتجع', n('returned')], ['استبدال', n('exchange')], ['ملغي', n('cancelled')]])}`);
+        }
+
+        function exportForCarrier() {
+            let list = Array.from(document.querySelectorAll('.order-cb:checked')).map(cb => orders.find(o => o.orderId === cb.dataset.id)).filter(Boolean);
+            if (!list.length) list = orders.filter(o => (o.status || 'new') === 'confirmed');
+            if (!list.length) { alert('حدد الطلبات أولًا، أو غيّر حالة الطلبات إلى "تم التأكيد"'); return; }
+            let csv = "\uFEFFرقم الطلب,الاسم,الهاتف,هاتف إضافي,المحافظة,العنوان,المحتوى,المبلغ المطلوب تحصيله,ملاحظات\n";
+            list.forEach(o => { csv += [o.orderId, o.customer.name, o.customer.phone, o.customer.phone2, o.customer.gov, o.customer.address, o.items.map(i => `${i.title} (${i.size}/${i.color})`).join(' - '), o.total, o.note].map(csvCell).join(',') + '\n'; });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' })); a.download = 'Zazoua_Shipping.csv'; a.click();
+        }
+
+        function backupAll() {
+            const data = { exportedAt: new Date().toISOString(), products, shippingRates, coupons, reviews, settings, orders, leads, blacklist, costs: costsMap };
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
+            a.download = `Zazoua_backup_${new Date().toISOString().slice(0, 10)}.json`; a.click();
+        }
+
+        const STATUSES = { new: 'جديد', confirmed: 'تم التأكيد', shipped: 'اتشحن', delivered: 'اتسلّم', cancelled: 'ملغي', returned: 'مرتجع', exchange: 'استبدال' };
         const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         const csvCell = v => { let t = String(v ?? ''); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return '"' + t.replace(/"/g, '""') + '"'; };
-        const STATUS_COLORS = { new: '#2c6fbb', confirmed: '#b9770e', shipped: '#7d3c98', delivered: '#1f7244', cancelled: '#c0392b' };
+        const STATUS_COLORS = { new: '#2c6fbb', confirmed: '#b9770e', shipped: '#7d3c98', delivered: '#1f7244', cancelled: '#c0392b', returned: '#a04000', exchange: '#117a8b' };
 
         function renderOrders() {
             const container = document.getElementById('admin-orders-list');
@@ -692,13 +845,14 @@
                 return `
                 <details class="acc" data-id="${ord.orderId}" ${opened.has(ord.orderId) ? 'open' : ''} style="border-right:4px solid ${STATUS_COLORS[st]};">
                     <summary>
-                        <span><input type="checkbox" class="order-cb" data-id="${ord.orderId}" onclick="event.stopPropagation()"> <strong>${esc(ord.customer.name)}</strong> <span class="acc-sub">${ord.orderId}${ord.shipNo ? ' 🚚' : ''}${ord.note ? ' 📝' : ''}</span></span>
+                        <span><input type="checkbox" class="order-cb" data-id="${ord.orderId}" onclick="event.stopPropagation()"> <strong>${esc(ord.customer.name)}</strong> ${orderBadges(ord)} <span class="acc-sub">${ord.orderId}${ord.shipNo ? ' 🚚' : ''}${ord.note ? ' 📝' : ''}</span></span>
                         <span><strong style="color:var(--success-color);">${ord.total} ج.م</strong> <span style="color:${STATUS_COLORS[st]};">${STATUSES[st]}</span></span>
                     </summary>
                     <div class="acc-body">
                         <div style="color:var(--text-muted);">${esc(ord.dateStr)}${ord.coupon ? ` — كوبون ${esc(ord.coupon)}: -${esc(ord.discount)} ج.م` : ''}</div>
                         <div><strong>الهاتف 1:</strong> ${esc(ord.customer.phone)} | <strong>الهاتف 2:</strong> ${esc(ord.customer.phone2)}</div>
                         <div><strong>العنوان:</strong> ${esc(ord.customer.gov)} - ${esc(ord.customer.address)}</div>
+                        ${orderInfo(ord)}
                         <div><strong>المنتجات:</strong> ${ord.items.map(i => `${esc(i.title)} (${esc(i.size)}/${esc(i.color)})`).join(' - ')}</div>
                         <div style="margin-top:6px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                             <strong>الحالة:</strong>
@@ -836,6 +990,8 @@
             document.getElementById('prod-price').value = p.price;
             document.getElementById('prod-old-price').value = p.oldPrice || '';
             document.getElementById('prod-sizechart').value = p.sizeChart || '';
+            document.getElementById('prod-cost').value = costsMap[p.id] != null ? costsMap[p.id] : '';
+            document.getElementById('prod-offer-ends').value = p.offerEnds ? new Date(p.offerEnds - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
             document.getElementById('prod-main-cat').value = p.mainCat;
             document.getElementById('prod-sub-cat').value = p.subCat;
             document.getElementById('prod-sizes').value = p.sizes.join(', ');
@@ -867,6 +1023,7 @@
                 price: parseFloat(document.getElementById('prod-price').value),
                 oldPrice: parseFloat(document.getElementById('prod-old-price').value) || 0,
                 sizeChart: document.getElementById('prod-sizechart').value.trim(),
+                offerEnds: document.getElementById('prod-offer-ends').value ? new Date(document.getElementById('prod-offer-ends').value).getTime() : 0,
                 mainCat: document.getElementById('prod-main-cat').value,
                 subCat: document.getElementById('prod-sub-cat').value.trim(),
                 sizes: document.getElementById('prod-sizes').value.split(',').map(s => s.trim()),
@@ -876,6 +1033,7 @@
             if (!prod.image) { alert('يرجى اختيار صورة للمنتج من المعرض أولاً!'); return; }
             if (JSON.stringify(prod).length > 950000) { alert('حجم الصور كبير، قلّل عدد الصور'); return; }
             try { await fb.saveProduct(prod); } catch (err) { console.error(err); alert('فشل الحفظ: ' + err.message); return; }
+            try { const cv = parseFloat(document.getElementById('prod-cost').value); if (!isNaN(cv)) { await fb.saveCost(prod.id, cv); costsMap[prod.id] = cv; } } catch (e2) { console.error(e2); }
             if (old) products = products.map(p => p.id === prod.id ? prod : p); else products.unshift(prod);
             renderProductsAdmin();
             resetProductForm();
@@ -884,7 +1042,7 @@
 
         async function deleteProduct(id) {
             if (!confirm('هل أنت متأكد من حذف المنتج؟')) return;
-            try { await fb.deleteProduct(id); } catch (err) { alert('فشل الحذف: ' + err.message); return; }
+            try { await fb.deleteProduct(id); try { await fb.deleteCost(id); } catch (e2) {} } catch (err) { alert('فشل الحذف: ' + err.message); return; }
             products = products.filter(p => p.id !== id);
             renderProductsAdmin();
         }
