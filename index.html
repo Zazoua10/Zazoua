@@ -680,6 +680,8 @@
                 const fail = t => { appliedCoupon = null; msg.style.color = 'var(--danger-color)'; msg.innerText = t; };
                 if (c && c.active && c.expires > 0 && Date.now() > c.expires) fail('انتهت صلاحية الكود');
                 else if (c && c.active && c.maxUses > 0 && (c.used || 0) >= c.maxUses) fail('تم استهلاك هذا الكود');
+                else if (c && c.active && c.phone && !document.getElementById('cust-phone').value.trim()) fail('اكتب رقم هاتفك الأول ثم طبّق الكود');
+                else if (c && c.active && c.phone && String(c.phone) !== document.getElementById('cust-phone').value.trim().replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))) fail('الكود ده خاص بعميل تاني');
                 else if (c && c.active && usedLocal.includes(code)) fail('استخدمت هذا الكود من قبل');
                 else if (c && c.active && c.minOrder > sub0) fail('الحد الأدنى للطلب ' + c.minOrder + ' ج.م لاستخدام الكود');
                 else if (c && c.active) { appliedCoupon = c; msg.style.color = 'var(--success-color)'; msg.innerText = 'تم تطبيق الخصم'; }
@@ -1119,6 +1121,7 @@
             if (birthVal) { const maxB = new Date(); maxB.setFullYear(maxB.getFullYear() - 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(birthVal) || birthVal < '1930-01-01' || birthVal > maxB.toISOString().slice(0, 10)) { isValid = false; showToast('اكتب تاريخ ميلاد صحيح أو سيبه فاضي'); } }
             if (!isValid) return;
             if (document.getElementById('hp-field').value) { cart = []; saveCartState(); closeCheckoutModal(); return; }
+            if (appliedCoupon && appliedCoupon.phone && String(appliedCoupon.phone) !== cleanPhone) { showToast('كود الخصم ده خاص بعميل تاني'); return; }
             const nowT = Date.now();
             const hist = JSON.parse(localStorage.getItem('zz_orders_t') || '[]').filter(t => nowT - t < 864e5);
             const isDev = localStorage.getItem('zz_dev') === '1';

@@ -776,6 +776,27 @@
                 + `<div style="margin:4px 0;">${b ? btn('#666', `removeBlack('${b.phone}')`, 'إزالة من القائمة السوداء') : btn('#c0392b', `blacklistCustomer('${o.orderId}')`, 'علّم العميل كمرفوض')}</div>`;
         }
 
+        async function sendBirthdayGift(phone) {
+            const m = members.find(x => x.phone === phone); if (!m) return;
+            const d = bdayInfo(m.birth);
+            const age = new Date(Date.now() + (d || 0) * 864e5).getFullYear() - (+String(m.birth).slice(0, 4));
+            if (!(age > 0 && age <= 100)) { alert('تاريخ الميلاد غير صالح لحساب الخصم'); return; }
+            if (d !== 0 && !confirm('عيد ميلاده مش النهارده، والكود هيخلص آخر النهارده (12 منتصف الليل). تكمل؟')) return;
+            const w = window.open('', '_blank');
+            let c = coupons.find(x => x.phone === m.phone && x.expires > Date.now() && x.active);
+            if (!c) {
+                const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', r = crypto.getRandomValues(new Uint8Array(6));
+                const code = 'HB-' + Array.from(r, x => A[x % A.length]).join('');
+                const exp = new Date(); exp.setHours(23, 59, 59, 0);
+                c = { id: code, code, type: 'percent', value: age, active: true, expires: exp.getTime(), minOrder: 0, maxUses: 1, used: 0, phone: m.phone, forName: String(m.name || '').slice(0, 100), createdAt: Date.now() };
+                try { await fb.saveCoupon(c); } catch (err) { if (w) w.close(); alert('فشل إنشاء الكود: ' + err.message); return; }
+                coupons = [...coupons, c]; renderCoupons();
+            }
+            const site = location.href.replace(/admin\.html.*$/, 'index.html');
+            const txt = `كل سنة وإنت طيب يا ${m.name} 🎂\nبمناسبة عيد ميلادك الـ ${age} سنة، وبمناسبة عيد ميلادك ليك خصم ${c.value}% على كل منتجاتنا لحد الساعة 12 منتصف الليل 🎁\nكود الخصم الخاص بيك: ${c.code}\n(الكود ليك إنت بس وبيتستخدم مرة واحدة)\nاكتبه في خانة كود الخصم وقت إتمام الطلب: ${site}\n\nزعزوعة - Zazoua`;
+            const url = `https://wa.me/20${String(m.phone).slice(1)}?text=${encodeURIComponent(txt)}`;
+            if (w) w.location = url; else window.open(url, '_blank');
+        }
         const mv = id => (document.getElementById(id) || {}).value || '';
         function memberFilter(k) {
             const d = document.getElementById('mf-day'), m = document.getElementById('mf-month'), t = new Date();
@@ -803,7 +824,7 @@
             el.innerHTML = list.length ? list.map(m => {
                 const age = m.birth ? new Date(Date.now() + (m.d || 0) * 864e5).getFullYear() - (+String(m.birth).slice(0, 4)) : 0;
                 const ph = String(m.phone || '').replace(/\D/g, '');
-                const wa = /^01[0125]\d{8}$/.test(ph) ? `<a href="https://wa.me/20${ph.slice(1)}?text=${encodeURIComponent('كل سنة وإنت طيب يا ' + (m.name || '') + ' 🎂\nهديتك من براند زعزوعة - Zazoua هي خصم ' + age + '% (على حسب سنك).')}" target="_blank" rel="noopener" style="background:#25D366; color:#fff; padding:4px 8px; border-radius:6px; text-decoration:none; font-weight:700; font-size:11px;">واتساب</a>` : '';
+                const wa = /^01[0125]\d{8}$/.test(ph) ? `<button onclick="sendBirthdayGift('${esc(m.phone)}')" style="cursor:pointer; border:none; background:#25D366; color:#fff; padding:4px 8px; border-radius:6px; font-weight:700; font-size:11px;">🎁 كود هدية + واتساب</button>` : '';
                 const tag = m.d === 0 ? chip('#1f7244', 'عيد ميلاده النهارده 🎂') : (m.d != null && m.d <= 30 ? chip('#b9770e', 'بعد ' + m.d + ' يوم') : '');
                 const bd = m.birth ? new Date(m.birth + 'T12:00:00').toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
                 return `<div style="padding:8px 10px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; font-size:12px; line-height:1.9;">
