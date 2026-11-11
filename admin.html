@@ -828,6 +828,23 @@
         const csvCell = v => { let t = String(v ?? ''); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return '"' + t.replace(/"/g, '""') + '"'; };
         const STATUS_COLORS = { new: '#2c6fbb', confirmed: '#b9770e', shipped: '#7d3c98', delivered: '#1f7244', cancelled: '#c0392b', returned: '#a04000', exchange: '#117a8b' };
 
+        function waBtn(ord, st) {
+            const nm = ord.customer.name, id = ord.orderId;
+            const trackUrl = location.href.replace(/admin\.html.*$/, 'track.html');
+            const M = {
+                new: `أهلاً ${nm} 👋 بنأكد معاك طلبك رقم ${id} من Zazoua بإجمالي ${ord.total} ج.م. تمام كده؟`,
+                confirmed: `أهلاً ${nm}، تم تأكيد طلبك رقم ${id} من Zazoua وجاري تجهيزه للشحن. شكرًا لثقتك فينا.`,
+                shipped: `أهلاً ${nm}، طلبك رقم ${id} اتشحن${ord.shipCo ? ' مع ' + ord.shipCo : ''}${ord.shipNo ? '، ورقم الشحنة ' + ord.shipNo : ''}. تقدر تتابعه من هنا: ${trackUrl} (اكتب رقم الطلب وآخر 4 أرقام من هاتفك).`,
+                delivered: `أهلاً ${nm}، طلبك رقم ${id} اتسلّم. نتمنى يكون عجبك، ولو حابب تقولنا رأيك يسعدنا جدًا.`,
+                cancelled: `أهلاً ${nm}، تم إلغاء طلبك رقم ${id}. لو عندك أي استفسار إحنا موجودين.`,
+                returned: `أهلاً ${nm}، بخصوص المرتجع الخاص بطلبك رقم ${id}، هنتواصل معاك قريبًا لإتمام الخطوات.`,
+                exchange: `أهلاً ${nm}، طلب الاستبدال الخاص بطلبك رقم ${id} قيد المعالجة، وهنتواصل معاك قريبًا.`
+            };
+            const L = { new: 'تأكيد عبر واتساب', confirmed: 'إرسال التأكيد', shipped: 'إبلاغ بالشحن', delivered: 'رسالة شكر' };
+            const ph = String(ord.customer.phone).replace(/\D/g, '').replace(/^0/, '');
+            return `<a href="https://wa.me/20${ph}?text=${encodeURIComponent(M[st] || M.new)}" target="_blank" rel="noopener" style="background:#25D366; color:#fff; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none;">${L[st] || 'واتساب العميل'}</a>`;
+        }
+
         function renderOrders() {
             const container = document.getElementById('admin-orders-list');
             const opened = new Set(Array.from(container.querySelectorAll('details[open]')).map(d => d.dataset.id));
@@ -859,7 +876,7 @@
                             <select class="form-select" style="width:auto; padding:3px 8px; font-size:12px;" onchange="changeStatus('${ord.orderId}', this.value)">
                                 ${Object.entries(STATUSES).map(([k, v]) => `<option value="${k}" ${k === st ? 'selected' : ''}>${v}</option>`).join('')}
                             </select>
-                            <a href="https://wa.me/20${String(ord.customer.phone).replace(/\D/g, '').replace(/^0/, '')}?text=${encodeURIComponent('أهلاً ' + ord.customer.name + ' 👋 بنأكد معاك طلبك رقم ' + ord.orderId + ' من Zazoua بإجمالي ' + ord.total + ' ج.م. تمام كده؟')}" target="_blank" rel="noopener" style="background:#25D366; color:#fff; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none;">واتساب العميل</a>
+                            ${waBtn(ord, st)}
                         </div>
                         <div style="margin-top:8px; display:grid; gap:6px;">
                             <div style="display:flex; gap:6px; flex-wrap:wrap;">
