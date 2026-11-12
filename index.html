@@ -301,7 +301,6 @@
             <button type="button" class="direct-buy-btn" onclick="buyCurrentProductDirectly()"><i class="fa-solid fa-bag-shopping"></i> طلب المنتج الان</button>
             <button type="button" class="add-to-cart-action-btn" onclick="addCurrentProductToCart()"><i class="fa-solid fa-cart-plus"></i> إضافة للسلة</button>
             <button type="button" id="share-btn" class="copy-ad-link-btn" onclick="shareActiveProduct()" style="margin-bottom:8px;"><i class="fa-solid fa-share-nodes"></i> مشاركة المنتج</button>
-            <button type="button" class="copy-ad-link-btn" onclick="copyActiveProductLink()"><i class="fa-solid fa-link"></i> نسخ رابط المنتج</button>
             <a id="pmodal-wa" target="_blank" rel="noopener" style="display:none; margin-top:8px; text-align:center; background:#25D366; color:#fff; padding:11px; border-radius:10px; font-weight:800; font-size:13px; text-decoration:none;">اسأل عن المنتج على واتساب</a>
             <div id="pmodal-notify" style="display:none; margin-top:10px; padding:10px; background:var(--brand-gray); border-radius:8px; font-size:12px;">
                 <div style="font-weight:800; margin-bottom:6px;">المنتج نفذ حاليًا. اترك رقمك ونبلغك لما يتوفر</div>
@@ -400,10 +399,6 @@
                     <div class="error-hint" id="err-address">يرجى كتابة العنوان التفصيلي بوضوح</div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">تاريخ ميلادك 🎂 (اختياري، من 16 سنة فأكثر - هنبعتلك هدية يوم ميلادك من زعزوعة-Zazoua)</label>
-                    <div class="bp" data-for="cust-birth" style="display:flex; gap:6px;"></div><input type="hidden" id="cust-birth">
-                </div>
-                <div class="form-group">
                     <label class="form-label">كود الخصم (اختياري)</label>
                     <div style="display:flex; gap:6px;">
                         <input type="text" id="cust-coupon" class="form-input" placeholder="اكتب كود الخصم هنا">
@@ -448,12 +443,12 @@
                 <span style="font-weight: 800;">🎁 سجّل معانا</span>
                 <button class="close-modal" onclick="closeMemberModal()">&times;</button>
             </div>
-            <div style="font-size:14px; line-height:1.8; font-weight:700; background:var(--brand-gray); padding:10px 12px; border-radius:8px; margin-bottom:12px; text-align:center;">هيتم إرسال هدية لحضرتك يوم ميلادك من ( زعزوعة-Zazoua ) 🎂</div>
+            <div style="font-size:14px; line-height:1.8; font-weight:700; background:var(--brand-gray); padding:10px 12px; border-radius:8px; margin-bottom:12px; text-align:center;">ادخل تاريخ الميلاد وسوف يتم ارسال هدية عيد الميلاد على الواتساب 🎂</div>
             <form id="member-form" onsubmit="handleMemberSubmit(event)" novalidate>
                 <div class="form-group"><label class="form-label">الاسم *</label><input type="text" id="mem-name" class="form-input" maxlength="100" placeholder="الاسم بالكامل" autocomplete="name"></div>
                 <div class="form-group"><label class="form-label">البريد الإلكتروني *</label><input type="email" id="mem-email" class="form-input" maxlength="120" placeholder="name@example.com" autocomplete="email" style="direction:ltr; text-align:right;"></div>
                 <div class="form-group"><label class="form-label">رقم الهاتف (11 رقم - واتساب) *</label><input type="tel" id="mem-phone" class="form-input" maxlength="11" placeholder="01XXXXXXXXX" autocomplete="tel"></div>
-                <div class="form-group"><label class="form-label">تاريخ الميلاد * (التسجيل لمن عمره 16 سنة فأكثر)</label><div class="bp" data-for="mem-birth" style="display:flex; gap:6px;"></div><input type="hidden" id="mem-birth"></div>
+                <div class="form-group"><label class="form-label">تاريخ الميلاد *</label><div class="bp" data-for="mem-birth" style="display:flex; gap:6px;"></div><input type="hidden" id="mem-birth"></div>
                 <input type="text" id="mem-hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute; left:-9999px; opacity:0;">
                 <div style="font-size:10px; color:var(--text-muted); margin-bottom:10px; line-height:1.6;">بياناتك بنستخدمها لإرسال الهدية والتواصل معاك بس، ومش بنشاركها مع أي طرف. التفاصيل في <a href="page.html?p=privacy" style="color:var(--accent-dark); font-weight:700;">سياسة الخصوصية</a>.</div>
                 <button type="submit" id="mem-submit" class="submit-order-btn">سجّلني واستلم هديتي 🎁</button>
@@ -526,7 +521,7 @@
             renderProducts();
             populateShippingOptions();
             updateCartUI();
-            checkDirectProductUrl(); maybeShowMember();
+            checkDirectProductUrl();
         });
 
         async function loadData() {
@@ -978,10 +973,13 @@
         }
         function maybeShowMember() {
             try { if (localStorage.getItem(MEM_KEY)) return; if (Date.now() - (+localStorage.getItem(MEM_SKIP) || 0) < 3 * 864e5) return; } catch (e) {}
-            setTimeout(() => {
-                if (document.querySelector('.modal-overlay.active')) return;
-                const m = document.getElementById('member-modal'); if (m) m.classList.add('active');
-            }, 3500);
+            const m = document.getElementById('member-modal'); if (!m) return;
+            if (lastOrder && lastOrder.customer) {
+                const n = document.getElementById('mem-name'), ph = document.getElementById('mem-phone');
+                if (n && !n.value) n.value = lastOrder.customer.name || '';
+                if (ph && !ph.value) ph.value = lastOrder.customer.phone || '';
+            }
+            m.classList.add('active');
         }
         function closeMemberModal() {
             document.getElementById('member-modal').classList.remove('active');
@@ -998,14 +996,14 @@
             if (!/^01[0125][0-9]{8}$/.test(phone)) { showToast('اكتب رقم هاتف مصري صحيح من 11 رقم'); return; }
             const maxD = new Date(); maxD.setFullYear(maxD.getFullYear() - MEM_MIN_AGE);
             if (!/^\d{4}-\d{2}-\d{2}$/.test(birth) || birth < '1930-01-01') { showToast('اكتب تاريخ ميلاد صحيح'); return; }
-            if (birth > maxD.toISOString().slice(0, 10)) { showToast(`التسجيل لمن عمره ${MEM_MIN_AGE} سنة فأكثر`); return; }
+            if (birth > maxD.toISOString().slice(0, 10)) { showToast('اكتب تاريخ ميلاد صحيح'); return; }
             const btn = document.getElementById('mem-submit'); btn.disabled = true;
             try {
                 await fb.addMember({ name: name.slice(0, 100), email: email.slice(0, 120), phone, birth, createdAt: Date.now() });
                 try { localStorage.setItem(MEM_KEY, '1'); } catch (e2) {}
                 document.getElementById('member-modal').classList.remove('active');
                 document.getElementById('member-form').reset();
-                showToast('تم التسجيل 🎉 هنبعتلك هدية يوم ميلادك');
+                showToast('تم التسجيل 🎉 هنبعتلك هدية عيد الميلاد على الواتساب');
             } catch (err) { console.error(err); showToast('تعذر التسجيل، لو سجلت قبل كده مش محتاج تسجل تاني'); }
             btn.disabled = false;
         }
@@ -1249,7 +1247,7 @@
             if (addressInput.value.trim().length < 6) { addressInput.classList.add('invalid'); document.getElementById('err-address').style.display='block'; isValid = false; }
 
             const birthVal = birthOf('cust-birth');
-            if (birthVal) { const maxB = new Date(); maxB.setFullYear(maxB.getFullYear() - MEM_MIN_AGE); if (!/^\d{4}-\d{2}-\d{2}$/.test(birthVal) || birthVal < '1930-01-01' || birthVal > maxB.toISOString().slice(0, 10)) { isValid = false; showToast(`تاريخ الميلاد لازم يكون لمن عمره ${MEM_MIN_AGE} سنة فأكثر، أو سيبه فاضي`); } }
+            if (birthVal) { const maxB = new Date(); maxB.setFullYear(maxB.getFullYear() - MEM_MIN_AGE); if (!/^\d{4}-\d{2}-\d{2}$/.test(birthVal) || birthVal < '1930-01-01' || birthVal > maxB.toISOString().slice(0, 10)) { isValid = false; showToast('تاريخ الميلاد غير صحيح'); } }
             if (!isValid) return;
             if (document.getElementById('hp-field').value) { cart = []; saveCartState(); closeCheckoutModal(); return; }
             if (appliedCoupon && appliedCoupon.phone && String(appliedCoupon.phone) !== cleanPhone) { showToast('كود الخصم ده خاص بعميل تاني'); return; }
@@ -1277,7 +1275,7 @@
             document.getElementById('order-success-modal').classList.add('active');
         }
 
-        function closeSuccessModal() { document.getElementById('order-success-modal').classList.remove('active'); }
+        function closeSuccessModal() { document.getElementById('order-success-modal').classList.remove('active'); setTimeout(maybeShowMember, 300); }
 
         function copyActiveProductLink() {
             if (!activeProduct) return;
