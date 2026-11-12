@@ -123,6 +123,7 @@
         <button class="tab-btn" onclick="switchTab('products', this)"><i class="fa-solid fa-shirt"></i> إدارة المنتجات</button>
         <button class="tab-btn" onclick="switchTab('shipping', this)"><i class="fa-solid fa-truck-rampage"></i> أسعار الشحن</button>
         <button class="tab-btn" onclick="switchTab('coupons', this)"><i class="fa-solid fa-ticket"></i> كوبونات الخصم</button>
+        <button class="tab-btn" onclick="switchTab('bundles', this)"><i class="fa-solid fa-box-open"></i> الباكجات</button>
         <button class="tab-btn" onclick="switchTab('settings', this)"><i class="fa-solid fa-gear"></i> الإعدادات والصفحات</button>
         <button class="tab-btn" onclick="switchTab('stats', this)"><i class="fa-solid fa-chart-line"></i> الإحصائيات</button>
         <button class="tab-btn" onclick="switchTab('reviews', this)"><i class="fa-solid fa-star"></i> التقييمات</button>
@@ -249,6 +250,27 @@
             </div>
         </form>
         <div id="coupons-list"></div>
+    </div>
+
+    <!-- TAB: BUNDLES -->
+    <div id="tab-bundles" class="admin-section">
+        <form onsubmit="handleSaveBundle(event)" style="margin-bottom:15px; display:grid; gap:8px;">
+            <input type="hidden" id="bn-id">
+            <div style="display:grid; grid-template-columns: 2fr 1fr; gap:8px;">
+                <div class="form-group" style="margin:0;"><label class="form-label">اسم الباكج</label><input type="text" id="bn-name" class="form-input" placeholder="مثال: طقم الصيف" required></div>
+                <div class="form-group" style="margin:0;"><label class="form-label">سعر الباكج (ج.م)</label><input type="number" id="bn-price" class="form-input" min="1" required oninput="renderBundleDraft()"></div>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:end;">
+                <div class="form-group" style="margin:0;"><label class="form-label">أضف منتج للباكج (ممكن تكرر نفس المنتج)</label><select id="bn-prod" class="form-select"></select></div>
+                <button type="button" class="submit-btn" style="background:var(--accent-dark);" onclick="addBundleProduct()">+ إضافة</button>
+            </div>
+            <div id="bn-draft" style="font-size:12px;"></div>
+            <div style="display:flex; gap:8px;">
+                <button type="submit" class="submit-btn" id="bn-submit">حفظ الباكج</button>
+                <button type="button" class="submit-btn" style="background:#888;" onclick="resetBundleForm()">مسح</button>
+            </div>
+        </form>
+        <div id="bundles-list"></div>
     </div>
 
     <!-- TAB 5: SETTINGS -->
@@ -400,6 +422,9 @@
             deleteShipping: (id) => deleteDoc(doc(db, 'shipping', String(id))),
             getSettings: async () => { const s = await getDoc(doc(db, 'settings', 'main')); return s.exists() ? s.data() : {}; },
             saveSettings: (d) => setDoc(doc(db, 'settings', 'main'), d, { merge: true }),
+            getBundles: () => list('bundles'),
+            saveBundle: (b) => setDoc(doc(db, 'bundles', String(b.id)), b),
+            deleteBundle: (id) => deleteDoc(doc(db, 'bundles', String(id))),
             getCoupons: () => list('coupons'),
             saveCoupon: (c) => setDoc(doc(db, 'coupons', c.id), c),
             deleteCoupon: (id) => deleteDoc(doc(db, 'coupons', id)),
@@ -423,7 +448,7 @@
 
         let products = [];
         let shippingRates = [];
-        let orders = [], coupons = [], settings = {}, reviews = [], leads = [], blacklist = [], costsMap = {};
+        let orders = [], bundles = [], bundleDraft = [], coupons = [], settings = {}, reviews = [], leads = [], blacklist = [], costsMap = {};
         let members = [];
         let IS_OWNER = true;
         const OWNER_EMAIL = 'trader872007@gmail.com';
@@ -488,13 +513,84 @@
                 if (IS_OWNER) {
                     if (shippingRates.length === 0) { for (const r of defaultShippingRates) await fb.saveShipping(r); shippingRates = [...defaultShippingRates]; }
                     coupons = await fb.getCoupons();
+                    try { bundles = await fb.getBundles(); } catch (e) { console.warn('bundles', e); }
                     reviews = await fb.getReviews();
                     costsMap = await fb.getCosts(); members = await fb.getMembers();
                 }
             } catch (err) { console.error(err); alert('تعذر تحميل البيانات: ' + err.message); }
-            renderProductsAdmin(); renderShipping(); renderCoupons(); renderReviews(); renderLeads(); renderBlacklist(); fillSettings(); startOrderWatch(); renderMembers();
+            renderProductsAdmin(); renderShipping(); renderCoupons(); renderBundlesAdmin(); renderReviews(); renderLeads(); renderBlacklist(); fillSettings(); startOrderWatch(); renderMembers();
         }
 
+
+
+        // ===== الباكجات =====
+        function bundleProdOptions() {
+            document.getElementById('bn-prod').innerHTML = products.map(p => `<option value="${p.id}">${esc(p.title)} — ${p.price} ج.م</option>`).join('');
+        }
+        function addBundleProduct() {
+            const id = document.getElementById('bn-prod').value; if (!id) return;
+            bundleDraft.push(Number(id)); renderBundleDraft();
+        }
+        function removeBundleProduct(i) { bundleDraft.splice(i, 1); renderBundleDraft(); }
+        function renderBundleDraft() {
+            const box = document.getElementById('bn-draft');
+            if (!bundleDraft.length) { box.innerHTML = '<span style="color:var(--text-muted);">لسه ما أضفتش منتجات (لازم 2 على الأقل).</span>'; return; }
+            const ps = bundleDraft.map(id => products.find(p => p.id == id));
+            const full = ps.reduce((s, p) => s + (p ? p.price : 0), 0), price = parseFloat(document.getElementById('bn-price').value) || 0;
+            box.innerHTML = ps.map((p, i) => `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:4px;"><span style="display:flex; align-items:center; gap:8px;">${p ? `<img src="${p.image}" style="width:30px; height:30px; object-fit:cover; border-radius:4px;">${esc(p.title)} — ${p.price} ج.م` : 'منتج محذوف'}</span><button type="button" onclick="removeBundleProduct(${i})" style="border:none; background:var(--danger-color); color:#fff; border-radius:4px; padding:3px 8px; cursor:pointer;">حذف</button></div>`).join('')
+                + `<div style="margin-top:6px; font-weight:700;">مجموع الأسعار العادية: ${full} ج.م${price ? ` | التوفير: ${full - price} ج.م (${full ? Math.round((1 - price / full) * 100) : 0}%)` : ''}</div>`
+                + (price && price >= full ? '<div style="color:var(--danger-color); font-weight:700;">تنبيه: سعر الباكج مش أقل من مجموع الأسعار العادية.</div>' : '');
+        }
+        function resetBundleForm() {
+            document.getElementById('bn-id').value = ''; document.getElementById('bn-name').value = ''; document.getElementById('bn-price').value = '';
+            bundleDraft = []; renderBundleDraft(); document.getElementById('bn-submit').innerText = 'حفظ الباكج';
+        }
+        async function handleSaveBundle(e) {
+            e.preventDefault();
+            if (bundleDraft.length < 2) { alert('الباكج لازم يحتوي على منتجين على الأقل'); return; }
+            const id = document.getElementById('bn-id').value || ('B' + Date.now().toString(36));
+            const old = bundles.find(x => x.id === id);
+            const b = { id, name: document.getElementById('bn-name').value.trim().slice(0, 80), price: parseFloat(document.getElementById('bn-price').value), productIds: [...bundleDraft], active: old ? old.active !== false : true, createdAt: old ? old.createdAt : Date.now() };
+            if (!b.name || !(b.price > 0)) return;
+            try { await fb.saveBundle(b); } catch (err) { alert('فشل الحفظ: ' + err.message + '\n(تأكد إنك نشرت قواعد Firestore الجديدة للباكجات)'); return; }
+            bundles = [...bundles.filter(x => x.id !== id), b]; renderBundlesAdmin(); resetBundleForm();
+        }
+        function editBundle(id) {
+            const b = bundles.find(x => x.id === id); if (!b) return;
+            document.getElementById('bn-id').value = b.id; document.getElementById('bn-name').value = b.name; document.getElementById('bn-price').value = b.price;
+            bundleDraft = [...b.productIds]; renderBundleDraft(); document.getElementById('bn-submit').innerText = 'حفظ التعديلات';
+            document.getElementById('tab-bundles').scrollIntoView({ behavior: 'smooth' });
+        }
+        async function toggleBundle(id) {
+            const b = bundles.find(x => x.id === id); if (!b) return;
+            const u = { ...b, active: b.active === false };
+            try { await fb.saveBundle(u); } catch (err) { alert('فشل الحفظ: ' + err.message); return; }
+            bundles = bundles.map(x => x.id === id ? u : x); renderBundlesAdmin();
+        }
+        async function deleteBundleAdmin(id) {
+            if (!confirm('حذف الباكج؟')) return;
+            try { await fb.deleteBundle(id); } catch (err) { alert('فشل الحذف: ' + err.message); return; }
+            bundles = bundles.filter(x => x.id !== id); renderBundlesAdmin();
+        }
+        function renderBundlesAdmin() {
+            bundleProdOptions(); renderBundleDraft();
+            const el = document.getElementById('bundles-list'); if (!el) return;
+            el.innerHTML = bundles.length ? [...bundles].sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0)).map(b => {
+                const ps = (b.productIds || []).map(id => products.find(p => p.id == id));
+                const full = ps.reduce((s, p) => s + (p ? p.price : 0), 0), missing = ps.some(p => !p);
+                return `<div style="padding:8px 10px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; font-size:12px; ${b.active === false ? 'opacity:.55;' : ''}">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span><strong>${esc(b.name)}</strong> — ${b.price} ج.م <span style="color:var(--text-muted);">(بدل ${full} ج.م)</span> ${b.active === false ? '(متوقف)' : ''}${missing ? ' <span style="color:var(--danger-color);">⚠ فيه منتج محذوف</span>' : ''}</span>
+                        <span>
+                            <button onclick="editBundle('${b.id}')" style="cursor:pointer; border:none; color:#fff; padding:4px 8px; border-radius:4px; font-size:11px; background:#2c6fbb;">تعديل</button>
+                            <button onclick="toggleBundle('${b.id}')" style="cursor:pointer; border:none; color:#fff; padding:4px 8px; border-radius:4px; font-size:11px; background:#666;">${b.active === false ? 'تفعيل' : 'إيقاف'}</button>
+                            <button onclick="deleteBundleAdmin('${b.id}')" style="cursor:pointer; border:none; color:#fff; padding:4px 8px; border-radius:4px; font-size:11px; background:var(--danger-color);">حذف</button>
+                        </span>
+                    </div>
+                    <div style="color:var(--text-muted); margin-top:4px;">${ps.map(p => p ? esc(p.title) : 'محذوف').join(' + ')}</div>
+                </div>`;
+            }).join('') : '<div style="color:var(--text-muted); font-size:12px;">لا توجد باكجات بعد.</div>';
+        }
 
         function normCode(s) { return s.trim().replace(/\//g, '').replace(/\s+/g, ' ').toUpperCase(); }
 
