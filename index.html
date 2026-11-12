@@ -109,25 +109,6 @@
         .add-to-cart-action-btn { width: 100%; background: var(--accent-dark); color: white; border: none; padding: 10px; border-radius: var(--radius-md); font-weight: 700; font-size: 14px; cursor: pointer; margin-bottom: 8px; }
         .copy-ad-link-btn { width: 100%; background: var(--brand-gray); color: var(--accent-dark); border: 1px solid var(--border-color); padding: 7px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 700; cursor: pointer; }
 
-
-        /* ===== الباكجات ===== */
-        .bundles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-bottom: 18px; }
-        .bundle-card { background: var(--bg-card); border: 2px solid var(--accent-dark); border-radius: var(--radius-lg); overflow: hidden; cursor: pointer; box-shadow: var(--shadow-sm); transition: var(--transition); position: relative; }
-        .bundle-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
-        .bundle-imgs { display: flex; height: 150px; background: var(--brand-gray); }
-        .bundle-imgs img { flex: 1; min-width: 0; height: 100%; object-fit: cover; border-left: 2px solid #fff; }
-        .bundle-badge { position: absolute; top: 8px; right: 8px; background: var(--danger-color); color: #fff; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 12px; z-index: 2; }
-        .bundle-info { padding: 10px 12px 12px; }
-        .bundle-name { font-size: 15px; font-weight: 800; margin-bottom: 2px; }
-        .bundle-items { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; line-height: 1.6; }
-        .bundle-price { font-size: 17px; font-weight: 900; }
-        .bundle-price s { font-size: 12px; font-weight: 600; color: var(--text-muted); margin-left: 6px; }
-        .bm-piece { display: flex; gap: 10px; padding: 8px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-main); margin-bottom: 8px; }
-        .bm-piece img { width: 70px; height: 85px; object-fit: cover; border-radius: 6px; flex: none; }
-        .bm-opts { flex: 1; min-width: 0; font-size: 11px; }
-        .bm-opts .lbl { color: var(--text-muted); font-weight: 700; margin-top: 4px; }
-        .bm-opts .row { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
-        .cart-bundle { padding: 8px; background: var(--bg-main); border: 2px solid var(--accent-dark); border-radius: 6px; margin-bottom: 6px; font-size: 12px; }
         .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: var(--accent-dark); color: white; padding: 8px 18px; border-radius: 20px; font-size: 12px; z-index: 3000; transition: var(--transition); }
         .toast.show { transform: translateX(-50%) translateY(0); }
 
@@ -221,11 +202,6 @@
         <div class="sub-categories-bar" id="sub-categories-bar"></div>
     </div>
 
-    <div class="main-content" id="bundles-section" style="display:none; margin-bottom:0;">
-        <div class="section-title"><span>🎁 باكجات توفير</span></div>
-        <div class="bundles-grid" id="bundles-grid"></div>
-    </div>
-
     <main class="main-content">
         <div class="section-title">
             <span id="category-title">جميع المنتجات</span>
@@ -301,6 +277,7 @@
             <button type="button" class="direct-buy-btn" onclick="buyCurrentProductDirectly()"><i class="fa-solid fa-bag-shopping"></i> طلب المنتج الان</button>
             <button type="button" class="add-to-cart-action-btn" onclick="addCurrentProductToCart()"><i class="fa-solid fa-cart-plus"></i> إضافة للسلة</button>
             <button type="button" id="share-btn" class="copy-ad-link-btn" onclick="shareActiveProduct()" style="margin-bottom:8px;"><i class="fa-solid fa-share-nodes"></i> مشاركة المنتج</button>
+            <button type="button" class="copy-ad-link-btn" onclick="copyActiveProductLink()"><i class="fa-solid fa-link"></i> نسخ رابط المنتج</button>
             <a id="pmodal-wa" target="_blank" rel="noopener" style="display:none; margin-top:8px; text-align:center; background:#25D366; color:#fff; padding:11px; border-radius:10px; font-weight:800; font-size:13px; text-decoration:none;">اسأل عن المنتج على واتساب</a>
             <div id="pmodal-notify" style="display:none; margin-top:10px; padding:10px; background:var(--brand-gray); border-radius:8px; font-size:12px;">
                 <div style="font-weight:800; margin-bottom:6px;">المنتج نفذ حاليًا. اترك رقمك ونبلغك لما يتوفر</div>
@@ -313,20 +290,6 @@
                 <div><div style="font-size:11px; color:var(--text-muted);">الإجمالي</div><div id="pm-bar-price" style="font-weight:900; font-size:17px; color:var(--accent-dark);"></div></div>
                 <button type="button" id="pm-bar-buy" class="pm-bar-btn" onclick="buyCurrentProductDirectly()">اطلب الآن</button>
             </div>
-        </div>
-    </div>
-
-    <!-- Modal الباكج -->
-    <div class="modal-overlay" id="bundle-modal" onclick="handleOutsideClick(event, 'bundle-modal', closeBundleModal)">
-        <div class="modal-box" style="max-width: 520px;">
-            <div class="modal-header">
-                <span style="font-weight: 800;" id="bm-title">الباكج</span>
-                <button class="close-modal" onclick="closeBundleModal()">&times;</button>
-            </div>
-            <div id="bm-price" style="margin-bottom:10px; font-weight:900; font-size:18px;"></div>
-            <div id="bm-pieces"></div>
-            <button type="button" class="direct-buy-btn" onclick="buyBundleNow()"><i class="fa-solid fa-bag-shopping"></i> اطلب الباكج الآن</button>
-            <button type="button" class="add-to-cart-action-btn" onclick="addBundleToCart()"><i class="fa-solid fa-cart-plus"></i> إضافة للسلة</button>
         </div>
     </div>
 
@@ -399,6 +362,10 @@
                     <div class="error-hint" id="err-address">يرجى كتابة العنوان التفصيلي بوضوح</div>
                 </div>
                 <div class="form-group">
+                    <label class="form-label">تاريخ ميلادك 🎂 (اختياري - هنبعتلك هدية يوم ميلادك من زعزوعة-Zazoua)</label>
+                    <div class="bp" data-for="cust-birth" style="display:flex; gap:6px;"></div><input type="hidden" id="cust-birth">
+                </div>
+                <div class="form-group">
                     <label class="form-label">كود الخصم (اختياري)</label>
                     <div style="display:flex; gap:6px;">
                         <input type="text" id="cust-coupon" class="form-input" placeholder="اكتب كود الخصم هنا">
@@ -443,7 +410,7 @@
                 <span style="font-weight: 800;">🎁 سجّل معانا</span>
                 <button class="close-modal" onclick="closeMemberModal()">&times;</button>
             </div>
-            <div style="font-size:14px; line-height:1.8; font-weight:700; background:var(--brand-gray); padding:10px 12px; border-radius:8px; margin-bottom:12px; text-align:center;">ادخل تاريخ الميلاد وسوف يتم ارسال هدية عيد الميلاد على الواتساب 🎂</div>
+            <div style="font-size:14px; line-height:1.8; font-weight:700; background:var(--brand-gray); padding:10px 12px; border-radius:8px; margin-bottom:12px; text-align:center;">هيتم إرسال هدية لحضرتك يوم ميلادك من ( زعزوعة-Zazoua ) 🎂</div>
             <form id="member-form" onsubmit="handleMemberSubmit(event)" novalidate>
                 <div class="form-group"><label class="form-label">الاسم *</label><input type="text" id="mem-name" class="form-input" maxlength="100" placeholder="الاسم بالكامل" autocomplete="name"></div>
                 <div class="form-group"><label class="form-label">البريد الإلكتروني *</label><input type="email" id="mem-email" class="form-input" maxlength="120" placeholder="name@example.com" autocomplete="email" style="direction:ltr; text-align:right;"></div>
@@ -469,7 +436,6 @@
         const db = getFirestore(app);
         window.fb = {
             async getProducts() { const s = await getDocs(collection(db, 'products')); return s.docs.map(d => d.data()).sort((a, b) => b.id - a.id); },
-            async getBundles() { const s = await getDocs(collection(db, 'bundles')); return s.docs.map(d => d.data()); },
             async getShipping() { const s = await getDocs(collection(db, 'shipping')); return s.docs.map(d => d.data()); },
             async getSettings() { const s = await getDoc(doc(db, 'settings', 'main')); return s.exists() ? s.data() : {}; },
             async getReviews() { const s = await getDocs(collection(db, 'reviews')); return s.docs.map(d => d.data()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); },
@@ -493,7 +459,6 @@
         ];
 
         let products = [];
-        let bundles = [];
         let shippingRates = [];
         let settings = {};
         let reviews = [];
@@ -521,7 +486,7 @@
             renderProducts();
             populateShippingOptions();
             updateCartUI();
-            checkDirectProductUrl();
+            checkDirectProductUrl(); maybeShowMember();
         });
 
         async function loadData() {
@@ -529,7 +494,6 @@
                 products = (await fb.getProducts()).filter(p => !p.hidden); applyOffers();
                 try { settings = await fb.getSettings(); initPixels(); if (settings.banner) document.querySelector('.announcement').innerText = settings.banner; let wn = String(settings.whatsapp || '').replace(/\D/g, ''); if (wn.startsWith('0')) wn = '20' + wn.slice(1); if (wn) { const wf = document.getElementById('wa-float'); wf.href = 'https://wa.me/' + wn; wf.style.display = 'flex'; } } catch (e) { console.error(e); }
                 try { reviews = await fb.getReviews(); } catch (e) { console.error(e); }
-                try { bundles = await fb.getBundles(); } catch (e) { bundles = []; }
                 const s = await fb.getShipping();
                 shippingRates = s.length ? s : defaultShippingRates;
             } catch (e) {
@@ -582,7 +546,6 @@
             if (sortBy === 'low') filtered = [...filtered].sort((a, b) => a.price - b.price);
             if (sortBy === 'high') filtered = [...filtered].sort((a, b) => b.price - a.price);
             document.getElementById('products-count').innerText = `(${filtered.length} منتج)`;
-            renderBundles();
             grid.innerHTML = filtered.map(product => `
                 <div class="product-card" onclick="openProductModal(${product.id})">
                     <div class="product-img-wrapper" style="position:relative;"><span onclick="event.stopPropagation(); toggleFav(${product.id})" style="position:absolute; top:6px; left:6px; z-index:2; background:rgba(255,255,255,.92); border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; font-size:17px; color:#c0392b; cursor:pointer;">${favs.includes(product.id) ? '♥' : '♡'}</span><img src="${product.image}" alt="${product.title}" class="product-img" loading="lazy" style="${product.soldOut ? 'opacity:.5;' : ''}"></div>
@@ -943,7 +906,7 @@
         }
 
         // ===== تسجيل العملاء (هدية عيد الميلاد) =====
-        const MEM_KEY = 'zz_member', MEM_SKIP = 'zz_member_skip', MEM_MIN_AGE = 16;
+        const MEM_KEY = 'zz_member', MEM_SKIP = 'zz_member_skip';
         function birthOf(id) {
             const box = document.querySelector(`.bp[data-for="${id}"]`); if (!box) return '';
             const g = k => box.querySelector(`[data-k="${k}"]`).value;
@@ -954,12 +917,12 @@
         }
         function initBirthPickers() {
             const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+            const maxY = new Date().getFullYear() - 10;
             const opt = (v, t) => `<option value="${v}">${t}</option>`;
             const days = Array.from({ length: 31 }, (_, i) => opt(i + 1, i + 1)).join('');
             const mons = months.map((m, i) => opt(i + 1, m)).join('');
+            let yrs = ''; for (let y = maxY; y >= 1930; y--) yrs += opt(y, y);
             document.querySelectorAll('.bp').forEach(box => {
-                const maxY = new Date().getFullYear() - MEM_MIN_AGE;
-                let yrs = ''; for (let y = maxY; y >= 1930; y--) yrs += opt(y, y);
                 const h = document.getElementById(box.dataset.for);
                 box.innerHTML = `<select class="form-select" data-k="d" aria-label="اليوم">${opt('', 'اليوم')}${days}</select><select class="form-select" data-k="m" aria-label="الشهر">${opt('', 'الشهر')}${mons}</select><select class="form-select" data-k="y" aria-label="السنة">${opt('', 'السنة')}${yrs}</select>`;
                 box.addEventListener('change', () => {
@@ -973,13 +936,10 @@
         }
         function maybeShowMember() {
             try { if (localStorage.getItem(MEM_KEY)) return; if (Date.now() - (+localStorage.getItem(MEM_SKIP) || 0) < 3 * 864e5) return; } catch (e) {}
-            const m = document.getElementById('member-modal'); if (!m) return;
-            if (lastOrder && lastOrder.customer) {
-                const n = document.getElementById('mem-name'), ph = document.getElementById('mem-phone');
-                if (n && !n.value) n.value = lastOrder.customer.name || '';
-                if (ph && !ph.value) ph.value = lastOrder.customer.phone || '';
-            }
-            m.classList.add('active');
+            setTimeout(() => {
+                if (document.querySelector('.modal-overlay.active')) return;
+                const m = document.getElementById('member-modal'); if (m) m.classList.add('active');
+            }, 3500);
         }
         function closeMemberModal() {
             document.getElementById('member-modal').classList.remove('active');
@@ -994,16 +954,15 @@
             if (name.split(/\s+/).length < 2) { showToast('اكتب الاسم كامل (كلمتين على الأقل)'); return; }
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { showToast('اكتب بريد إلكتروني صحيح'); return; }
             if (!/^01[0125][0-9]{8}$/.test(phone)) { showToast('اكتب رقم هاتف مصري صحيح من 11 رقم'); return; }
-            const maxD = new Date(); maxD.setFullYear(maxD.getFullYear() - MEM_MIN_AGE);
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(birth) || birth < '1930-01-01') { showToast('اكتب تاريخ ميلاد صحيح'); return; }
-            if (birth > maxD.toISOString().slice(0, 10)) { showToast('اكتب تاريخ ميلاد صحيح'); return; }
+            const maxD = new Date(); maxD.setFullYear(maxD.getFullYear() - 10);
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(birth) || birth < '1930-01-01' || birth > maxD.toISOString().slice(0, 10)) { showToast('اكتب تاريخ ميلاد صحيح'); return; }
             const btn = document.getElementById('mem-submit'); btn.disabled = true;
             try {
                 await fb.addMember({ name: name.slice(0, 100), email: email.slice(0, 120), phone, birth, createdAt: Date.now() });
                 try { localStorage.setItem(MEM_KEY, '1'); } catch (e2) {}
                 document.getElementById('member-modal').classList.remove('active');
                 document.getElementById('member-form').reset();
-                showToast('تم التسجيل 🎉 هنبعتلك هدية عيد الميلاد على الواتساب');
+                showToast('تم التسجيل 🎉 هنبعتلك هدية يوم ميلادك');
             } catch (err) { console.error(err); showToast('تعذر التسجيل، لو سجلت قبل كده مش محتاج تسجل تاني'); }
             btn.disabled = false;
         }
@@ -1099,94 +1058,6 @@
             track('AddToCart', { value: activeProduct.price * pieces.length, name: activeProduct.title }); saveCartState(); closeProductModal(); openCartCheckoutModal();
         }
 
-
-        // ===== الباكجات =====
-        let activeBundle = null;
-        function bundlePieces(b) { return (b.productIds || []).map(id => products.find(p => p.id == id)); }
-        function bundleValid(b) { const ps = bundlePieces(b); return b.active !== false && Number(b.price) > 0 && ps.length >= 2 && ps.every(p => p && !p.soldOut); }
-        function bundleFull(b) { return bundlePieces(b).reduce((s, p) => s + p.price, 0); }
-        function renderBundles() {
-            const sec = document.getElementById('bundles-section'); if (!sec) return;
-            const list = (bundles || []).filter(bundleValid).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-            if (!list.length || searchQ || favOnly) { sec.style.display = 'none'; return; }
-            sec.style.display = 'block';
-            document.getElementById('bundles-grid').innerHTML = list.map(b => {
-                const ps = bundlePieces(b), full = bundleFull(b), save = full > b.price ? Math.round((1 - b.price / full) * 100) : 0;
-                return `<div class="bundle-card" onclick="openBundleModal('${esc(b.id)}')">
-                    ${save > 0 ? `<span class="bundle-badge">وفّر ${save}%</span>` : ''}
-                    <div class="bundle-imgs">${ps.slice(0, 3).map(p => `<img src="${esc(p.image)}" alt="" loading="lazy">`).join('')}</div>
-                    <div class="bundle-info">
-                        <div class="bundle-name">${esc(b.name)}</div>
-                        <div class="bundle-items">${ps.map(p => esc(p.title)).join(' + ')}</div>
-                        <div class="bundle-price">${full > b.price ? `<s>${full}</s>` : ''}${b.price} ج.م</div>
-                    </div>
-                </div>`;
-            }).join('');
-        }
-        function openBundleModal(id) {
-            const b = bundles.find(x => x.id === id); if (!b || !bundleValid(b)) return;
-            activeBundle = b;
-            const full = bundleFull(b);
-            document.getElementById('bm-title').innerText = b.name;
-            document.getElementById('bm-price').innerHTML = `${full > b.price ? `<s style="font-size:13px; font-weight:600; color:var(--text-muted);">${full}</s> ` : ''}${b.price} ج.م${full > b.price ? ` <span style="background:var(--danger-color); color:#fff; font-size:11px; padding:2px 8px; border-radius:10px;">وفّر ${full - b.price} ج.م</span>` : ''}`;
-            document.getElementById('bm-pieces').innerHTML = bundlePieces(b).map((p, i) => `
-                <div class="bm-piece" data-idx="${i}">
-                    <img src="${esc(p.image)}" alt="">
-                    <div class="bm-opts">
-                        <div style="font-weight:800; font-size:13px;">${esc(p.title)}</div>
-                        <div class="lbl">المقاس:</div>
-                        <div class="row">${(p.sizes || []).map((s, k) => `<button type="button" class="size-btn ${k === 0 ? 'selected' : ''}" onclick="selectOption(this)">${esc(s)}</button>`).join('')}</div>
-                        <div class="lbl">اللون:</div>
-                        <div class="row">${(p.colors || []).map((c, k) => `<button type="button" class="color-btn ${k === 0 ? 'selected' : ''}" onclick="selectOption(this)">${esc(c)}</button>`).join('')}</div>
-                    </div>
-                </div>`).join('');
-            track('ViewContent', { value: b.price, name: 'باكج: ' + b.name });
-            document.getElementById('bundle-modal').classList.add('active'); document.body.style.overflow = 'hidden';
-        }
-        function closeBundleModal() { document.getElementById('bundle-modal').classList.remove('active'); if (!document.getElementById('product-page-modal').classList.contains('active')) document.body.style.overflow = ''; }
-        function bundleCartItems() {
-            const b = activeBundle; if (!b || !bundleValid(b)) { showToast('الباكج غير متاح حالياً'); return null; }
-            const ps = bundlePieces(b), S = bundleFull(b), P = Number(b.price), key = 'B' + Date.now() + Math.random().toString(36).slice(2, 6);
-            const cards = [...document.querySelectorAll('#bm-pieces .bm-piece')];
-            let used = 0;
-            return ps.map((p, i) => {
-                const price = i === ps.length - 1 ? P - used : Math.round(P * p.price / S); used += price;
-                const c = cards[i];
-                return { cartId: Date.now() + Math.random(), id: p.id, title: `${p.title} (باكج: ${b.name})`, price: Math.max(0, price), size: c.querySelector('.size-btn.selected')?.innerText || p.sizes[0], color: c.querySelector('.color-btn.selected')?.innerText || p.colors[0], bundleKey: key, bundleId: b.id };
-            });
-        }
-        function addBundleToCart() {
-            const items = bundleCartItems(); if (!items) return;
-            cart.push(...items); track('AddToCart', { value: activeBundle.price, name: 'باكج: ' + activeBundle.name });
-            saveCartState(); closeBundleModal(); showToast('تمت إضافة الباكج إلى السلة!');
-        }
-        function buyBundleNow() {
-            const items = bundleCartItems(); if (!items) return;
-            cart = items; track('AddToCart', { value: activeBundle.price, name: 'باكج: ' + activeBundle.name });
-            saveCartState(); closeBundleModal(); openCartCheckoutModal();
-        }
-        function cartRowsHtml() {
-            const done = new Set(); let html = '';
-            cart.forEach(item => {
-                if (item.bundleKey) {
-                    if (done.has(item.bundleKey)) return; done.add(item.bundleKey);
-                    const grp = cart.filter(i => i.bundleKey === item.bundleKey), total = grp.reduce((s, i) => s + i.price, 0);
-                    const bn = (bundles.find(b => b.id === item.bundleId) || {}).name || 'باكج';
-                    html += `<div class="cart-bundle"><div style="display:flex; justify-content:space-between; align-items:center;"><strong>🎁 باكج: ${esc(bn)} - ${total} ج.م</strong><button onclick="removeFromCart(${item.cartId})" style="background:none; border:none; color:var(--danger-color); cursor:pointer; font-size:14px;"><i class="fa-solid fa-trash"></i></button></div>${grp.map(g => `<div style="color:var(--text-muted); font-size:11px; margin-top:3px;">${esc(g.title.replace(/ \(باكج:.*\)$/, ''))} — المقاس: ${esc(g.size)} | اللون: ${esc(g.color)}</div>`).join('')}</div>`;
-                } else {
-                    html += `
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; font-size:12px;">
-                        <div>
-                            <strong>${item.title}</strong>
-                            <div style="color:var(--text-muted); font-size:11px;">المقاس: ${item.size} | اللون: ${item.color} - <strong>${item.price} ج.م</strong></div>
-                        </div>
-                        <button onclick="removeFromCart(${item.cartId})" style="background:none; border:none; color:var(--danger-color); cursor:pointer; font-size:14px;"><i class="fa-solid fa-trash"></i></button>
-                    </div>`;
-                }
-            });
-            return html;
-        }
-
         function updateCartUI() {
             const bar = document.getElementById('cart-bar');
             document.getElementById('header-cart-count').innerText = cart.length;
@@ -1205,13 +1076,21 @@
             } else {
                 document.getElementById('cart-actions-box').style.display = 'block';
                 document.getElementById('cart-modal-total').innerText = `${cart.reduce((s, i) => s + i.price, 0)} ج.م`;
-                container.innerHTML = cartRowsHtml();
+                container.innerHTML = cart.map(item => `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; font-size:12px;">
+                        <div>
+                            <strong>${item.title}</strong>
+                            <div style="color:var(--text-muted); font-size:11px;">المقاس: ${item.size} | اللون: ${item.color} - <strong>${item.price} ج.م</strong></div>
+                        </div>
+                        <button onclick="removeFromCart(${item.cartId})" style="background:none; border:none; color:var(--danger-color); cursor:pointer; font-size:14px;"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                `).join('');
             }
             document.getElementById('cart-modal').classList.add('active');
         }
 
         function closeCartModal() { document.getElementById('cart-modal').classList.remove('active'); }
-        function removeFromCart(cartId) { const it = cart.find(i => i.cartId === cartId); cart = it && it.bundleKey ? cart.filter(i => i.bundleKey !== it.bundleKey) : cart.filter(i => i.cartId !== cartId); saveCartState(); openCartModal(); }
+        function removeFromCart(cartId) { cart = cart.filter(i => i.cartId !== cartId); saveCartState(); openCartModal(); }
 
         function openCartCheckoutModal() {
             if (cart.length === 0) return;
@@ -1247,7 +1126,7 @@
             if (addressInput.value.trim().length < 6) { addressInput.classList.add('invalid'); document.getElementById('err-address').style.display='block'; isValid = false; }
 
             const birthVal = birthOf('cust-birth');
-            if (birthVal) { const maxB = new Date(); maxB.setFullYear(maxB.getFullYear() - MEM_MIN_AGE); if (!/^\d{4}-\d{2}-\d{2}$/.test(birthVal) || birthVal < '1930-01-01' || birthVal > maxB.toISOString().slice(0, 10)) { isValid = false; showToast('تاريخ الميلاد غير صحيح'); } }
+            if (birthVal) { const maxB = new Date(); maxB.setFullYear(maxB.getFullYear() - 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(birthVal) || birthVal < '1930-01-01' || birthVal > maxB.toISOString().slice(0, 10)) { isValid = false; showToast('اكتب تاريخ ميلاد صحيح أو سيبه فاضي'); } }
             if (!isValid) return;
             if (document.getElementById('hp-field').value) { cart = []; saveCartState(); closeCheckoutModal(); return; }
             if (appliedCoupon && appliedCoupon.phone && String(appliedCoupon.phone) !== cleanPhone) { showToast('كود الخصم ده خاص بعميل تاني'); return; }
@@ -1275,7 +1154,7 @@
             document.getElementById('order-success-modal').classList.add('active');
         }
 
-        function closeSuccessModal() { document.getElementById('order-success-modal').classList.remove('active'); setTimeout(maybeShowMember, 300); }
+        function closeSuccessModal() { document.getElementById('order-success-modal').classList.remove('active'); }
 
         function copyActiveProductLink() {
             if (!activeProduct) return;
