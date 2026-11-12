@@ -140,12 +140,14 @@
                 <label for="select-all" style="font-size: 12px; font-weight: 700;">تحديد الكل</label>
             </div>
             <div>
+                <button onclick="openManualOrder()" class="submit-btn" style="background:#1f7244; font-size:12px;"><i class="fa-solid fa-plus"></i> طلب يدوي</button>
                 <button onclick="printSelectedInvoices()" class="submit-btn" style="background:var(--accent-dark); font-size:12px;"><i class="fa-solid fa-print"></i> طباعة الفواتير المحددة (3/صفحة)</button>
                 <button onclick="deleteSelectedOrders()" class="submit-btn" style="background:var(--danger-color); font-size:12px;"><i class="fa-solid fa-trash"></i> حذف المحدد</button>
                 <button onclick="exportForCarrier()" class="submit-btn" style="background:#2c6fbb; font-size:12px;"><i class="fa-solid fa-truck"></i> تصدير لشركة الشحن</button>
                 <button onclick="exportToExcel()" class="submit-btn" style="background:#1f7244; font-size:12px;"><i class="fa-solid fa-file-excel"></i> تصدير Excel</button>
             </div>
         </div>
+        <div id="today-box" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; margin-bottom:10px;"></div>
         <input id="order-search" oninput="renderOrders()" placeholder="بحث بالاسم أو الهاتف أو رقم الطلب أو رقم الشحنة" style="width:100%; padding:9px 10px; margin-bottom:8px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;">
         <select id="order-filter" class="form-select" onchange="renderOrders()" style="margin-bottom:10px;">
             <option value="all">كل الطلبات</option><option value="new">جديد</option><option value="confirmed">تم التأكيد</option><option value="shipped">اتشحن</option><option value="delivered">اتسلّم</option><option value="cancelled">ملغي</option><option value="returned">مرتجع</option><option value="exchange">استبدال</option>
@@ -264,6 +266,12 @@
             <div class="form-group"><label class="form-label">Microsoft Clarity Project ID (اختياري)</label><input type="text" id="set-clarity" class="form-input"></div>
             <div class="form-group"><label class="form-label">صفحة "الأسئلة الشائعة" (اكتبها: س: ... ج: ...)</label><textarea id="set-faq" class="form-input" rows="5"></textarea></div>
             <div class="form-group"><label class="form-label">صفحة "سياسة الخصوصية" (اتركها فارغة لاستخدام نص عام جاهز)</label><textarea id="set-privacy" class="form-input" rows="5"></textarea></div>
+            <div style="font-size:12px; font-weight:800; margin:14px 0 6px;">قوالب رسائل واتساب للعميل (اتركها فارغة لاستخدام الرسالة الجاهزة)</div>
+            <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">تقدر تكتب في الرسالة: {name} اسم العميل، {id} رقم الطلب، {total} الإجمالي، {shipCo} شركة الشحن، {shipNo} رقم الشحنة، {track} رابط التتبع</div>
+            <div class="form-group"><label class="form-label">عند "جديد" (تأكيد الطلب)</label><textarea id="set-tpl-new" class="form-input" rows="2"></textarea></div>
+            <div class="form-group"><label class="form-label">عند "تم التأكيد"</label><textarea id="set-tpl-confirmed" class="form-input" rows="2"></textarea></div>
+            <div class="form-group"><label class="form-label">عند "اتشحن"</label><textarea id="set-tpl-shipped" class="form-input" rows="2"></textarea></div>
+            <div class="form-group"><label class="form-label">عند "اتسلّم" (شكر وطلب تقييم)</label><textarea id="set-tpl-delivered" class="form-input" rows="2"></textarea></div>
             <button type="button" onclick="backupAll()" class="submit-btn" style="background:#1f7244; width:100%; margin-bottom:8px;">تنزيل نسخة احتياطية من كل البيانات</button>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                 <div class="form-group"><label class="form-label">Meta Pixel ID</label><input type="text" id="set-meta" class="form-input" placeholder="أرقام فقط"></div>
@@ -324,6 +332,39 @@
 
     </div></div>
 
+    <div id="manual-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); align-items:flex-start; justify-content:center; overflow:auto; z-index:1000; padding:20px;">
+        <form id="mo-form" onsubmit="saveManualOrder(event)" style="background:#fff; border-radius:12px; padding:16px; width:100%; max-width:520px; display:grid; gap:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;"><strong>طلب يدوي</strong><button type="button" onclick="closeModals()" style="border:none; background:none; font-size:22px; cursor:pointer;">&times;</button></div>
+            <input id="mo-name" placeholder="اسم العميل" required style="width:100%; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;"><input id="mo-phone" placeholder="الهاتف 01XXXXXXXXX" maxlength="11" required style="width:100%; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;"><input id="mo-phone2" placeholder="هاتف إضافي (اختياري)" style="width:100%; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;"></div>
+            <select id="mo-gov" onchange="document.getElementById('mo-ship').value = moShip(); renderMoItems();" required style="width:100%; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;"></select>
+            <input id="mo-address" placeholder="العنوان بالتفصيل" required style="width:100%; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;">
+            <select id="mo-src" style="width:100%; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;"><option>واتساب</option><option>إنستجرام</option><option>تيك توك</option><option>فيسبوك</option><option>مكالمة</option><option>أخرى</option></select>
+            <div style="border:1px dashed var(--border-color); border-radius:8px; padding:8px; display:grid; gap:6px;">
+                <select id="mo-prod" onchange="fillMoVariants()" style="width:100%; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;"></select>
+                <div style="display:grid; grid-template-columns:1fr 1fr 70px auto; gap:6px;"><select id="mo-size" style="width:100%; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;"></select><select id="mo-color" style="width:100%; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;"></select><input id="mo-qty" type="number" min="1" value="1" style="width:100%; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;"><button type="button" onclick="addMoItem()" class="submit-btn" style="font-size:12px;">إضافة</button></div>
+                <div id="mo-items" style="font-size:12px;"></div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;"><input id="mo-ship" type="number" min="0" placeholder="الشحن" oninput="renderMoItems()" style="width:100%; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;"><input id="mo-disc" type="number" min="0" placeholder="خصم (ج.م)" oninput="renderMoItems()" style="width:100%; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;"></div>
+            <input id="mo-note" placeholder="ملاحظة داخلية (اختياري)" style="width:100%; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;">
+            <div id="mo-total" style="font-weight:800;"></div>
+            <button type="submit" class="submit-btn" style="width:100%; background:var(--accent-dark);">حفظ الطلب</button>
+        </form>
+    </div>
+
+    <div id="edit-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); align-items:flex-start; justify-content:center; overflow:auto; z-index:1000; padding:20px;">
+        <form onsubmit="saveEditOrder(event)" style="background:#fff; border-radius:12px; padding:16px; width:100%; max-width:480px; display:grid; gap:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;"><strong id="eo-title">تعديل الطلب</strong><button type="button" onclick="closeModals()" style="border:none; background:none; font-size:22px; cursor:pointer;">&times;</button></div>
+            <input id="eo-name" required style="width:100%; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;"><input id="eo-phone" maxlength="11" required style="width:100%; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;"><input id="eo-phone2" style="width:100%; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;"></div>
+            <select id="eo-gov" required style="width:100%; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;"></select>
+            <input id="eo-address" required style="width:100%; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;"><input id="eo-ship" type="number" min="0" placeholder="الشحن" style="width:100%; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;"><input id="eo-disc" type="number" min="0" placeholder="الخصم" style="width:100%; padding:9px 10px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;"></div>
+            <div id="eo-sub" style="font-size:12px; color:var(--text-muted);"></div>
+            <button type="submit" class="submit-btn" style="width:100%; background:var(--accent-dark);">حفظ التعديلات</button>
+        </form>
+    </div>
+
     <div id="print-area"></div>
 
     <script type="module">
@@ -352,6 +393,7 @@
             getMembers: () => list('members'),
             deleteMember: (id) => deleteDoc(doc(db, 'members', String(id))),
             deleteLead: (id) => deleteDoc(doc(db, 'leads', String(id))),
+            addOrder: (o) => setDoc(doc(db, 'orders', o.orderId), o),
             deleteOrder: async (id) => { await deleteDoc(doc(db, 'orders', String(id))); await deleteDoc(doc(db, 'tracking', String(id))); },
             setTracking: (t) => setDoc(doc(db, 'tracking', String(t.orderId)), t, { merge: true }),
             updateOrder: (id, data) => updateDoc(doc(db, 'orders', String(id)), data),
@@ -504,6 +546,10 @@
             document.getElementById('set-clarity').value = settings.clarityId || '';
             document.getElementById('set-faq').value = settings.faqText || '';
             document.getElementById('set-privacy').value = settings.privacyText || '';
+            document.getElementById('set-tpl-new').value = settings.waTplNew || '';
+            document.getElementById('set-tpl-confirmed').value = settings.waTplConfirmed || '';
+            document.getElementById('set-tpl-shipped').value = settings.waTplShipped || '';
+            document.getElementById('set-tpl-delivered').value = settings.waTplDelivered || '';
             document.getElementById('set-sizechart').value = settings.sizeChartText || '';
             document.getElementById('set-payment').value = settings.paymentText || '';
             document.getElementById('set-meta').value = settings.metaPixel || '';
@@ -524,6 +570,10 @@
                 clarityId: document.getElementById('set-clarity').value.trim(),
                 faqText: document.getElementById('set-faq').value,
                 privacyText: document.getElementById('set-privacy').value,
+                waTplNew: document.getElementById('set-tpl-new').value,
+                waTplConfirmed: document.getElementById('set-tpl-confirmed').value,
+                waTplShipped: document.getElementById('set-tpl-shipped').value,
+                waTplDelivered: document.getElementById('set-tpl-delivered').value,
                 sizeChartText: document.getElementById('set-sizechart').value,
                 paymentText: document.getElementById('set-payment').value,
                 metaPixel: document.getElementById('set-meta').value.trim(),
@@ -932,6 +982,117 @@
         const csvCell = v => { let t = String(v ?? ''); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return '"' + t.replace(/"/g, '""') + '"'; };
         const STATUS_COLORS = { new: '#2c6fbb', confirmed: '#b9770e', shipped: '#7d3c98', delivered: '#1f7244', cancelled: '#c0392b', returned: '#a04000', exchange: '#117a8b' };
 
+        // ===== لوحة النهارده =====
+        function setOrderFilter(f) { document.getElementById('order-filter').value = f; renderOrders(); }
+        function renderToday() {
+            const el = document.getElementById('today-box'); if (!el) return;
+            const now = Date.now(), DAY = 864e5, d0 = new Date(); d0.setHours(0, 0, 0, 0);
+            const st = o => o.status || 'new';
+            const todayO = orders.filter(o => (o.createdAt || 0) >= d0.getTime() && !['cancelled', 'returned'].includes(st(o)));
+            const newO = orders.filter(o => st(o) === 'new');
+            const late = newO.filter(o => o.createdAt && now - o.createdAt > DAY);
+            const slow = orders.filter(o => st(o) === 'shipped' && o.createdAt && now - o.createdAt > 5 * DAY);
+            const card = (t, n, sub, f, c) => `<div onclick="setOrderFilter('${f}')" style="cursor:pointer; background:#fff; border:1px solid var(--border-color); border-right:4px solid ${c}; border-radius:10px; padding:10px;"><div style="font-size:11px; color:var(--text-muted);">${t}</div><div style="font-size:20px; font-weight:800;">${n}</div><div style="font-size:11px; color:var(--text-muted);">${sub}</div></div>`;
+            el.innerHTML = card('طلبات النهارده', todayO.length, todayO.reduce((s, o) => s + (o.total || 0), 0) + ' ج.م', 'all', '#2c6fbb')
+                + card('محتاجة تأكيد', newO.length, 'حالتها "جديد"', 'new', '#b9770e')
+                + card('متأخرة أكتر من 24 ساعة', late.length, 'لسه "جديد"', 'new', late.length ? '#c0392b' : '#27ae60')
+                + card('اتشحنت من أكتر من 5 أيام', slow.length, 'ولسه ما اتسلمتش', 'shipped', slow.length ? '#c0392b' : '#27ae60');
+        }
+
+        // ===== قوالب واتساب =====
+        function waText(ord, st, M) {
+            const T = ({ new: settings.waTplNew, confirmed: settings.waTplConfirmed, shipped: settings.waTplShipped, delivered: settings.waTplDelivered })[st];
+            if (!T || !T.trim()) return M[st] || M.new;
+            const track = location.href.replace(/admin\.html.*$/, 'track.html');
+            return T.replace(/\{name\}/g, ord.customer.name).replace(/\{id\}/g, ord.orderId).replace(/\{total\}/g, ord.total).replace(/\{shipCo\}/g, ord.shipCo || '').replace(/\{shipNo\}/g, ord.shipNo || '').replace(/\{track\}/g, track);
+        }
+
+        // ===== طلب يدوي =====
+        let mItems = [];
+        function closeModals() { document.getElementById('manual-modal').style.display = 'none'; document.getElementById('edit-modal').style.display = 'none'; }
+        function govOptions(sel) {
+            const names = shippingRates.map(r => r.name);
+            const extra = sel && !names.includes(sel) ? `<option value="${esc(sel)}" data-ship="0">${esc(sel)}</option>` : '';
+            return '<option value="">اختر المحافظة</option>' + extra + shippingRates.map(r => `<option value="${esc(r.name)}" data-ship="${r.price}" ${r.name === sel ? 'selected' : ''}>${esc(r.name)} (${r.price} ج.م)</option>`).join('');
+        }
+        function moShip() { const o = document.getElementById('mo-gov').selectedOptions[0]; return o && o.dataset.ship ? parseInt(o.dataset.ship) : 0; }
+        function openManualOrder() {
+            mItems = []; document.getElementById('mo-form').reset();
+            document.getElementById('mo-gov').innerHTML = govOptions('');
+            document.getElementById('mo-prod').innerHTML = '<option value="">اختر المنتج</option>' + products.map(p => `<option value="${p.id}">${esc(p.title)} - ${p.price} ج.م</option>`).join('');
+            fillMoVariants(); renderMoItems();
+            document.getElementById('manual-modal').style.display = 'flex';
+        }
+        function fillMoVariants() {
+            const p = products.find(x => x.id == document.getElementById('mo-prod').value);
+            document.getElementById('mo-size').innerHTML = p ? p.sizes.map(s => `<option>${esc(s)}</option>`).join('') : '';
+            document.getElementById('mo-color').innerHTML = p ? p.colors.map(c => `<option>${esc(c)}</option>`).join('') : '';
+        }
+        function addMoItem() {
+            const p = products.find(x => x.id == document.getElementById('mo-prod').value); if (!p) { alert('اختر المنتج'); return; }
+            const q = Math.max(1, Math.min(20, parseInt(document.getElementById('mo-qty').value) || 1));
+            for (let i = 0; i < q; i++) mItems.push({ cartId: Date.now() + Math.random(), id: p.id, title: p.title, price: p.price, size: document.getElementById('mo-size').value, color: document.getElementById('mo-color').value });
+            renderMoItems();
+        }
+        function removeMoItem(i) { mItems.splice(i, 1); renderMoItems(); }
+        function renderMoItems() {
+            const sub = mItems.reduce((s, i) => s + i.price, 0), ship = parseInt(document.getElementById('mo-ship').value) || 0, disc = parseInt(document.getElementById('mo-disc').value) || 0;
+            document.getElementById('mo-items').innerHTML = mItems.map((i, k) => `<div style="display:flex; justify-content:space-between; padding:3px 0;"><span>${esc(i.title)} (${esc(i.size)}/${esc(i.color)}) - ${i.price} ج.م</span><button type="button" onclick="removeMoItem(${k})" style="border:none; background:none; color:#c0392b; cursor:pointer;">حذف</button></div>`).join('') || '<span style="color:var(--text-muted);">لم تضف منتجات بعد</span>';
+            document.getElementById('mo-total').innerText = `الإجمالي: ${Math.max(0, sub - disc + ship)} ج.م (منتجات ${sub} + شحن ${ship} - خصم ${disc})`;
+        }
+        async function saveManualOrder(e) {
+            e.preventDefault();
+            const v = id => document.getElementById(id).value.trim();
+            const phone = v('mo-phone').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+            if (!/^01[0125][0-9]{8}$/.test(phone)) { alert('رقم الهاتف غير صحيح'); return; }
+            if (!v('mo-gov')) { alert('اختر المحافظة'); return; }
+            if (!mItems.length) { alert('أضف منتجًا واحدًا على الأقل'); return; }
+            const sub = mItems.reduce((s, i) => s + i.price, 0), ship = parseInt(v('mo-ship')) || 0, disc = Math.min(sub, parseInt(v('mo-disc')) || 0);
+            const A8 = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', rb = crypto.getRandomValues(new Uint8Array(8));
+            const id = 'ZZ-' + Array.from(rb, x => A8[x % A8.length]).join('');
+            const order = { status: 'new', createdAt: Date.now(), orderId: id, dateStr: new Date().toLocaleString('ar-EG'), customer: { name: v('mo-name').slice(0, 100), phone, phone2: v('mo-phone2') || 'لا يوجد', address: v('mo-address').slice(0, 300), gov: v('mo-gov') }, items: mItems, subtotal: sub, shipping: ship, discount: disc, coupon: '', utm: { source: v('mo-src'), medium: 'manual', campaign: '', content: '' }, total: Math.max(0, sub - disc + ship) };
+            try {
+                await fb.addOrder(order);
+                await fb.setTracking({ orderId: id, status: 'new', phone4: phone.slice(-4), createdAt: order.createdAt });
+                if (v('mo-note')) await fb.updateOrder(id, { note: v('mo-note').slice(0, 500) });
+            } catch (err) { console.error(err); alert('فشل حفظ الطلب: ' + err.message); return; }
+            closeModals(); alert('تم حفظ الطلب: ' + id);
+        }
+
+        // ===== تعديل الطلب =====
+        let editingId = null;
+        function openEditOrder(id) {
+            const o = orders.find(x => x.orderId === id); if (!o) return;
+            editingId = id;
+            document.getElementById('eo-title').innerText = 'تعديل الطلب ' + id;
+            document.getElementById('eo-name').value = o.customer.name || '';
+            document.getElementById('eo-phone').value = o.customer.phone || '';
+            document.getElementById('eo-phone2').value = o.customer.phone2 || '';
+            document.getElementById('eo-gov').innerHTML = govOptions(o.customer.gov);
+            document.getElementById('eo-address').value = o.customer.address || '';
+            document.getElementById('eo-ship').value = o.shipping || 0;
+            document.getElementById('eo-disc').value = o.discount || 0;
+            const sub = o.subtotal != null ? o.subtotal : o.items.reduce((s, i) => s + i.price, 0);
+            document.getElementById('eo-sub').innerText = 'المنتجات: ' + o.items.map(i => `${i.title} (${i.size}/${i.color})`).join(' - ') + ' — قيمتها ' + sub + ' ج.م. لتعديل المنتجات الغي الطلب وسجل طلب يدوي جديد.';
+            document.getElementById('edit-modal').style.display = 'flex';
+        }
+        async function saveEditOrder(e) {
+            e.preventDefault();
+            const o = orders.find(x => x.orderId === editingId); if (!o) return;
+            const v = id => document.getElementById(id).value.trim();
+            const phone = v('eo-phone').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+            if (!/^01[0125][0-9]{8}$/.test(phone)) { alert('رقم الهاتف غير صحيح'); return; }
+            const sub = o.subtotal != null ? o.subtotal : o.items.reduce((s, i) => s + i.price, 0);
+            const ship = parseInt(v('eo-ship')) || 0, disc = Math.min(sub, parseInt(v('eo-disc')) || 0);
+            const customer = { ...o.customer, name: v('eo-name').slice(0, 100), phone, phone2: v('eo-phone2') || 'لا يوجد', gov: v('eo-gov'), address: v('eo-address').slice(0, 300) };
+            const upd = { customer, shipping: ship, discount: disc, total: Math.max(0, sub - disc + ship) };
+            try {
+                await fb.updateOrder(editingId, upd);
+                await fb.setTracking({ orderId: editingId, status: o.status || 'new', phone4: phone.slice(-4), createdAt: o.createdAt || 0, shipCo: o.shipCo || '', shipNo: o.shipNo || '' });
+            } catch (err) { console.error(err); alert('فشل التعديل: ' + err.message); return; }
+            Object.assign(o, upd); closeModals(); renderOrders();
+        }
+
         function waBtn(ord, st) {
             const nm = ord.customer.name, id = ord.orderId;
             const trackUrl = location.href.replace(/admin\.html.*$/, 'track.html');
@@ -946,10 +1107,11 @@
             };
             const L = { new: 'تأكيد عبر واتساب', confirmed: 'إرسال التأكيد', shipped: 'إبلاغ بالشحن', delivered: 'رسالة شكر' };
             const ph = String(ord.customer.phone).replace(/\D/g, '').replace(/^0/, '');
-            return `<a href="https://wa.me/20${ph}?text=${encodeURIComponent(M[st] || M.new)}" target="_blank" rel="noopener" style="background:#25D366; color:#fff; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none;">${L[st] || 'واتساب العميل'}</a>`;
+            return `<a href="https://wa.me/20${ph}?text=${encodeURIComponent(waText(ord, st, M))}" target="_blank" rel="noopener" style="background:#25D366; color:#fff; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none;">${L[st] || 'واتساب العميل'}</a>`;
         }
 
         function renderOrders() {
+            renderToday();
             const container = document.getElementById('admin-orders-list');
             const opened = new Set(Array.from(container.querySelectorAll('details[open]')).map(d => d.dataset.id));
             const f = document.getElementById('order-filter').value;
@@ -982,6 +1144,7 @@
                                 ${Object.entries(STATUSES).map(([k, v]) => `<option value="${k}" ${k === st ? 'selected' : ''}>${v}</option>`).join('')}
                             </select>
                             ${waBtn(ord, st)}
+                            <button onclick="openEditOrder('${ord.orderId}')" style="cursor:pointer; border:none; color:#fff; background:#2c6fbb; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:700;">تعديل الطلب</button>
                         </div>
                         <div style="margin-top:8px; display:grid; gap:6px;">
                             <div style="display:flex; gap:6px; flex-wrap:wrap;">
