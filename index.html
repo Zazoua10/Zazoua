@@ -212,6 +212,12 @@
             <button id="fav-filter" type="button" onclick="toggleFavFilter()" style="border:1px solid var(--border-color); background:#fff; border-radius:8px; padding:0 12px; font-weight:700; cursor:pointer; white-space:nowrap;">♡ المفضلة</button>
             <select class="form-select" style="width:auto;" onchange="sortBy = this.value; renderProducts();"><option value="new">الأحدث</option><option value="low">الأرخص</option><option value="high">الأعلى سعرًا</option></select>
         </div>
+        <div style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;">
+            <select id="f-size" class="form-select" style="width:auto;" onchange="fSize = this.value; renderProducts();"><option value="">كل المقاسات</option></select>
+            <select id="f-color" class="form-select" style="width:auto;" onchange="fColor = this.value; renderProducts();"><option value="">كل الألوان</option></select>
+            <input type="number" min="0" class="form-input" placeholder="السعر من" style="width:95px;" oninput="fMin = +this.value || 0; renderProducts();">
+            <input type="number" min="0" class="form-input" placeholder="السعر إلى" style="width:95px;" oninput="fMax = +this.value || 0; renderProducts();">
+        </div>
         <div class="products-grid" id="products-grid"></div>
         <div id="recent-section" style="display:none; margin-top:18px;"><div style="font-weight:800; font-size:14px; margin-bottom:8px;">شاهدتها مؤخرًا</div><div id="recent-list" style="display:flex; gap:10px; overflow-x:auto; padding-bottom:6px;"></div></div>
     </main>
@@ -535,9 +541,21 @@
 
         function selectSubCategory(sub) { currentSubCat = sub; renderProducts(); }
 
+        let fSize = '', fColor = '', fMin = 0, fMax = 0;
+        function fillFilters() {
+            const fs = document.getElementById('f-size'), fc = document.getElementById('f-color');
+            if (!fs || fs.dataset.n == products.length) return; fs.dataset.n = products.length;
+            const opts = (k, cur, all) => `<option value="">${all}</option>` + [...new Set(products.flatMap(p => p[k] || []))].map(x => `<option value="${esc(x)}" ${x === cur ? 'selected' : ''}>${esc(x)}</option>`).join('');
+            fs.innerHTML = opts('sizes', fSize, 'كل المقاسات'); fc.innerHTML = opts('colors', fColor, 'كل الألوان');
+        }
         function renderProducts() {
             const grid = document.getElementById('products-grid');
+            fillFilters();
             let filtered = products;
+            if (fSize) filtered = filtered.filter(p => (p.sizes || []).includes(fSize));
+            if (fColor) filtered = filtered.filter(p => (p.colors || []).includes(fColor));
+            if (fMin) filtered = filtered.filter(p => p.price >= fMin);
+            if (fMax) filtered = filtered.filter(p => p.price <= fMax);
             if (currentMainCat !== 'all') filtered = filtered.filter(p => p.mainCat === currentMainCat);
             if (currentSubCat !== 'all') filtered = filtered.filter(p => p.subCat === currentSubCat);
 
@@ -619,7 +637,13 @@
             if (e.state && e.state.pm) { if (!open) openProductModal(e.state.pm, true); }
             else if (open) hideProductModal();
         });
-        function selectOption(btn) { btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('selected')); btn.classList.add('selected'); }
+        function selectOption(btn) {
+            btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('selected')); btn.classList.add('selected');
+            if (btn.classList.contains('color-btn') && activeProduct && activeProduct.colorImages) {
+                const i = activeProduct.colorImages[btn.textContent.trim()], imgs = (activeProduct.images && activeProduct.images.length) ? activeProduct.images : [activeProduct.image];
+                if (i != null && imgs[i]) document.getElementById('pmodal-img').src = imgs[i];
+            }
+        }
 
         function getSelectedPiecesDetails() {
             const cards = document.querySelectorAll('#pieces-details-container .piece-card');

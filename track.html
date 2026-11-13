@@ -41,13 +41,23 @@ button{width:100%;margin-top:14px;padding:12px;border:none;border-radius:10px;ba
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 const app = initializeApp({ apiKey: "AIzaSyDsQTX9rCxxT7Dl-OhDSkrce85lM_yDaf4", authDomain: "zazoua-b4d33.firebaseapp.com", projectId: "zazoua-b4d33", storageBucket: "zazoua-b4d33.firebasestorage.app", messagingSenderId: "990100552162", appId: "1:990100552162:web:5b886a47ef93ff3ad7a1bb" });
 // App Check (reCAPTCHA Enterprise / Fraud Defense) - لازم يتعمل قبل أي استخدام لـ Firestore
 try { initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider("6LeTMBouAAAAAPog_ic7r83Gn1IKcq0C9laQMCqT"), isTokenAutoRefreshEnabled: true }); } catch (e) { console.warn("AppCheck init failed", e); }
 const db = getFirestore(app);
 const STEPS = [['new', 'تم استلام الطلب'], ['confirmed', 'تم تأكيد الطلب'], ['shipped', 'تم شحن الطلب'], ['delivered', 'تم التسليم']];
 const res = document.getElementById('res');
+const reqUI = st => {
+  const t = ['new', 'confirmed'].includes(st) ? ['cancel', 'طلب إلغاء الطلب'] : st === 'delivered' ? ['exchange', 'طلب استبدال'] : null;
+  return t ? `<div style="margin-top:14px;border-top:1px dashed #ddd;padding-top:12px"><textarea id="rq-note" maxlength="300" rows="2" placeholder="سبب الطلب (اختياري)" style="width:100%;padding:9px;border:1px solid #e9ecef;border-radius:8px;font-size:13px"></textarea><button onclick="sendReq('${t[0]}')" style="background:#c0392b">${t[1]}</button></div>` : '';
+};
+window.sendReq = async type => {
+  const q = window._q; if (!q || !confirm('تأكيد إرسال الطلب؟')) return;
+  const note = (document.getElementById('rq-note').value || '').trim().slice(0, 300);
+  try { await setDoc(doc(db, 'requests', q.id + '_' + type), { orderId: q.id, phone4: q.p4, type, note, createdAt: Date.now() }); alert('تم إرسال طلبك، هنتواصل معاك قريبًا.'); }
+  catch (e) { console.error(e); alert(/permission/i.test(String(e.code || e.message)) ? 'طلبك متسجّل عندنا قبل كده، هنتواصل معاك.' : 'تعذر الإرسال، حاول لاحقًا.'); }
+};
 window.check = async () => {
   const id = document.getElementById('oid').value.trim().toUpperCase().replace(/[\/\s]/g, '');
   const p4 = document.getElementById('p4').value.replace(/\D/g, '');
@@ -64,10 +74,11 @@ window.check = async () => {
     if (d.status === 'returned') { res.innerHTML = '<div class="cancel">تم إرجاع هذا الطلب.</div>'; return; }
     if (d.status === 'refused_receive' || d.status === 'refused_pay') { res.innerHTML = '<div class="cancel">الطلب رجع لأنه ماتمّش استلامه. تواصل معانا لو حابب نعيد الشحن.</div>'; return; }
     if (d.status === 'exchange') { res.innerHTML = '<div class="ship">طلب الاستبدال قيد المعالجة، وهنتواصل معاك قريبًا.</div>'; return; }
+    window._q = { id, p4 };
     const idx = STEPS.findIndex(x => x[0] === d.status);
     const e = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const ship = (d.shipNo || d.shipCo) ? `<div class="ship">🚚 ${d.shipCo ? 'شركة الشحن: ' + e(d.shipCo) + '<br>' : ''}${d.shipNo ? 'رقم الشحنة: ' + e(d.shipNo) : ''}</div>` : '';
-    res.innerHTML = STEPS.map((x, i) => `<div class="step ${i <= idx ? 'done' : ''} ${i === idx ? 'now' : ''}"><span class="dot"></span>${x[1]}</div>`).join('') + ship;
+    res.innerHTML = STEPS.map((x, i) => `<div class="step ${i <= idx ? 'done' : ''} ${i === idx ? 'now' : ''}"><span class="dot"></span>${x[1]}</div>`).join('') + ship + reqUI(d.status);
   } catch (e) { console.error(e); res.innerHTML = '<div class="err">تعذر التحقق الآن، حاول لاحقًا.</div>'; }
 };
 </script>

@@ -211,6 +211,7 @@
                 </div>
             </div>
 
+            <div id="color-imgs" class="form-group"></div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                 <div class="form-group"><label class="form-label">سعر التكلفة (لحساب الربح، لا يظهر للعميل)</label><input type="number" id="prod-cost" class="form-input" min="0"></div>
                 <div class="form-group"><label class="form-label">ينتهي العرض في (اختياري)</label><input type="datetime-local" id="prod-offer-ends" class="form-input"></div>
@@ -442,6 +443,11 @@
             getPayments: async () => (await list('carrierPayments')).sort((a, b) => (b.date || 0) - (a.date || 0)),
             savePayment: (p) => setDoc(doc(db, 'carrierPayments', p.id), p),
             deletePayment: (id) => deleteDoc(doc(db, 'carrierPayments', String(id))),
+            watchRequests: (cb, err) => onSnapshot(collection(db, 'requests'), s => cb(s.docs.map(d => d.data())), err),
+            deleteRequest: (id) => deleteDoc(doc(db, 'requests', String(id))),
+            getPurchases: async () => (await list('purchases')).sort((a, b) => (b.date || 0) - (a.date || 0)),
+            savePurchase: (p) => setDoc(doc(db, 'purchases', p.id), p),
+            deletePurchase: (id) => deleteDoc(doc(db, 'purchases', String(id))),
             getOrders: async () => (await list('orders')).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
         };
     </script>
@@ -456,7 +462,7 @@
         let products = [];
         let shippingRates = [];
         let orders = [], bundles = [], bundleDraft = [], coupons = [], settings = {}, reviews = [], leads = [], blacklist = [], costsMap = {};
-        let members = [], payments = [];
+        let members = [], payments = [], requests = [], purchases = [], colorSel = {};
         let IS_OWNER = true;
         const OWNER_EMAIL = 'trader872007@gmail.com';
         let currentImages = [];
@@ -501,6 +507,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('prod-colors').addEventListener('input', renderColorImgs);
             fb.onAuth(user => {
                 if (user) { IS_OWNER = (user.email || '').toLowerCase() === OWNER_EMAIL; applyRole(); document.getElementById('login-overlay').style.display = 'none'; loadAdminData(); }
                 else document.getElementById('login-overlay').style.display = 'flex';
@@ -525,7 +532,7 @@
                     coupons = await fb.getCoupons();
                     try { bundles = await fb.getBundles(); } catch (e) { console.warn('bundles', e); }
                     reviews = await fb.getReviews();
-                    costsMap = await fb.getCosts(); try { payments = await fb.getPayments(); } catch (e) { console.warn('payments', e); } members = await fb.getMembers();
+                    costsMap = await fb.getCosts(); try { payments = await fb.getPayments(); } catch (e) { console.warn('payments', e); } try { purchases = await fb.getPurchases(); } catch (e) { console.warn('purchases', e); } members = await fb.getMembers();
                 }
             } catch (err) { console.error(err); alert('تعذر تحميل البيانات: ' + err.message); }
             renderProductsAdmin(); renderShipping(); renderCoupons(); renderBundlesAdmin(); renderReviews(); renderLeads(); renderBlacklist(); fillSettings(); startOrderWatch(); renderMembers(); renderSettle(); checkBackup();
@@ -854,6 +861,7 @@
         let watching = false, firstSnap = true;
         function startOrderWatch() {
             if (watching) return; watching = true;
+            try { fb.watchRequests(l => { requests = l; renderOrders(); }, e => console.warn('requests', e)); } catch (e) { console.warn(e); }
             fb.watchOrders(list => {
                 list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
                 const added = list.length - orders.length;
@@ -904,6 +912,7 @@
             document.getElementById('img-thumbs').innerHTML = currentImages.map((s, i) => `
                 <div style="position:relative;"><img src="${s}" style="width:60px; height:60px; object-fit:cover; border-radius:6px; border:${i === 0 ? '2px solid var(--accent-dark)' : '1px solid #ddd'};">
                 <span onclick="removeImage(${i})" style="position:absolute; top:-6px; left:-6px; background:#c0392b; color:#fff; border-radius:50%; width:18px; height:18px; font-size:13px; text-align:center; line-height:18px; cursor:pointer;">×</span></div>`).join('');
+            renderColorImgs();
             const pv = document.getElementById('img-preview'), ph = document.getElementById('img-preview-placeholder');
             if (currentImages.length) { pv.src = currentImages[0]; pv.style.display = 'block'; ph.style.display = 'none'; }
             else { pv.style.display = 'none'; ph.style.display = 'block'; }
@@ -1078,7 +1087,7 @@
         }
 
         function backupAll() {
-            const data = { exportedAt: new Date().toISOString(), carrierPayments: payments, products, shippingRates, coupons, reviews, settings, orders, leads, blacklist, members, costs: costsMap };
+            const data = { exportedAt: new Date().toISOString(), carrierPayments: payments, purchases, products, shippingRates, coupons, reviews, settings, orders, leads, blacklist, members, costs: costsMap };
             const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
             a.download = `Zazoua_backup_${new Date().toISOString().slice(0, 10)}.json`; a.click();
             localStorage.setItem('zz_bk', Date.now()); document.getElementById('bk-bar').style.display = 'none';
@@ -1091,6 +1100,52 @@
         const csvCell = v => { let t = String(v ?? ''); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return '"' + t.replace(/"/g, '""') + '"'; };
         const STATUS_COLORS = { refused_receive: '#8b0000', refused_pay: '#6e2c00', new: '#2c6fbb', confirmed: '#b9770e', shipped: '#7d3c98', delivered: '#1f7244', cancelled: '#c0392b', returned: '#a04000', exchange: '#117a8b' };
 
+
+        // ===== طلبات العملاء =====
+        function reqBlock(o) {
+            const b = (bg, t, ok) => `<button onclick="answerReq('${o.orderId}', '__T__', ${ok})" style="cursor:pointer; border:none; color:#fff; background:${bg}; padding:3px 10px; border-radius:6px; font-size:12px;">${t}</button>`;
+            return requests.filter(r => r.orderId === o.orderId).map(r => `<div style="background:#fff3cd; border:1px solid #e0b100; border-radius:8px; padding:6px 8px; margin:4px 0; font-size:12px;"><strong>🔔 ${r.type === 'cancel' ? 'العميل طلب إلغاء الطلب' : 'العميل طلب استبدال'}</strong>${r.note ? ': ' + esc(r.note) : ''}<div style="margin-top:4px; display:flex; gap:6px;">${b('#1f7244', 'قبول وتغيير الحالة', true).replace('__T__', r.type)}${b('#888', 'تجاهل', false).replace('__T__', r.type)}</div></div>`).join('');
+        }
+        async function answerReq(oid, type, ok) {
+            if (ok) await changeStatus(oid, type === 'cancel' ? 'cancelled' : 'exchange');
+            try { await fb.deleteRequest(oid + '_' + type); } catch (e) { alert('فشل: ' + e.message); return; }
+            requests = requests.filter(r => !(r.orderId === oid && r.type === type)); renderOrders();
+        }
+
+        // ===== المشتريات =====
+        function purchasesHtml() {
+            const M = n => Math.round(Number(n) || 0).toLocaleString('en-US'), tot = purchases.reduce((s, p) => s + (Number(p.price) || 0), 0);
+            return `<h3 style="font-size:14px; margin:18px 0 8px;">المشتريات (جبت إيه وبكام) — إجمالي ${M(tot)} ج.م</h3>
+                <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px;">
+                    <div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:6px;"><input id="pu-item" class="form-input" placeholder="جبت إيه؟ (مثال: 50 تيشيرت)"><input id="pu-qty" type="number" min="1" class="form-input" placeholder="العدد"><input id="pu-price" type="number" min="0" class="form-input" placeholder="الإجمالي ج.م"></div>
+                    <select id="pu-prod" class="form-select" style="margin-top:6px;"><option value="">من غير ربط بمنتج</option>${products.map(p => `<option value="${p.id}">اعتمد تكلفة القطعة لـ: ${esc(p.title)}</option>`).join('')}</select>
+                    <button onclick="addPurchase()" class="submit-btn" style="margin-top:6px;">سجّل الشراء</button>
+                    ${purchases.map(p => `<div style="font-size:12px; display:flex; justify-content:space-between; gap:6px; padding:5px 0; border-top:1px dashed #ddd;"><span>${new Date(p.date).toLocaleDateString('ar-EG')} — ${esc(p.item)} × ${p.qty} = <strong>${M(p.price)} ج.م</strong> (القطعة ${(p.price / p.qty).toFixed(1)})</span><button onclick="delPurchase('${p.id}')" style="border:none; background:none; color:#c0392b; cursor:pointer;">حذف</button></div>`).join('')}
+                </div>`;
+        }
+        async function addPurchase() {
+            const item = document.getElementById('pu-item').value.trim(), qty = Number(document.getElementById('pu-qty').value), price = Number(document.getElementById('pu-price').value), pid = document.getElementById('pu-prod').value;
+            if (!item || !(qty > 0) || !(price >= 0)) { alert('اكتب الصنف والعدد والإجمالي'); return; }
+            const p = { id: String(Date.now()), item: item.slice(0, 100), qty, price, prodId: pid, date: Date.now() };
+            try {
+                await fb.savePurchase(p);
+                if (pid) { const u = Math.round(price / qty * 100) / 100; await fb.saveCost(pid, u); costsMap[pid] = u; }
+            } catch (e) { alert('فشل الحفظ (راجع قواعد purchases): ' + e.message); return; }
+            purchases.unshift(p); renderSettle(); renderOrders();
+        }
+        async function delPurchase(id) {
+            if (!confirm('حذف الشراء ده؟')) return;
+            try { await fb.deletePurchase(id); } catch (e) { alert('فشل الحذف: ' + e.message); return; }
+            purchases = purchases.filter(p => p.id !== id); renderSettle();
+        }
+
+        // ===== صور مرتبطة بالألوان =====
+        function renderColorImgs() {
+            const el = document.getElementById('color-imgs'); if (!el) return;
+            const cols = document.getElementById('prod-colors').value.split(',').map(c => c.trim()).filter(Boolean);
+            if (currentImages.length < 2 || !cols.length) { el.innerHTML = ''; return; }
+            el.innerHTML = '<div class="form-label">صورة كل لون (اختياري، العميل يشوفها لما يختار اللون)</div>' + cols.map(c => `<div style="display:flex; gap:8px; align-items:center; margin-bottom:4px; font-size:12px;"><span style="min-width:70px;">${esc(c)}</span><select class="form-select" style="width:auto;" onchange="colorSel[this.dataset.c] = this.value" data-c="${esc(c)}"><option value="">تلقائي</option>${currentImages.map((_, i) => `<option value="${i}" ${String(colorSel[c]) === String(i) ? 'selected' : ''}>صورة ${i + 1}</option>`).join('')}</select></div>`).join('');
+        }
 
         // ===== التسوية والأرباح =====
         function orderNet(o) {
@@ -1154,7 +1209,7 @@
                     <div style="display:flex; gap:6px; margin-top:8px;"><input class="pay-amt form-input" type="number" min="0" placeholder="دفعت كام للشركة؟"><input class="pay-note form-input" placeholder="ملاحظة (اختياري)"><button onclick="addPay(this, '${q}')" class="submit-btn" style="font-size:12px;">سجّل دفعة</button></div>
                     ${payments.filter(p => p.company === n).map(p => `<div style="font-size:12px; display:flex; justify-content:space-between; padding:4px 0; border-top:1px dashed #ddd;"><span>${new Date(p.date).toLocaleDateString('ar-EG')} — ${M(p.amount)} ج.م ${esc(p.note)}</span><button onclick="delPay('${p.id}')" style="border:none; background:none; color:#c0392b; cursor:pointer;">حذف</button></div>`).join('')}
                 </div>`; }).join('') : '<div style="font-size:12px; color:var(--text-muted);">اكتب اسم شركة الشحن في الأوردرات اللي اتشحنت وهتظهر هنا.</div>';
-            box.innerHTML = h;
+            box.innerHTML = h + purchasesHtml();
         }
         function checkBackup() {
             if (!IS_OWNER) return;
@@ -1320,6 +1375,7 @@
                         ${ord.customer.birth ? `<div><strong>تاريخ الميلاد:</strong> ${esc(ord.customer.birth)}</div>` : ''}
                         <div><strong>العنوان:</strong> ${esc(ord.customer.gov)} - ${esc(ord.customer.address)}</div>
                         ${orderInfo(ord)}
+                        ${reqBlock(ord)}
                         <div><strong>المنتجات:</strong> ${ord.items.map(i => `${esc(i.title)} (${esc(i.size)}/${esc(i.color)})`).join(' - ')}</div>
                         <div style="margin-top:6px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                             <strong>الحالة:</strong>
@@ -1451,7 +1507,7 @@
         function resetProductForm() {
             document.getElementById('product-form').reset();
             document.getElementById('edit-prod-id').value = '';
-            currentImages = []; renderThumbs();
+            currentImages = []; colorSel = {}; renderThumbs();
             document.getElementById('prod-save-btn').innerText = 'حفظ المنتج';
             document.getElementById('prod-cancel-btn').style.display = 'none';
         }
@@ -1471,7 +1527,7 @@
             document.getElementById('prod-sub-cat').value = p.subCat;
             document.getElementById('prod-sizes').value = p.sizes.join(', ');
             document.getElementById('prod-colors').value = p.colors.join(', ');
-            currentImages = (p.images && p.images.length) ? [...p.images] : [p.image];
+            currentImages = (p.images && p.images.length) ? [...p.images] : [p.image]; colorSel = { ...(p.colorImages || {}) };
             renderThumbs();
             document.getElementById('prod-save-btn').innerText = 'حفظ التعديلات';
             document.getElementById('prod-cancel-btn').style.display = 'block';
@@ -1503,7 +1559,8 @@
                 subCat: document.getElementById('prod-sub-cat').value.trim(),
                 sizes: document.getElementById('prod-sizes').value.split(',').map(s => s.trim()),
                 colors: document.getElementById('prod-colors').value.split(',').map(c => c.trim()),
-                image: currentImages[0] || '', images: currentImages
+                image: currentImages[0] || '', images: currentImages,
+                colorImages: Object.fromEntries(Object.entries(colorSel).filter(([c, v]) => v !== '' && v != null && currentImages[v] && document.getElementById('prod-colors').value.split(',').map(x => x.trim()).includes(c)).map(([c, v]) => [c, Number(v)]))
             };
             if (!prod.image) { alert('يرجى اختيار صورة للمنتج من المعرض أولاً!'); return; }
             if (JSON.stringify(prod).length > 950000) { alert('حجم الصور كبير، قلّل عدد الصور'); return; }
