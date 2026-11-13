@@ -107,6 +107,7 @@
         </div>
     </div>
 
+    <div id="bk-bar" style="display:none; background:#fff3cd; border:1px solid #e0b100; padding:8px 12px; margin:8px 12px; border-radius:8px; font-size:13px; font-weight:700; align-items:center; gap:8px; flex-wrap:wrap;"><span id="bk-msg"></span><button onclick="backupAll()" class="submit-btn" style="font-size:12px;">نزّل النسخة الآن</button></div>
     <div id="sound-bar" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; padding:8px 12px; font-size:12px;">
         <button id="sound-toggle" onclick="toggleSound()" class="submit-btn" style="font-size:12px;"></button>
         <button onclick="document.getElementById('sound-file').click()" class="submit-btn" style="background:var(--accent-dark); font-size:12px;">🎵 اختر صوت من الجهاز</button>
@@ -130,6 +131,7 @@
         <button class="tab-btn" onclick="switchTab('leads', this)"><i class="fa-solid fa-user-clock"></i> عملاء مهتمين</button>
         <button class="tab-btn" onclick="switchTab('blacklist', this)"><i class="fa-solid fa-ban"></i> القائمة السوداء</button>
         <button class="tab-btn" onclick="switchTab('members', this)"><i class="fa-solid fa-gift"></i> الأعضاء وأعياد الميلاد</button>
+        <button class="tab-btn" onclick="switchTab('settle', this)"><i class="fa-solid fa-scale-balanced"></i> التسوية والأرباح</button>
     </div>
 
     <div class="admin-content">
@@ -151,7 +153,7 @@
         <div id="today-box" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; margin-bottom:10px;"></div>
         <input id="order-search" oninput="renderOrders()" placeholder="بحث بالاسم أو الهاتف أو رقم الطلب أو رقم الشحنة" style="width:100%; padding:9px 10px; margin-bottom:8px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;">
         <select id="order-filter" class="form-select" onchange="renderOrders()" style="margin-bottom:10px;">
-            <option value="all">كل الطلبات</option><option value="new">جديد</option><option value="confirmed">تم التأكيد</option><option value="shipped">اتشحن</option><option value="delivered">اتسلّم</option><option value="cancelled">ملغي</option><option value="returned">مرتجع</option><option value="exchange">استبدال</option>
+            <option value="all">كل الطلبات</option><option value="new">جديد</option><option value="confirmed">تم التأكيد</option><option value="shipped">اتشحن</option><option value="delivered">اتسلّم</option><option value="cancelled">ملغي</option><option value="returned">مرتجع</option><option value="exchange">استبدال</option><option value="refused_receive">رفض الاستلام</option><option value="refused_pay">رفض الدفع</option>
         </select>
         <div id="admin-orders-list"></div>
     </div>
@@ -350,6 +352,8 @@
         <div id="members-list"></div>
     </div>
 
+    <div id="tab-settle" class="admin-section"><div id="settle-box"></div></div>
+
     <div id="tab-stats" class="admin-section"><div id="stats-box"></div></div>
 
     </div></div>
@@ -435,6 +439,9 @@
             getBlacklist: () => list('blacklist'),
             saveBlack: (b) => setDoc(doc(db, 'blacklist', b.phone), b),
             deleteBlack: (p) => deleteDoc(doc(db, 'blacklist', String(p))),
+            getPayments: async () => (await list('carrierPayments')).sort((a, b) => (b.date || 0) - (a.date || 0)),
+            savePayment: (p) => setDoc(doc(db, 'carrierPayments', p.id), p),
+            deletePayment: (id) => deleteDoc(doc(db, 'carrierPayments', String(id))),
             getOrders: async () => (await list('orders')).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
         };
     </script>
@@ -449,7 +456,7 @@
         let products = [];
         let shippingRates = [];
         let orders = [], bundles = [], bundleDraft = [], coupons = [], settings = {}, reviews = [], leads = [], blacklist = [], costsMap = {};
-        let members = [];
+        let members = [], payments = [];
         let IS_OWNER = true;
         const OWNER_EMAIL = 'trader872007@gmail.com';
         let currentImages = [];
@@ -458,9 +465,12 @@
             e.preventDefault();
             const email = document.getElementById('admin-email').value.trim();
             const pass = document.getElementById('admin-pass').value;
-            try { await fb.login(email, pass); }
+            const LK = JSON.parse(localStorage.getItem('zz_lk') || '{}');
+            if (LK.until > Date.now()) { alert('الدخول مقفول مؤقتًا بعد محاولات فاشلة. جرّب بعد ' + Math.ceil((LK.until - Date.now()) / 60000) + ' دقيقة.'); return; }
+            try { await fb.login(email, pass); localStorage.removeItem('zz_lk'); }
             catch (err) {
                 console.error(err);
+                const n = (LK.n || 0) + 1; localStorage.setItem('zz_lk', JSON.stringify(n >= 5 ? { n: 0, until: Date.now() + 15 * 60000 } : { n }));
                 const c = String(err && err.code || '');
                 let m;
                 if (location.protocol === 'file:') m = 'لازم تفتح لوحة الأدمن من رابط الموقع على الإنترنت، مش من الملف على الجهاز.';
@@ -515,10 +525,10 @@
                     coupons = await fb.getCoupons();
                     try { bundles = await fb.getBundles(); } catch (e) { console.warn('bundles', e); }
                     reviews = await fb.getReviews();
-                    costsMap = await fb.getCosts(); members = await fb.getMembers();
+                    costsMap = await fb.getCosts(); try { payments = await fb.getPayments(); } catch (e) { console.warn('payments', e); } members = await fb.getMembers();
                 }
             } catch (err) { console.error(err); alert('تعذر تحميل البيانات: ' + err.message); }
-            renderProductsAdmin(); renderShipping(); renderCoupons(); renderBundlesAdmin(); renderReviews(); renderLeads(); renderBlacklist(); fillSettings(); startOrderWatch(); renderMembers();
+            renderProductsAdmin(); renderShipping(); renderCoupons(); renderBundlesAdmin(); renderReviews(); renderLeads(); renderBlacklist(); fillSettings(); startOrderWatch(); renderMembers(); renderSettle(); checkBackup();
         }
 
 
@@ -684,7 +694,7 @@
 
         function renderStats() {
             const box = document.getElementById('stats-box'); if (!box) return;
-            const ok = orders.filter(o => !['cancelled', 'returned'].includes(o.status || 'new'));
+            const ok = orders.filter(o => !DEAD.includes(o.status || 'new'));
             const now = Date.now(), DAY = 864e5;
             const money = n => Math.round(Number(n) || 0).toLocaleString('en-US');
             const tot = o => Number(o.total) || 0;
@@ -847,7 +857,7 @@
             fb.watchOrders(list => {
                 list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
                 const added = list.length - orders.length;
-                orders = list; renderOrders(); renderStats(); renderStatsExtra(); renderLeads(); renderMembers();
+                orders = list; renderOrders(); renderStats(); renderStatsExtra(); renderLeads(); renderMembers(); renderSettle();
                 if (!firstSnap && added > 0) { beep(); document.title = `🔔 (${added}) طلب جديد - لوحة الإدارة`; }
                 firstSnap = false;
             }, err => { console.error(err); if (loggingOut) return; alert('تعذر تحميل الطلبات: ' + err.message); });
@@ -909,7 +919,7 @@
             let h = '';
             if (blackOf(o.customer.phone) || blackOf(o.customer.phone2)) h += chip('#c0392b', 'قائمة سوداء');
             if (prev.length) h += chip('#2c6fbb', `عميل متكرر (${prev.length})`);
-            const bad = prev.filter(x => ['cancelled', 'returned'].includes(x.status || 'new')).length;
+            const bad = prev.filter(x => DEAD.includes(x.status || 'new')).length;
             if (bad) h += chip('#b9770e', `${bad} ملغي/مرتجع سابق`);
             if (o.customer && o.customer.birth) { const b = o.customer.birth; h += chip('#8e44ad', 'ميلاده ' + b.slice(8) + '/' + b.slice(5, 7) + '/' + b.slice(0, 4)); }
             return h;
@@ -1034,7 +1044,7 @@
 
         function renderStatsExtra() {
             const box = document.getElementById('stats-box'); if (!box || !IS_OWNER) return;
-            const dead = o => ['cancelled', 'returned'].includes(o.status || 'new');
+            const dead = o => DEAD.includes(o.status || 'new');
             const li = arr => arr.length ? arr.map(([n, c]) => `<div style="padding:5px 8px; background:var(--bg-main); border-radius:6px; margin-bottom:4px; font-size:12px; display:flex; justify-content:space-between; gap:8px;"><span>${esc(n)}</span><strong>${c}</strong></div>`).join('') : '<div style="font-size:12px; color:var(--text-muted);">لا توجد بيانات بعد.</div>';
             const src = {};
             orders.forEach(o => { const s = (o.utm && o.utm.source) || 'غير معروف', k = o.utm && o.utm.campaign ? s + ' / ' + o.utm.campaign : s; src[k] = src[k] || { n: 0, rev: 0 }; src[k].n++; if (!dead(o)) src[k].rev += o.total || 0; });
@@ -1068,15 +1078,91 @@
         }
 
         function backupAll() {
-            const data = { exportedAt: new Date().toISOString(), products, shippingRates, coupons, reviews, settings, orders, leads, blacklist, members, costs: costsMap };
+            const data = { exportedAt: new Date().toISOString(), carrierPayments: payments, products, shippingRates, coupons, reviews, settings, orders, leads, blacklist, members, costs: costsMap };
             const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
             a.download = `Zazoua_backup_${new Date().toISOString().slice(0, 10)}.json`; a.click();
+            localStorage.setItem('zz_bk', Date.now()); document.getElementById('bk-bar').style.display = 'none';
+            try { fb.saveSettings({ lastBackupAt: Date.now() }); } catch (e) {}
         }
 
-        const STATUSES = { new: 'جديد', confirmed: 'تم التأكيد', shipped: 'اتشحن', delivered: 'اتسلّم', cancelled: 'ملغي', returned: 'مرتجع', exchange: 'استبدال' };
+        const DEAD = ['cancelled', 'returned', 'refused_receive', 'refused_pay'];
+        const STATUSES = { refused_receive: 'رفض الاستلام', refused_pay: 'رفض الدفع', new: 'جديد', confirmed: 'تم التأكيد', shipped: 'اتشحن', delivered: 'اتسلّم', cancelled: 'ملغي', returned: 'مرتجع', exchange: 'استبدال' };
         const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         const csvCell = v => { let t = String(v ?? ''); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return '"' + t.replace(/"/g, '""') + '"'; };
-        const STATUS_COLORS = { new: '#2c6fbb', confirmed: '#b9770e', shipped: '#7d3c98', delivered: '#1f7244', cancelled: '#c0392b', returned: '#a04000', exchange: '#117a8b' };
+        const STATUS_COLORS = { refused_receive: '#8b0000', refused_pay: '#6e2c00', new: '#2c6fbb', confirmed: '#b9770e', shipped: '#7d3c98', delivered: '#1f7244', cancelled: '#c0392b', returned: '#a04000', exchange: '#117a8b' };
+
+
+        // ===== التسوية والأرباح =====
+        function orderNet(o) {
+            const st = o.status || 'new', fee = Number(o.shipCost) || 0;
+            if (st === 'cancelled') return { net: 0, cost: 0, fee: 0, known: true };
+            if (['returned', 'refused_receive', 'refused_pay'].includes(st)) return { net: -fee, cost: 0, fee, known: true, loss: true };
+            let cost = 0, known = true;
+            (o.items || []).forEach(i => { if (costsMap[i.id] == null) known = false; else cost += Number(costsMap[i.id]); });
+            return { net: (o.total || 0) - cost - fee, cost, fee, known };
+        }
+        async function setSettled(id, v) {
+            try { await fb.updateOrder(id, { settled: v, settledAt: v ? Date.now() : 0 }); } catch (e) { alert('فشل الحفظ: ' + e.message); return; }
+            const o = orders.find(x => x.orderId === id); if (o) { o.settled = v; renderOrders(); renderSettle(); }
+        }
+        async function markSettled(btn) {
+            const ids = [...btn.closest('.st-co').querySelectorAll('.st-cb:checked')].map(c => c.dataset.id);
+            if (!ids.length) { alert('حدد الأوردرات اللي اتحصّلت'); return; }
+            try { await Promise.all(ids.map(id => fb.updateOrder(id, { settled: true, settledAt: Date.now() }))); } catch (e) { alert('فشل الحفظ: ' + e.message); return; }
+            ids.forEach(id => { const o = orders.find(x => x.orderId === id); if (o) o.settled = true; }); renderOrders(); renderSettle();
+        }
+        async function addPay(btn, co) {
+            const box = btn.closest('.st-co'), amt = Number(box.querySelector('.pay-amt').value);
+            if (!(amt > 0)) { alert('اكتب المبلغ'); return; }
+            const p = { id: String(Date.now()), company: co, amount: amt, note: box.querySelector('.pay-note').value.trim().slice(0, 120), date: Date.now() };
+            try { await fb.savePayment(p); } catch (e) { alert('فشل الحفظ (راجع قواعد Firestore لـ carrierPayments): ' + e.message); return; }
+            payments.unshift(p); renderSettle();
+        }
+        async function delPay(id) {
+            if (!confirm('حذف الدفعة دي؟')) return;
+            try { await fb.deletePayment(id); } catch (e) { alert('فشل الحذف: ' + e.message); return; }
+            payments = payments.filter(p => p.id !== id); renderSettle();
+        }
+        function renderSettle() {
+            const box = document.getElementById('settle-box'); if (!box || !IS_OWNER) return;
+            const M = n => Math.round(Number(n) || 0).toLocaleString('en-US');
+            const co = {}, g = n => co[n] || (co[n] = { pend: [], pendSum: 0, doneSum: 0, fee: 0, paid: 0 });
+            let real = 0, exp = 0, loss = 0, unk = 0;
+            orders.forEach(o => {
+                const st = o.status || 'new', n = (o.shipCo || '').trim() || 'بدون شركة', r = orderNet(o);
+                if (['shipped', 'delivered'].includes(st)) { const c = g(n); if (o.settled) c.doneSum += o.total || 0; else { c.pend.push(o); c.pendSum += o.total || 0; } }
+                if (['shipped', 'delivered', 'returned', 'refused_receive', 'refused_pay'].includes(st)) g(n).fee += r.fee;
+                if (st === 'cancelled') return;
+                if (r.loss) loss += r.net; else if (!r.known) unk++; else if (st === 'delivered') real += r.net; else exp += r.net;
+            });
+            payments.forEach(p => g(p.company).paid += Number(p.amount) || 0);
+            const card = (l, v, c) => `<div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:10px; text-align:center;"><div style="font-size:11px; color:var(--text-muted);">${l}</div><div style="font-size:16px; font-weight:800; color:${c || 'inherit'};">${M(v)} ج.م</div></div>`;
+            let h = `<h3 style="font-size:14px; margin-bottom:8px;">الربح بعد المرتجع والرفض</h3>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px;">
+                ${card('ربح اللي اتسلّم', real, '#1f7244')}${card('ربح متوقع (لسه ماوصلش)', exp)}${card('خسارة مرتجع/رفض', loss, '#c0392b')}${card('الصافي المحقق بعد الخسارة', real + loss, real + loss >= 0 ? '#1f7244' : '#c0392b')}</div>
+                <div style="font-size:11px; color:var(--text-muted); margin:4px 0 14px;">الصافي = إجمالي الأوردر − تكلفة المنتجات − رسوم الشركة. المرتجع والرفض بيتحسبوا خسارة بقيمة رسوم الشركة اللي بتكتبها في الأوردر.${unk ? ` (${unk} أوردر من غير سعر تكلفة مش محسوب)` : ''}</div>
+                <h3 style="font-size:14px; margin-bottom:8px;">تسوية الدفع عند الاستلام لكل شركة</h3>`;
+            const names = Object.keys(co);
+            h += names.length ? names.map(n => { const c = co[n], q = esc(n).replace(/'/g, '&#39;'); return `
+                <div class="st-co" style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; margin-bottom:10px;">
+                    <strong>${esc(n)}</strong>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:6px; margin:8px 0;">
+                        ${card('فلوسك المعلّقة عندهم (' + c.pend.length + ' أوردر)', c.pendSum, '#b9770e')}${card('اتحصّل', c.doneSum, '#1f7244')}${card('رسوم الشحن', c.fee)}${card('دفعت للشركة', c.paid)}${card('باقي عليك للشركة', c.fee - c.paid, c.fee - c.paid > 0 ? '#c0392b' : '#1f7244')}
+                    </div>
+                    ${c.pend.map(o => `<label style="display:flex; gap:6px; font-size:12px; padding:3px 0;"><input type="checkbox" class="st-cb" data-id="${o.orderId}"> ${esc(o.customer.name)} — ${o.orderId} — <strong>${o.total} ج.م</strong> ${o.shipNo ? '🚚 ' + esc(o.shipNo) : ''}</label>`).join('')}
+                    ${c.pend.length ? `<button onclick="markSettled(this)" class="submit-btn" style="background:#1f7244; font-size:12px; margin:6px 0;">علّم المحدد اتحصّل</button>` : ''}
+                    <div style="display:flex; gap:6px; margin-top:8px;"><input class="pay-amt form-input" type="number" min="0" placeholder="دفعت كام للشركة؟"><input class="pay-note form-input" placeholder="ملاحظة (اختياري)"><button onclick="addPay(this, '${q}')" class="submit-btn" style="font-size:12px;">سجّل دفعة</button></div>
+                    ${payments.filter(p => p.company === n).map(p => `<div style="font-size:12px; display:flex; justify-content:space-between; padding:4px 0; border-top:1px dashed #ddd;"><span>${new Date(p.date).toLocaleDateString('ar-EG')} — ${M(p.amount)} ج.م ${esc(p.note)}</span><button onclick="delPay('${p.id}')" style="border:none; background:none; color:#c0392b; cursor:pointer;">حذف</button></div>`).join('')}
+                </div>`; }).join('') : '<div style="font-size:12px; color:var(--text-muted);">اكتب اسم شركة الشحن في الأوردرات اللي اتشحنت وهتظهر هنا.</div>';
+            box.innerHTML = h;
+        }
+        function checkBackup() {
+            if (!IS_OWNER) return;
+            const last = Math.max(Number(settings.lastBackupAt) || 0, Number(localStorage.getItem('zz_bk')) || 0), d = Math.floor((Date.now() - last) / 864e5);
+            if (last && d < 7) return;
+            document.getElementById('bk-msg').textContent = last ? `⚠️ آخر نسخة احتياطية من ${d} يوم. نزّل نسخة جديدة.` : '⚠️ ماعملتش نسخة احتياطية قبل كده. نزّلها دلوقتي.';
+            document.getElementById('bk-bar').style.display = 'flex';
+        }
 
         // ===== لوحة النهارده =====
         function setOrderFilter(f) { document.getElementById('order-filter').value = f; renderOrders(); }
@@ -1084,7 +1170,7 @@
             const el = document.getElementById('today-box'); if (!el) return;
             const now = Date.now(), DAY = 864e5, d0 = new Date(); d0.setHours(0, 0, 0, 0);
             const st = o => o.status || 'new';
-            const todayO = orders.filter(o => (o.createdAt || 0) >= d0.getTime() && !['cancelled', 'returned'].includes(st(o)));
+            const todayO = orders.filter(o => (o.createdAt || 0) >= d0.getTime() && !DEAD.includes(st(o)));
             const newO = orders.filter(o => st(o) === 'new');
             const late = newO.filter(o => o.createdAt && now - o.createdAt > DAY);
             const slow = orders.filter(o => st(o) === 'shipped' && o.createdAt && now - o.createdAt > 5 * DAY);
@@ -1201,6 +1287,7 @@
                 returned: `أهلاً ${nm}، بخصوص المرتجع الخاص بطلبك رقم ${id}، هنتواصل معاك قريبًا لإتمام الخطوات.`,
                 exchange: `أهلاً ${nm}، طلب الاستبدال الخاص بطلبك رقم ${id} قيد المعالجة، وهنتواصل معاك قريبًا.`
             };
+            M.refused_receive = `أهلاً ${nm}، طلبك رقم ${id} رجع لأنه ماتمّش استلامه. لو حابب نعيد الشحن كلمنا.`; M.refused_pay = M.refused_receive;
             const L = { new: 'تأكيد عبر واتساب', confirmed: 'إرسال التأكيد', shipped: 'إبلاغ بالشحن', delivered: 'رسالة شكر' };
             const ph = String(ord.customer.phone).replace(/\D/g, '').replace(/^0/, '');
             return `<a href="https://wa.me/20${ph}?text=${encodeURIComponent(waText(ord, st, M))}" target="_blank" rel="noopener" style="background:#25D366; color:#fff; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:700; text-decoration:none;">${L[st] || 'واتساب العميل'}</a>`;
@@ -1247,6 +1334,11 @@
                                 <input class="ord-ext" data-id="${ord.orderId}" data-k="shipCo" ${extDirty(ord, 'shipCo')} oninput="this.dataset.dirty=1" maxlength="40" value="${esc(extVal(ord, 'shipCo'))}" placeholder="شركة الشحن" style="flex:1; min-width:110px; padding:6px 8px; border:1px solid var(--border-color); border-radius:6px; font-size:12px; font-family:inherit;">
                                 <input class="ord-ext" data-id="${ord.orderId}" data-k="shipNo" ${extDirty(ord, 'shipNo')} oninput="this.dataset.dirty=1" maxlength="60" value="${esc(extVal(ord, 'shipNo'))}" placeholder="رقم الشحنة (يظهر للعميل)" style="flex:1; min-width:110px; padding:6px 8px; border:1px solid var(--border-color); border-radius:6px; font-size:12px; font-family:inherit;">
                             </div>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                                <input class="ord-ext" data-id="${ord.orderId}" data-k="shipCost" ${extDirty(ord, 'shipCost')} oninput="this.dataset.dirty=1" type="number" min="0" value="${esc(extVal(ord, 'shipCost'))}" placeholder="رسوم شركة الشحن للأوردر ده (ج.م)" style="flex:1; min-width:150px; padding:6px 8px; border:1px solid var(--border-color); border-radius:6px; font-size:12px; font-family:inherit;">
+                                ${['shipped', 'delivered'].includes(st) ? `<button onclick="setSettled('${ord.orderId}', ${!ord.settled})" style="cursor:pointer; border:none; color:#fff; background:${ord.settled ? '#1f7244' : '#b9770e'}; padding:5px 10px; border-radius:6px; font-size:12px; font-weight:700;">${ord.settled ? '✅ اتحصّل (اضغط للتراجع)' : '⏳ لسه عند الشركة (علّمه اتحصّل)'}</button>` : ''}
+                            </div>
+                            <div style="font-size:12px; color:var(--text-muted);">${(() => { const r = orderNet(ord); return r.known ? `التكلفة ${r.cost} | الشحن ${r.fee} | <strong style="color:${r.net >= 0 ? '#1f7244' : '#c0392b'};">${r.loss ? 'خسارة' : 'صافي'} ${Math.round(r.net)} ج.م</strong>` : 'أضف سعر تكلفة المنتجات عشان يتحسب الصافي'; })()}</div>
                             <textarea class="ord-ext" data-id="${ord.orderId}" data-k="note" ${extDirty(ord, 'note')} oninput="this.dataset.dirty=1" maxlength="500" rows="2" placeholder="ملاحظة داخلية (لا تظهر للعميل)" style="padding:6px 8px; border:1px solid var(--border-color); border-radius:6px; font-size:12px; font-family:inherit; resize:vertical;">${esc(extVal(ord, 'note'))}</textarea>
                             <button onclick="saveOrderExtra('${ord.orderId}')" style="cursor:pointer; border:none; color:#fff; background:var(--accent-dark); padding:6px 12px; border-radius:6px; font-size:12px; font-weight:700; justify-self:start;">حفظ الملاحظة والشحن</button>
                         </div>
@@ -1258,7 +1350,7 @@
         async function saveOrderExtra(orderId) {
             const o = orders.find(x => x.orderId === orderId); if (!o) return;
             const g = k => { const el = document.querySelector(`.ord-ext[data-id="${orderId}"][data-k="${k}"]`); return el ? el.value.trim() : ''; };
-            const data = { note: g('note').slice(0, 500), shipCo: g('shipCo').slice(0, 40), shipNo: g('shipNo').slice(0, 60) };
+            const data = { shipCost: Math.max(0, Number(g('shipCost')) || 0), note: g('note').slice(0, 500), shipCo: g('shipCo').slice(0, 40), shipNo: g('shipNo').slice(0, 60) };
             try {
                 await fb.updateOrder(orderId, data);
                 await fb.setTracking({ orderId, status: o.status || 'new', phone4: String(o.customer.phone).slice(-4), createdAt: o.createdAt || 0, shipCo: data.shipCo, shipNo: data.shipNo });
@@ -1272,6 +1364,7 @@
             try { await fb.updateOrder(orderId, { status }); const o0 = orders.find(x => x.orderId === orderId); if (o0) await fb.setTracking({ orderId, status, phone4: String(o0.customer.phone).slice(-4), createdAt: o0.createdAt || 0 }); } catch (err) { alert('فشل تحديث الحالة: ' + err.message); return; }
             const o = orders.find(x => x.orderId === orderId); if (o) o.status = status;
             renderOrders();
+            if (/^refused/.test(status) && confirm('تضيف العميل للقائمة السوداء؟')) blacklistCustomer(orderId);
         }
 
         async function deleteSelectedOrders() {
