@@ -152,9 +152,7 @@
         </div>
         <div id="bulk-bar" style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:10px; margin-bottom:10px; font-size:12px;">
             <div style="font-weight:800; margin-bottom:6px;">إجراءات على الأوردرات المحددة (علّم المربعات الأول):</div>
-            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;">
-                <select id="bulk-co" class="form-select" style="width:auto;" onfocus="this.innerHTML = carrierOpts(this.value)" onchange="carrierPick(this); if (this.value) bulkApply('co').finally(() => { this.value = ''; })"><option value="">اختار شركة الشحن للمحدد</option></select>
-                <input id="bulk-fee" type="number" min="0" class="form-input" placeholder="رسوم الشحن للمحدد (Enter)" style="width:190px;" onchange="bulkApply('fee').finally(() => { this.value = ''; })">
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;"> { this.value = ''; })">
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
                 <select id="bulk-st" class="form-select" style="width:auto;"><option value="new">جديد</option><option value="confirmed">تم التأكيد</option><option value="shipped">اتشحن</option><option value="delivered">اتسلّم</option><option value="cancelled">ملغي</option><option value="returned">مرتجع</option><option value="exchange">استبدال</option><option value="refused_receive">رفض الاستلام</option><option value="refused_pay">رفض الدفع</option></select>
@@ -1428,11 +1426,20 @@
                         <span><strong style="color:var(--success-color);">${ord.total} ج.م</strong> <span style="color:${STATUS_COLORS[st]};">${STATUSES[st]}</span></span>
                     </summary>
                     <div class="acc-body">
-                        <div style="color:var(--text-muted);">${esc(ord.dateStr)}${ord.coupon ? ` — كوبون ${esc(ord.coupon)}: -${esc(ord.discount)} ج.م` : ''}</div>
-                        <div><strong>الهاتف 1:</strong> ${esc(ord.customer.phone)} | <strong>الهاتف 2:</strong> ${esc(ord.customer.phone2)}</div>
+                        <div style="color:var(--text-muted);">${esc(ord.dateStr)}</div>
+                        <div style="background:var(--bg-main); border-radius:8px; padding:8px 10px; display:grid; gap:3px;">
+                            <div><strong>الاسم:</strong> ${esc(ord.customer.name)}</div>
+                            <div><strong>الهاتف 1:</strong> ${esc(ord.customer.phone)}</div>
+                            <div><strong>الهاتف 2:</strong> ${ord.customer.phone2 ? esc(ord.customer.phone2) : '—'}</div>
+                            <div><strong>المحافظة:</strong> ${esc(ord.customer.gov)}</div>
+                            <div><strong>العنوان بالتفصيل:</strong> ${esc(ord.customer.address)}</div>
+                            <div style="border-top:1px dashed #ccc; margin-top:3px; padding-top:5px;"><strong>سعر المنتجات:</strong> ${Number(ord.subtotal) || 0} ج.م</div>
+                            <div><strong>سعر الشحن:</strong> ${Number(ord.shipping) || 0} ج.م</div>
+                            ${Number(ord.discount) > 0 ? `<div style="color:#c0392b;"><strong>الخصم${ord.coupon ? ' (كوبون ' + esc(ord.coupon) + ')' : ''}:</strong> -${Number(ord.discount)} ج.م</div>` : ''}
+                            <div style="font-weight:800; font-size:14px; color:var(--success-color);"><strong>الإجمالي:</strong> ${ord.total} ج.م</div>
+                        </div>
                         ${ord.customer.birth ? `<div><strong>تاريخ الميلاد:</strong> ${esc(ord.customer.birth)}</div>` : ''}
-                        <div><strong>العنوان:</strong> ${esc(ord.customer.gov)} - ${esc(ord.customer.address)}</div>
-                        ${orderInfo(ord)}
+                                                ${orderInfo(ord)}
                         ${reqBlock(ord)}
                         <div><strong>المنتجات:</strong> ${ord.items.map(i => `${esc(i.title)} (${esc(i.size)}/${esc(i.color)})`).join(' - ')}</div>
                         <div style="margin-top:6px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
