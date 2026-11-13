@@ -153,16 +153,12 @@
         <div id="bulk-bar" style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:10px; margin-bottom:10px; font-size:12px;">
             <div style="font-weight:800; margin-bottom:6px;">إجراءات على الأوردرات المحددة (علّم المربعات الأول):</div>
             <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;">
-                <select id="bulk-co" class="form-select" style="width:auto;" onfocus="this.innerHTML = carrierOpts(this.value)" onchange="carrierPick(this)"><option value="">اختار شركة الشحن</option></select>
-                <button onclick="bulkApply('co')" class="submit-btn" style="font-size:12px;">حدد الشركة</button>
-                <input id="bulk-fee" type="number" min="0" class="form-input" placeholder="رسوم الشحن للأوردر" style="width:130px;">
-                <button onclick="bulkApply('fee')" class="submit-btn" style="font-size:12px;">حدد الرسوم</button>
+                <select id="bulk-co" class="form-select" style="width:auto;" onfocus="this.innerHTML = carrierOpts(this.value)" onchange="carrierPick(this); if (this.value) bulkApply('co').finally(() => { this.value = ''; })"><option value="">اختار شركة الشحن للمحدد</option></select>
+                <input id="bulk-fee" type="number" min="0" class="form-input" placeholder="رسوم الشحن للمحدد (Enter)" style="width:190px;" onchange="bulkApply('fee').finally(() => { this.value = ''; })">
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
                 <select id="bulk-st" class="form-select" style="width:auto;"><option value="new">جديد</option><option value="confirmed">تم التأكيد</option><option value="shipped">اتشحن</option><option value="delivered">اتسلّم</option><option value="cancelled">ملغي</option><option value="returned">مرتجع</option><option value="exchange">استبدال</option><option value="refused_receive">رفض الاستلام</option><option value="refused_pay">رفض الدفع</option></select>
                 <button onclick="bulkApply('st')" class="submit-btn" style="background:#2c6fbb; font-size:12px;">غيّر الحالة</button>
-                <button onclick="bulkApply('paid')" class="submit-btn" style="background:#1f7244; font-size:12px;">علّم اتحصّل</button>
-                <button onclick="bulkApply('unpaid')" class="submit-btn" style="background:#b9770e; font-size:12px;">لسه عند الشركة</button>
             </div>
         </div>
         <div id="today-box" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; margin-bottom:10px;"></div>
