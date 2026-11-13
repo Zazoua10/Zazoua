@@ -150,6 +150,21 @@
                 <button onclick="exportToExcel()" class="submit-btn" style="background:#1f7244; font-size:12px;"><i class="fa-solid fa-file-excel"></i> تصدير Excel</button>
             </div>
         </div>
+        <div id="bulk-bar" style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:10px; margin-bottom:10px; font-size:12px;">
+            <div style="font-weight:800; margin-bottom:6px;">إجراءات على الأوردرات المحددة (علّم المربعات الأول):</div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;">
+                <select id="bulk-co" class="form-select" style="width:auto;" onfocus="this.innerHTML = carrierOpts(this.value)" onchange="carrierPick(this)"><option value="">اختار شركة الشحن</option></select>
+                <button onclick="bulkApply('co')" class="submit-btn" style="font-size:12px;">حدد الشركة</button>
+                <input id="bulk-fee" type="number" min="0" class="form-input" placeholder="رسوم الشحن للأوردر" style="width:130px;">
+                <button onclick="bulkApply('fee')" class="submit-btn" style="font-size:12px;">حدد الرسوم</button>
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <select id="bulk-st" class="form-select" style="width:auto;"><option value="new">جديد</option><option value="confirmed">تم التأكيد</option><option value="shipped">اتشحن</option><option value="delivered">اتسلّم</option><option value="cancelled">ملغي</option><option value="returned">مرتجع</option><option value="exchange">استبدال</option><option value="refused_receive">رفض الاستلام</option><option value="refused_pay">رفض الدفع</option></select>
+                <button onclick="bulkApply('st')" class="submit-btn" style="background:#2c6fbb; font-size:12px;">غيّر الحالة</button>
+                <button onclick="bulkApply('paid')" class="submit-btn" style="background:#1f7244; font-size:12px;">علّم اتحصّل</button>
+                <button onclick="bulkApply('unpaid')" class="submit-btn" style="background:#b9770e; font-size:12px;">لسه عند الشركة</button>
+            </div>
+        </div>
         <div id="today-box" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; margin-bottom:10px;"></div>
         <input id="order-search" oninput="renderOrders()" placeholder="بحث بالاسم أو الهاتف أو رقم الطلب أو رقم الشحنة" style="width:100%; padding:9px 10px; margin-bottom:8px; border:1px solid var(--border-color); border-radius:8px; font-size:13px; font-family:inherit;">
         <select id="order-filter" class="form-select" onchange="renderOrders()" style="margin-bottom:10px;">
@@ -1145,6 +1160,28 @@
             const cols = document.getElementById('prod-colors').value.split(',').map(c => c.trim()).filter(Boolean);
             if (currentImages.length < 2 || !cols.length) { el.innerHTML = ''; return; }
             el.innerHTML = '<div class="form-label">صورة كل لون (اختياري، العميل يشوفها لما يختار اللون)</div>' + cols.map(c => `<div style="display:flex; gap:8px; align-items:center; margin-bottom:4px; font-size:12px;"><span style="min-width:70px;">${esc(c)}</span><select class="form-select" style="width:auto;" onchange="colorSel[this.dataset.c] = this.value" data-c="${esc(c)}"><option value="">تلقائي</option>${currentImages.map((_, i) => `<option value="${i}" ${String(colorSel[c]) === String(i) ? 'selected' : ''}>صورة ${i + 1}</option>`).join('')}</select></div>`).join('');
+        }
+
+        // ===== إجراءات جماعية =====
+        async function bulkApply(kind) {
+            const ids = [...document.querySelectorAll('.order-cb:checked')].map(c => c.dataset.id);
+            if (!ids.length) { alert('علّم أوردر واحد على الأقل'); return; }
+            const v = id => document.getElementById(id).value;
+            let data;
+            if (kind === 'co') { if (!v('bulk-co') || v('bulk-co') === '__new') { alert('اختار شركة الشحن'); return; } data = { shipCo: v('bulk-co') }; }
+            else if (kind === 'fee') { if (v('bulk-fee') === '') { alert('اكتب الرسوم'); return; } data = { shipCost: Math.max(0, Number(v('bulk-fee')) || 0) }; }
+            else if (kind === 'st') data = { status: v('bulk-st') };
+            else data = { settled: kind === 'paid', settledAt: kind === 'paid' ? Date.now() : 0 };
+            if (!confirm(`تطبيق على ${ids.length} أوردر؟`)) return;
+            try {
+                await Promise.all(ids.map(async id => {
+                    const o = orders.find(x => x.orderId === id); if (!o) return;
+                    await fb.updateOrder(id, data);
+                    if (data.status || data.shipCo) await fb.setTracking({ orderId: id, status: data.status || o.status || 'new', phone4: String(o.customer.phone).slice(-4), createdAt: o.createdAt || 0, ...(data.shipCo ? { shipCo: data.shipCo } : {}) });
+                    Object.assign(o, data);
+                }));
+            } catch (e) { alert('فشل التطبيق: ' + e.message); return; }
+            document.getElementById('select-all').checked = false; renderOrders(); renderSettle();
         }
 
         // ===== شركات الشحن =====
