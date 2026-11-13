@@ -1229,7 +1229,7 @@
         async function addPay(btn, co) {
             const box = btn.closest('.st-co'), amt = Number(box.querySelector('.pay-amt').value);
             if (!(amt > 0)) { alert('اكتب المبلغ'); return; }
-            const p = { id: String(Date.now()), company: co, amount: amt, note: box.querySelector('.pay-note').value.trim().slice(0, 120), date: Date.now() };
+            const p = { id: String(Date.now()), company: co, amount: amt, note: box.querySelector('.pay-note').value.trim().slice(0, 120), date: box.querySelector('.pay-day').value ? new Date(box.querySelector('.pay-day').value + 'T12:00:00').getTime() : Date.now() };
             try { await fb.savePayment(p); } catch (e) { alert('فشل الحفظ (راجع قواعد Firestore لـ carrierPayments): ' + e.message); return; }
             payments.unshift(p); renderSettle();
         }
@@ -1238,37 +1238,40 @@
             try { await fb.deletePayment(id); } catch (e) { alert('فشل الحذف: ' + e.message); return; }
             payments = payments.filter(p => p.id !== id); renderSettle();
         }
-        function renderSettle() {
-            const box = document.getElementById('settle-box'); if (!box || !IS_OWNER) return;
+        function settleBlock(ords, pays) {
             const M = n => Math.round(Number(n) || 0).toLocaleString('en-US');
-            const co = {}, g = n => co[n] || (co[n] = { pend: [], pendSum: 0, doneSum: 0, fee: 0, paid: 0 });
-            let real = 0, exp = 0, loss = 0, unk = 0;
-            orders.forEach(o => {
-                const st = o.status || 'new', n = (o.shipCo || '').trim() || 'بدون شركة', r = orderNet(o);
-                if (['shipped', 'delivered'].includes(st)) { const c = g(n); if (o.settled) c.doneSum += o.total || 0; else { c.pend.push(o); c.pendSum += o.total || 0; } }
-                if (['shipped', 'delivered', 'returned', 'refused_receive', 'refused_pay'].includes(st)) g(n).fee += r.fee;
+            const card = (l, v, c) => `<div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:10px; text-align:center;"><div style="font-size:11px; color:var(--text-muted);">${l}</div><div style="font-size:16px; font-weight:800; color:${c || 'inherit'};">${M(v)} ج.م</div></div>`;
+            let real = 0, exp = 0, loss = 0, unk = 0; const T = {}, pm = {};
+            ords.forEach(o => {
+                const st = o.status || 'new', r = orderNet(o), d = orderDue(o);
+                if (d != null) { const n = (o.shipCo || '').trim() || 'بدون شركة', c = T[n] || (T[n] = { n: 0, due: 0, got: 0 }); c.n++; c.due += d; if (o.settled) c.got += d; }
                 if (st === 'cancelled') return;
                 if (r.loss) loss += r.net; else if (!r.known) unk++; else if (st === 'delivered') real += r.net; else exp += r.net;
             });
-            payments.forEach(p => g(p.company).paid += Number(p.amount) || 0);
-            const card = (l, v, c) => `<div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:10px; text-align:center;"><div style="font-size:11px; color:var(--text-muted);">${l}</div><div style="font-size:16px; font-weight:800; color:${c || 'inherit'};">${M(v)} ج.م</div></div>`;
-            let h = `<h3 style="font-size:14px; margin-bottom:8px;">الربح بعد المرتجع والرفض</h3>
-                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px;">
-                ${card('ربح اللي اتسلّم', real, '#1f7244')}${card('ربح متوقع (لسه ماوصلش)', exp)}${card('خسارة مرتجع/رفض', loss, '#c0392b')}${card('الصافي المحقق بعد الخسارة', real + loss, real + loss >= 0 ? '#1f7244' : '#c0392b')}</div>
-                <div style="font-size:11px; color:var(--text-muted); margin:4px 0 14px;">الصافي = إجمالي الأوردر − تكلفة المنتجات − رسوم الشركة. المرتجع والرفض بيتحسبوا خسارة بقيمة رسوم الشركة اللي بتكتبها في الأوردر.${unk ? ` (${unk} أوردر من غير سعر تكلفة مش محسوب)` : ''}</div>
-                <h3 style="font-size:14px; margin-bottom:8px;">تسوية الدفع عند الاستلام لكل شركة</h3>`;
-            const T = {}, pays = {};
-            orders.forEach(o => { const d = orderDue(o); if (d == null) return; const n = (o.shipCo || '').trim() || 'بدون شركة'; const c = T[n] || (T[n] = { n: 0, due: 0, got: 0 }); c.n++; c.due += d; if (o.settled) c.got += d; });
-            payments.forEach(p => { pays[p.company] = (pays[p.company] || 0) + (Number(p.amount) || 0); if (!T[p.company]) T[p.company] = { n: 0, due: 0, got: 0 }; });
+            pays.forEach(p => { pm[p.company] = (pm[p.company] || 0) + (Number(p.amount) || 0); if (!T[p.company]) T[p.company] = { n: 0, due: 0, got: 0 }; });
             const rows = Object.keys(T);
-            h += rows.length ? `<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:12px; background:#fff; border:1px solid var(--border-color);">
+            return `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px;">${card('ربح اللي اتسلّم', real, '#1f7244')}${card('ربح متوقع (لسه ماوصلش)', exp)}${card('خسارة مرتجع/رفض', loss, '#c0392b')}${card('الصافي بعد الخسارة', real + loss, real + loss >= 0 ? '#1f7244' : '#c0392b')}</div>
+                ${unk ? `<div style="font-size:11px; color:var(--text-muted); margin-top:4px;">${unk} أوردر من غير سعر تكلفة مش محسوب في الربح.</div>` : ''}
+                ${rows.length ? `<div style="overflow-x:auto; margin-top:8px;"><table style="width:100%; border-collapse:collapse; font-size:12px; background:#fff; border:1px solid var(--border-color);">
                 <tr style="background:var(--bg-main);"><th style="padding:6px;">الشركة</th><th>أوردرات</th><th>المطلوب منها</th><th>اتحصّل</th><th>دفعتلها</th><th>المتبقي ليك</th></tr>
-                ${rows.map(n => { const c = T[n], p = pays[n] || 0, rem = c.due - c.got + p; return `<tr style="border-top:1px solid #eee; text-align:center;"><td style="padding:6px;">${esc(n)}</td><td>${c.n}</td><td>${M(c.due)}</td><td>${M(c.got)}</td><td>${M(p)}</td><td><strong style="color:${rem > 0 ? '#b9770e' : rem < 0 ? '#c0392b' : '#1f7244'};">${M(rem)}</strong></td></tr>`; }).join('')}</table></div>
-                <div style="font-size:11px; color:var(--text-muted); margin:4px 0;">المطلوب = إجمالي الأوردرات المشحونة والمسلّمة − رسوم الشحن، ومرتجع/رفض = رسوم الشحن بس بالسالب. "اتحصّل" بتعلّمه من جوه كل أوردر. المتبقي = المطلوب − اللي اتحصّل + اللي دفعته للشركة.</div>
-                <div class="st-co" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;"><select class="pay-co form-select" style="width:auto;">${rows.map(n => `<option>${esc(n)}</option>`).join('')}</select><input class="pay-amt form-input" type="number" min="0" placeholder="دفعت كام للشركة؟" style="flex:1; min-width:110px;"><input class="pay-note form-input" placeholder="ملاحظة (اختياري)" style="flex:1; min-width:110px;"><button onclick="addPay(this, this.closest('.st-co').querySelector('.pay-co').value)" class="submit-btn" style="font-size:12px;">سجّل دفعة</button></div>
-                ${payments.map(p => `<div style="font-size:12px; display:flex; justify-content:space-between; padding:4px 0; border-top:1px dashed #ddd;"><span>${new Date(p.date).toLocaleDateString('ar-EG')} — ${esc(p.company)} — ${M(p.amount)} ج.م ${esc(p.note)}</span><button onclick="delPay('${p.id}')" style="border:none; background:none; color:#c0392b; cursor:pointer;">حذف</button></div>`).join('')}`
-                : '<div style="font-size:12px; color:var(--text-muted);">اختار شركة الشحن في الأوردرات اللي اتشحنت وهتظهر هنا.</div>';
-            box.innerHTML = h;
+                ${rows.map(n => { const c = T[n], p = pm[n] || 0, rem = c.due - c.got + p; return `<tr style="border-top:1px solid #eee; text-align:center;"><td style="padding:6px;">${esc(n)}</td><td>${c.n}</td><td>${M(c.due)}</td><td>${M(c.got)}</td><td>${M(p)}</td><td><strong style="color:${rem > 0 ? '#b9770e' : rem < 0 ? '#c0392b' : '#1f7244'};">${M(rem)}</strong></td></tr>`; }).join('')}</table></div>` : '<div style="font-size:12px; color:var(--text-muted); margin-top:8px;">مفيش أوردرات مشحونة في اليوم ده.</div>'}
+                ${pays.map(p => `<div style="font-size:12px; display:flex; justify-content:space-between; padding:4px 0; border-top:1px dashed #ddd;"><span>دفعة: ${esc(p.company)} — ${M(p.amount)} ج.م ${esc(p.note)}</span><button onclick="delPay('${p.id}')" style="border:none; background:none; color:#c0392b; cursor:pointer;">حذف</button></div>`).join('')}`;
+        }
+        function renderSettle() {
+            const box = document.getElementById('settle-box'); if (!box || !IS_OWNER) return;
+            const dk = ts => new Date(ts).toLocaleDateString('en-CA'), today = dk(Date.now());
+            const prev = box.querySelector('details') ? new Set([...box.querySelectorAll('details[open]')].map(d => d.dataset.k)) : null;
+            const keep = ['pay-co', 'pay-amt', 'pay-note', 'pay-day'].map(c => { const e = box.querySelector('.' + c); return e ? e.value : ''; });
+            const days = {}, slot = k => days[k] || (days[k] = { o: [], p: [] });
+            orders.forEach(o => slot(dk(Number(o.createdAt) || Date.now())).o.push(o));
+            payments.forEach(p => slot(dk(p.date)).p.push(p));
+            const label = k => new Date(k + 'T12:00:00').toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' }) + (k === today ? ' (النهارده)' : '');
+            const wrap = (k, title, body) => `<details data-k="${k}" ${(prev ? prev.has(k) : k === today) ? 'open' : ''} style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:10px; margin-bottom:8px;"><summary style="cursor:pointer; font-weight:800; font-size:14px;">${title}</summary><div style="margin-top:10px;">${body}</div></details>`;
+            const cos = [...new Set([...carriers(), ...payments.map(p => p.company)])];
+            const form = `<div class="st-co" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:10px;"><strong style="width:100%; font-size:13px;">سجّل دفعة لشركة شحن</strong><select class="pay-co form-select" style="width:auto;">${cos.map(n => `<option>${esc(n)}</option>`).join('')}</select><input class="pay-day form-input" type="date" value="${today}" style="width:auto;"><input class="pay-amt form-input" type="number" min="0" placeholder="دفعت كام؟" style="flex:1; min-width:100px;"><input class="pay-note form-input" placeholder="ملاحظة (اختياري)" style="flex:1; min-width:100px;"><button onclick="addPay(this, this.closest('.st-co').querySelector('.pay-co').value)" class="submit-btn" style="font-size:12px;">سجّل دفعة</button></div>`;
+            const note = '<div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">اليوم = تاريخ إنشاء الأوردر (والدفعة بتاريخ اللي تختاره). المطلوب = إجمالي الأوردر − رسوم الشحن، ومرتجع/رفض = رسوم الشحن بالسالب. المتبقي = المطلوب − اللي اتحصّل + اللي دفعته للشركة.</div>';
+            box.innerHTML = form + note + wrap('all', 'الإجمالي (كل الأيام)', settleBlock(orders, payments)) + Object.keys(days).sort().reverse().map(k => wrap(k, label(k) + ` — ${days[k].o.length} أوردر`, settleBlock(days[k].o, days[k].p))).join('');
+            ['pay-co', 'pay-amt', 'pay-note', 'pay-day'].forEach((c, i) => { const e = box.querySelector('.' + c); if (e && keep[i]) e.value = keep[i]; });
         }
         function checkBackup() {
             if (!IS_OWNER) return;
