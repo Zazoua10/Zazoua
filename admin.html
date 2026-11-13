@@ -1268,7 +1268,7 @@
                 <div class="st-co" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;"><select class="pay-co form-select" style="width:auto;">${rows.map(n => `<option>${esc(n)}</option>`).join('')}</select><input class="pay-amt form-input" type="number" min="0" placeholder="دفعت كام للشركة؟" style="flex:1; min-width:110px;"><input class="pay-note form-input" placeholder="ملاحظة (اختياري)" style="flex:1; min-width:110px;"><button onclick="addPay(this, this.closest('.st-co').querySelector('.pay-co').value)" class="submit-btn" style="font-size:12px;">سجّل دفعة</button></div>
                 ${payments.map(p => `<div style="font-size:12px; display:flex; justify-content:space-between; padding:4px 0; border-top:1px dashed #ddd;"><span>${new Date(p.date).toLocaleDateString('ar-EG')} — ${esc(p.company)} — ${M(p.amount)} ج.م ${esc(p.note)}</span><button onclick="delPay('${p.id}')" style="border:none; background:none; color:#c0392b; cursor:pointer;">حذف</button></div>`).join('')}`
                 : '<div style="font-size:12px; color:var(--text-muted);">اختار شركة الشحن في الأوردرات اللي اتشحنت وهتظهر هنا.</div>';
-            box.innerHTML = h + purchasesHtml();
+            box.innerHTML = h;
         }
         function checkBackup() {
             if (!IS_OWNER) return;
