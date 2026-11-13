@@ -131,7 +131,6 @@
         <button class="tab-btn" onclick="switchTab('leads', this)"><i class="fa-solid fa-user-clock"></i> عملاء مهتمين</button>
         <button class="tab-btn" onclick="switchTab('blacklist', this)"><i class="fa-solid fa-ban"></i> القائمة السوداء</button>
         <button class="tab-btn" onclick="switchTab('members', this)"><i class="fa-solid fa-gift"></i> الأعضاء وأعياد الميلاد</button>
-        <button class="tab-btn" onclick="switchTab('settle', this)"><i class="fa-solid fa-scale-balanced"></i> التسوية والأرباح</button>
     </div>
 
     <div class="admin-content">
@@ -169,6 +168,7 @@
 
     <!-- TAB 2: PRODUCTS -->
     <div id="tab-products" class="admin-section">
+        <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:10px; margin-bottom:12px; font-size:12px;"><button type="button" onclick="optimizeProducts(this)" class="submit-btn" style="background:#2c6fbb;">⚡ تحسين سرعة المنتجات القديمة</button> <span>بيعمل صورة مصغّرة لكل منتج قديم وينقل الصور الكاملة لمكان منفصل. اعمله مرة واحدة.</span></div>
         <form id="product-form" onsubmit="handleProductSave(event)">
             <input type="hidden" id="edit-prod-id">
             
@@ -362,8 +362,6 @@
         <div id="members-list"></div>
     </div>
 
-    <div id="tab-settle" class="admin-section"><div id="settle-box"></div></div>
-
     <div id="tab-stats" class="admin-section"><div id="stats-box"></div></div>
 
     </div></div>
@@ -417,6 +415,10 @@
             login: (e, p) => signInWithEmailAndPassword(auth, e, p),
             logout: () => signOut(auth),
             onAuth: (cb) => onAuthStateChanged(auth, cb),
+            getProductImages: async (id) => { const s = await getDoc(doc(db, 'productImages', String(id))); return s.exists() ? (s.data().images || []) : []; },
+            saveProductImages: (id, images) => setDoc(doc(db, 'productImages', String(id)), { id: Number(id), images }),
+            deleteProductImages: (id) => deleteDoc(doc(db, 'productImages', String(id))),
+            getAllProductImages: async () => (await getDocs(collection(db, 'productImages'))).docs.map(d => d.data()),
             getProducts: async () => (await list('products')).sort((a, b) => b.id - a.id),
             saveProduct: (p) => setDoc(doc(db, 'products', String(p.id)), p),
             deleteProduct: (id) => deleteDoc(doc(db, 'products', String(id))),
@@ -1095,8 +1097,8 @@
             const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' })); a.download = 'Zazoua_Shipping.csv'; a.click();
         }
 
-        function backupAll() {
-            const data = { exportedAt: new Date().toISOString(), carrierPayments: payments, purchases, products, shippingRates, coupons, reviews, settings, orders, leads, blacklist, members, costs: costsMap };
+        async function backupAll() {
+            const data = { exportedAt: new Date().toISOString(), carrierPayments: payments, purchases, productImages: await fb.getAllProductImages().catch(() => []), products, shippingRates, coupons, reviews, settings, orders, leads, blacklist, members, costs: costsMap };
             const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
             a.download = `Zazoua_backup_${new Date().toISOString().slice(0, 10)}.json`; a.click();
             localStorage.setItem('zz_bk', Date.now()); document.getElementById('bk-bar').style.display = 'none';
@@ -1109,6 +1111,46 @@
         const csvCell = v => { let t = String(v ?? ''); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return '"' + t.replace(/"/g, '""') + '"'; };
         const STATUS_COLORS = { refused_receive: '#8b0000', refused_pay: '#6e2c00', new: '#2c6fbb', confirmed: '#b9770e', shipped: '#7d3c98', delivered: '#1f7244', cancelled: '#c0392b', returned: '#a04000', exchange: '#117a8b' };
 
+
+        // ===== تنبيه العميل المتكرر =====
+        function riskInfo(o) {
+            const ph = x => String(x || '').replace(/\D/g, '').slice(-10);
+            const mine = [ph(o.customer.phone), ph(o.customer.phone2)].filter(Boolean);
+            let ref = 0, ret = 0;
+            orders.forEach(x => {
+                if (x.orderId === o.orderId || !['refused_receive', 'refused_pay', 'returned'].includes(x.status)) return;
+                const xp = [ph(x.customer.phone), ph(x.customer.phone2)];
+                if (!mine.some(m => xp.includes(m))) return;
+                if (x.status === 'returned') ret++; else ref++;
+            });
+            return { ref, ret };
+        }
+        function riskBadge(o) { const r = riskInfo(o); return (r.ref || r.ret) ? ' <span style="background:#c0392b; color:#fff; border-radius:6px; padding:1px 6px; font-size:11px; font-weight:800;">⚠️ عميل سابق برفض/مرتجع</span>' : ''; }
+        function riskNote(o) { const r = riskInfo(o); return (r.ref || r.ret) ? `<div style="background:#fdecea; border:1px solid #c0392b; color:#c0392b; border-radius:8px; padding:6px 8px; font-size:12px; font-weight:700;">⚠️ نفس رقم الهاتف ده عليه ${r.ref} رفض و${r.ret} مرتجع قبل كده. راجع قبل ما تشحن.</div>` : ''; }
+
+        // ===== الصور المصغّرة =====
+        function makeThumb(src) {
+            return new Promise((res, rej) => {
+                const img = new Image();
+                img.onload = () => { const k = Math.min(1, 360 / Math.max(img.width, img.height)), c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', 0.65)); };
+                img.onerror = () => rej(new Error('صورة غير صالحة')); img.src = src;
+            });
+        }
+        async function optimizeProducts(btn) {
+            const todo = products.filter(p => !p.fullImgs);
+            if (!todo.length) { alert('كل المنتجات محسّنة بالفعل ✅'); return; }
+            if (!confirm(`تحسين ${todo.length} منتج؟ يفضّل تنزّل نسخة احتياطية الأول.`)) return;
+            btn.disabled = true; let done = 0;
+            try {
+                for (const p of todo) {
+                    const imgs = (p.images && p.images.length) ? p.images : [p.image], thumb = await makeThumb(imgs[0]);
+                    await fb.saveProductImages(p.id, imgs);
+                    const u = { ...p, image: thumb, thumb, images: [], fullImgs: true, imgCount: imgs.length };
+                    await fb.saveProduct(u); products = products.map(x => x.id === p.id ? u : x); done++; btn.textContent = `جاري التحسين ${done}/${todo.length}`;
+                }
+            } catch (e) { alert('وقف عند منتج: ' + e.message + ' (راجع قواعد productImages)'); }
+            btn.disabled = false; btn.textContent = '⚡ تحسين سرعة المنتجات القديمة'; renderProductsAdmin(); if (done) alert(`تم تحسين ${done} منتج ✅`);
+        }
 
         // ===== طلبات العملاء =====
         function reqBlock(o) {
@@ -1422,7 +1464,7 @@
                 return `
                 <details class="acc" data-id="${ord.orderId}" ${opened.has(ord.orderId) ? 'open' : ''} style="border-right:4px solid ${STATUS_COLORS[st]};">
                     <summary>
-                        <span><input type="checkbox" class="order-cb" data-id="${ord.orderId}" onclick="event.stopPropagation()"> <strong>${esc(ord.customer.name)}</strong> ${orderBadges(ord)} <span class="acc-sub">${ord.orderId}${ord.shipNo ? ' 🚚' : ''}${ord.note ? ' 📝' : ''}</span></span>
+                        <span><input type="checkbox" class="order-cb" data-id="${ord.orderId}" onclick="event.stopPropagation()"> <strong>${esc(ord.customer.name)}</strong> ${orderBadges(ord)}${riskBadge(ord)} <span class="acc-sub">${ord.orderId}${ord.shipNo ? ' 🚚' : ''}${ord.note ? ' 📝' : ''}</span></span>
                         <span><strong style="color:var(--success-color);">${ord.total} ج.م</strong> <span style="color:${STATUS_COLORS[st]};">${STATUSES[st]}</span></span>
                     </summary>
                     <div class="acc-body">
@@ -1440,7 +1482,7 @@
                         </div>
                         ${ord.customer.birth ? `<div><strong>تاريخ الميلاد:</strong> ${esc(ord.customer.birth)}</div>` : ''}
                                                 ${orderInfo(ord)}
-                        ${reqBlock(ord)}
+                        ${riskNote(ord)}${reqBlock(ord)}
                         <div><strong>المنتجات:</strong> ${ord.items.map(i => `${esc(i.title)} (${esc(i.size)}/${esc(i.color)})`).join(' - ')}</div>
                         <div style="margin-top:6px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                             <strong>الحالة:</strong>
@@ -1579,7 +1621,7 @@
         }
         function cancelEdit() { resetProductForm(); }
 
-        function editProduct(id) {
+        async function editProduct(id) {
             const p = products.find(x => x.id == id);
             if (!p) return;
             document.getElementById('edit-prod-id').value = p.id;
@@ -1593,7 +1635,7 @@
             document.getElementById('prod-sub-cat').value = p.subCat;
             document.getElementById('prod-sizes').value = p.sizes.join(', ');
             document.getElementById('prod-colors').value = p.colors.join(', ');
-            currentImages = (p.images && p.images.length) ? [...p.images] : [p.image]; colorSel = { ...(p.colorImages || {}) };
+            if (p.fullImgs) { try { currentImages = await fb.getProductImages(p.id); } catch (e) { currentImages = []; } if (!currentImages.length) currentImages = [p.image]; } else currentImages = (p.images && p.images.length) ? [...p.images] : [p.image]; colorSel = { ...(p.colorImages || {}) };
             renderThumbs();
             document.getElementById('prod-save-btn').innerText = 'حفظ التعديلات';
             document.getElementById('prod-cancel-btn').style.display = 'block';
@@ -1625,11 +1667,12 @@
                 subCat: document.getElementById('prod-sub-cat').value.trim(),
                 sizes: document.getElementById('prod-sizes').value.split(',').map(s => s.trim()),
                 colors: document.getElementById('prod-colors').value.split(',').map(c => c.trim()),
-                image: currentImages[0] || '', images: currentImages,
+                image: '', images: [], fullImgs: true, imgCount: currentImages.length,
                 colorImages: Object.fromEntries(Object.entries(colorSel).filter(([c, v]) => v !== '' && v != null && currentImages[v] && document.getElementById('prod-colors').value.split(',').map(x => x.trim()).includes(c)).map(([c, v]) => [c, Number(v)]))
             };
-            if (!prod.image) { alert('يرجى اختيار صورة للمنتج من المعرض أولاً!'); return; }
-            if (JSON.stringify(prod).length > 950000) { alert('حجم الصور كبير، قلّل عدد الصور'); return; }
+            if (!currentImages[0]) { alert('يرجى اختيار صورة للمنتج من المعرض أولاً!'); return; }
+            if (JSON.stringify(currentImages).length > 950000) { alert('حجم الصور كبير، قلّل عدد الصور'); return; }
+            try { prod.image = prod.thumb = await makeThumb(currentImages[0]); await fb.saveProductImages(prod.id, currentImages); } catch (err) { alert('فشل حفظ الصور (راجع قواعد productImages): ' + err.message); return; }
             try { await fb.saveProduct(prod); } catch (err) { console.error(err); alert('فشل الحفظ: ' + err.message); return; }
             try { const cv = parseFloat(document.getElementById('prod-cost').value); if (!isNaN(cv)) { await fb.saveCost(prod.id, cv); costsMap[prod.id] = cv; } } catch (e2) { console.error(e2); }
             if (old) products = products.map(p => p.id === prod.id ? prod : p); else products.unshift(prod);
@@ -1640,7 +1683,7 @@
 
         async function deleteProduct(id) {
             if (!confirm('هل أنت متأكد من حذف المنتج؟')) return;
-            try { await fb.deleteProduct(id); try { await fb.deleteCost(id); } catch (e2) {} } catch (err) { alert('فشل الحذف: ' + err.message); return; }
+            try { await fb.deleteProduct(id); try { await fb.deleteCost(id); } catch (e2) {} try { await fb.deleteProductImages(id); } catch (e3) {} } catch (err) { alert('فشل الحذف: ' + err.message); return; }
             products = products.filter(p => p.id !== id);
             renderProductsAdmin();
         }

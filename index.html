@@ -441,7 +441,13 @@
         try { initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider("6LeTMBouAAAAAPog_ic7r83Gn1IKcq0C9laQMCqT"), isTokenAutoRefreshEnabled: true }); } catch (e) { console.warn("AppCheck init failed", e); }
         const db = getFirestore(app);
         window.fb = {
-            async getProducts() { const s = await getDocs(collection(db, 'products')); return s.docs.map(d => d.data()).sort((a, b) => b.id - a.id); },
+            async getProducts() {
+                try { const c = JSON.parse(localStorage.getItem('zz_pc') || 'null'); if (c && Date.now() - c.t < 300000) return c.d; } catch (e) {}
+                const s = await getDocs(collection(db, 'products')), d = s.docs.map(x => x.data()).sort((a, b) => b.id - a.id);
+                try { localStorage.setItem('zz_pc', JSON.stringify({ t: Date.now(), d })); } catch (e) {}
+                return d;
+            },
+            async getProductImages(id) { const s = await getDoc(doc(db, 'productImages', String(id))); return s.exists() ? (s.data().images || []) : []; },
             async getShipping() { const s = await getDocs(collection(db, 'shipping')); return s.docs.map(d => d.data()); },
             async getSettings() { const s = await getDoc(doc(db, 'settings', 'main')); return s.exists() ? s.data() : {}; },
             async getReviews() { const s = await getDocs(collection(db, 'reviews')); return s.docs.map(d => d.data()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); },
@@ -589,6 +595,10 @@
             document.getElementById('pmodal-price').innerText = `${activeProduct.price} ج.م`;
             setupGallery(activeProduct); showSizeChart(activeProduct); rememberViewed(activeProduct.id); showModalExtras(activeProduct);
             renderPiecesSelectors(); updateStickyBar();
+            if (activeProduct.fullImgs && !activeProduct._full) {
+                const ap = activeProduct;
+                fb.getProductImages(ap.id).then(im => { if (im.length) { ap.images = im; ap._full = true; if (activeProduct === ap) setupGallery(ap); } }).catch(() => {});
+            }
             document.getElementById('product-page-modal').classList.add('active'); document.body.style.overflow = 'hidden'; document.getElementById('product-page-modal').querySelector('.modal-box').scrollTop = 0;
             if (!fromPop) { if (wasOpen) history.replaceState({ pm: id }, '', `?product=${id}`); else history.pushState({ pm: id }, '', `?product=${id}`); }
         }
