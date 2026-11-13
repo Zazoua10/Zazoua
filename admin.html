@@ -1147,6 +1147,29 @@
             el.innerHTML = '<div class="form-label">صورة كل لون (اختياري، العميل يشوفها لما يختار اللون)</div>' + cols.map(c => `<div style="display:flex; gap:8px; align-items:center; margin-bottom:4px; font-size:12px;"><span style="min-width:70px;">${esc(c)}</span><select class="form-select" style="width:auto;" onchange="colorSel[this.dataset.c] = this.value" data-c="${esc(c)}"><option value="">تلقائي</option>${currentImages.map((_, i) => `<option value="${i}" ${String(colorSel[c]) === String(i) ? 'selected' : ''}>صورة ${i + 1}</option>`).join('')}</select></div>`).join('');
         }
 
+        // ===== شركات الشحن =====
+        function carriers() { return [...new Set([...(settings.carriers || []), ...orders.map(o => (o.shipCo || '').trim()).filter(Boolean)])]; }
+        function carrierOpts(cur) {
+            const l = carriers(); if (cur && !l.includes(cur)) l.push(cur);
+            return '<option value="">اختار شركة الشحن</option>' + l.map(c => `<option value="${esc(c)}" ${c === cur ? 'selected' : ''}>${esc(c)}</option>`).join('') + '<option value="__new">➕ شركة جديدة...</option>';
+        }
+        function carrierPick(el) {
+            if (el.value === '__new') {
+                const n = (prompt('اسم شركة الشحن؟') || '').trim().slice(0, 40);
+                if (!n) { el.value = ''; return; }
+                settings.carriers = [...new Set([...(settings.carriers || []), n])];
+                try { fb.saveSettings({ carriers: settings.carriers }); } catch (e) {}
+                el.insertBefore(new Option(n, n), el.lastElementChild); el.value = n;
+            }
+            el.dataset.dirty = 1;
+        }
+        function orderDue(o) {
+            const st = o.status || 'new', fee = Number(o.shipCost) || 0;
+            if (['shipped', 'delivered'].includes(st)) return (o.total || 0) - fee;
+            if (['returned', 'refused_receive', 'refused_pay'].includes(st)) return -fee;
+            return null;
+        }
+
         // ===== التسوية والأرباح =====
         function orderNet(o) {
             const st = o.status || 'new', fee = Number(o.shipCost) || 0;
@@ -1197,18 +1220,17 @@
                 ${card('ربح اللي اتسلّم', real, '#1f7244')}${card('ربح متوقع (لسه ماوصلش)', exp)}${card('خسارة مرتجع/رفض', loss, '#c0392b')}${card('الصافي المحقق بعد الخسارة', real + loss, real + loss >= 0 ? '#1f7244' : '#c0392b')}</div>
                 <div style="font-size:11px; color:var(--text-muted); margin:4px 0 14px;">الصافي = إجمالي الأوردر − تكلفة المنتجات − رسوم الشركة. المرتجع والرفض بيتحسبوا خسارة بقيمة رسوم الشركة اللي بتكتبها في الأوردر.${unk ? ` (${unk} أوردر من غير سعر تكلفة مش محسوب)` : ''}</div>
                 <h3 style="font-size:14px; margin-bottom:8px;">تسوية الدفع عند الاستلام لكل شركة</h3>`;
-            const names = Object.keys(co);
-            h += names.length ? names.map(n => { const c = co[n], q = esc(n).replace(/'/g, '&#39;'); return `
-                <div class="st-co" style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; margin-bottom:10px;">
-                    <strong>${esc(n)}</strong>
-                    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:6px; margin:8px 0;">
-                        ${card('فلوسك المعلّقة عندهم (' + c.pend.length + ' أوردر)', c.pendSum, '#b9770e')}${card('اتحصّل', c.doneSum, '#1f7244')}${card('رسوم الشحن', c.fee)}${card('دفعت للشركة', c.paid)}${card('باقي عليك للشركة', c.fee - c.paid, c.fee - c.paid > 0 ? '#c0392b' : '#1f7244')}
-                    </div>
-                    ${c.pend.map(o => `<label style="display:flex; gap:6px; font-size:12px; padding:3px 0;"><input type="checkbox" class="st-cb" data-id="${o.orderId}"> ${esc(o.customer.name)} — ${o.orderId} — <strong>${o.total} ج.م</strong> ${o.shipNo ? '🚚 ' + esc(o.shipNo) : ''}</label>`).join('')}
-                    ${c.pend.length ? `<button onclick="markSettled(this)" class="submit-btn" style="background:#1f7244; font-size:12px; margin:6px 0;">علّم المحدد اتحصّل</button>` : ''}
-                    <div style="display:flex; gap:6px; margin-top:8px;"><input class="pay-amt form-input" type="number" min="0" placeholder="دفعت كام للشركة؟"><input class="pay-note form-input" placeholder="ملاحظة (اختياري)"><button onclick="addPay(this, '${q}')" class="submit-btn" style="font-size:12px;">سجّل دفعة</button></div>
-                    ${payments.filter(p => p.company === n).map(p => `<div style="font-size:12px; display:flex; justify-content:space-between; padding:4px 0; border-top:1px dashed #ddd;"><span>${new Date(p.date).toLocaleDateString('ar-EG')} — ${M(p.amount)} ج.م ${esc(p.note)}</span><button onclick="delPay('${p.id}')" style="border:none; background:none; color:#c0392b; cursor:pointer;">حذف</button></div>`).join('')}
-                </div>`; }).join('') : '<div style="font-size:12px; color:var(--text-muted);">اكتب اسم شركة الشحن في الأوردرات اللي اتشحنت وهتظهر هنا.</div>';
+            const T = {}, pays = {};
+            orders.forEach(o => { const d = orderDue(o); if (d == null) return; const n = (o.shipCo || '').trim() || 'بدون شركة'; const c = T[n] || (T[n] = { n: 0, due: 0, got: 0 }); c.n++; c.due += d; if (o.settled) c.got += d; });
+            payments.forEach(p => { pays[p.company] = (pays[p.company] || 0) + (Number(p.amount) || 0); if (!T[p.company]) T[p.company] = { n: 0, due: 0, got: 0 }; });
+            const rows = Object.keys(T);
+            h += rows.length ? `<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:12px; background:#fff; border:1px solid var(--border-color);">
+                <tr style="background:var(--bg-main);"><th style="padding:6px;">الشركة</th><th>أوردرات</th><th>المطلوب منها</th><th>اتحصّل</th><th>دفعتلها</th><th>المتبقي ليك</th></tr>
+                ${rows.map(n => { const c = T[n], p = pays[n] || 0, rem = c.due - c.got + p; return `<tr style="border-top:1px solid #eee; text-align:center;"><td style="padding:6px;">${esc(n)}</td><td>${c.n}</td><td>${M(c.due)}</td><td>${M(c.got)}</td><td>${M(p)}</td><td><strong style="color:${rem > 0 ? '#b9770e' : rem < 0 ? '#c0392b' : '#1f7244'};">${M(rem)}</strong></td></tr>`; }).join('')}</table></div>
+                <div style="font-size:11px; color:var(--text-muted); margin:4px 0;">المطلوب = إجمالي الأوردرات المشحونة والمسلّمة − رسوم الشحن، ومرتجع/رفض = رسوم الشحن بس بالسالب. "اتحصّل" بتعلّمه من جوه كل أوردر. المتبقي = المطلوب − اللي اتحصّل + اللي دفعته للشركة.</div>
+                <div class="st-co" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;"><select class="pay-co form-select" style="width:auto;">${rows.map(n => `<option>${esc(n)}</option>`).join('')}</select><input class="pay-amt form-input" type="number" min="0" placeholder="دفعت كام للشركة؟" style="flex:1; min-width:110px;"><input class="pay-note form-input" placeholder="ملاحظة (اختياري)" style="flex:1; min-width:110px;"><button onclick="addPay(this, this.closest('.st-co').querySelector('.pay-co').value)" class="submit-btn" style="font-size:12px;">سجّل دفعة</button></div>
+                ${payments.map(p => `<div style="font-size:12px; display:flex; justify-content:space-between; padding:4px 0; border-top:1px dashed #ddd;"><span>${new Date(p.date).toLocaleDateString('ar-EG')} — ${esc(p.company)} — ${M(p.amount)} ج.م ${esc(p.note)}</span><button onclick="delPay('${p.id}')" style="border:none; background:none; color:#c0392b; cursor:pointer;">حذف</button></div>`).join('')}`
+                : '<div style="font-size:12px; color:var(--text-muted);">اختار شركة الشحن في الأوردرات اللي اتشحنت وهتظهر هنا.</div>';
             box.innerHTML = h + purchasesHtml();
         }
         function checkBackup() {
@@ -1387,7 +1409,7 @@
                         </div>
                         <div style="margin-top:8px; display:grid; gap:6px;">
                             <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                                <input class="ord-ext" data-id="${ord.orderId}" data-k="shipCo" ${extDirty(ord, 'shipCo')} oninput="this.dataset.dirty=1" maxlength="40" value="${esc(extVal(ord, 'shipCo'))}" placeholder="شركة الشحن" style="flex:1; min-width:110px; padding:6px 8px; border:1px solid var(--border-color); border-radius:6px; font-size:12px; font-family:inherit;">
+                                <select class="ord-ext" data-id="${ord.orderId}" data-k="shipCo" ${extDirty(ord, 'shipCo')} onchange="carrierPick(this)" style="flex:1; min-width:110px; padding:6px 8px; border:1px solid var(--border-color); border-radius:6px; font-size:12px; font-family:inherit;">${carrierOpts(extVal(ord, 'shipCo'))}</select>
                                 <input class="ord-ext" data-id="${ord.orderId}" data-k="shipNo" ${extDirty(ord, 'shipNo')} oninput="this.dataset.dirty=1" maxlength="60" value="${esc(extVal(ord, 'shipNo'))}" placeholder="رقم الشحنة (يظهر للعميل)" style="flex:1; min-width:110px; padding:6px 8px; border:1px solid var(--border-color); border-radius:6px; font-size:12px; font-family:inherit;">
                             </div>
                             <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
@@ -1395,6 +1417,7 @@
                                 ${['shipped', 'delivered'].includes(st) ? `<button onclick="setSettled('${ord.orderId}', ${!ord.settled})" style="cursor:pointer; border:none; color:#fff; background:${ord.settled ? '#1f7244' : '#b9770e'}; padding:5px 10px; border-radius:6px; font-size:12px; font-weight:700;">${ord.settled ? '✅ اتحصّل (اضغط للتراجع)' : '⏳ لسه عند الشركة (علّمه اتحصّل)'}</button>` : ''}
                             </div>
                             <div style="font-size:12px; color:var(--text-muted);">${(() => { const r = orderNet(ord); return r.known ? `التكلفة ${r.cost} | الشحن ${r.fee} | <strong style="color:${r.net >= 0 ? '#1f7244' : '#c0392b'};">${r.loss ? 'خسارة' : 'صافي'} ${Math.round(r.net)} ج.م</strong>` : 'أضف سعر تكلفة المنتجات عشان يتحسب الصافي'; })()}</div>
+                            ${(() => { const d = orderDue(ord); if (d == null) return ''; const lost = d < 0 || ['returned', 'refused_receive', 'refused_pay'].includes(st); return `<div style="font-size:12px; font-weight:700; color:${d >= 0 ? '#1f7244' : '#c0392b'};">المطلوب من ${esc(ord.shipCo || 'شركة الشحن')}: ${d} ج.م <span style="font-weight:400; color:var(--text-muted);">${lost ? '(مرتجع/رفض: رسوم الشحن بس)' : '(إجمالي الأوردر − رسوم الشحن)'}${ord.settled ? ' — اتحصّل ✅' : ''}</span></div>`; })()}
                             <textarea class="ord-ext" data-id="${ord.orderId}" data-k="note" ${extDirty(ord, 'note')} oninput="this.dataset.dirty=1" maxlength="500" rows="2" placeholder="ملاحظة داخلية (لا تظهر للعميل)" style="padding:6px 8px; border:1px solid var(--border-color); border-radius:6px; font-size:12px; font-family:inherit; resize:vertical;">${esc(extVal(ord, 'note'))}</textarea>
                             <button onclick="saveOrderExtra('${ord.orderId}')" style="cursor:pointer; border:none; color:#fff; background:var(--accent-dark); padding:6px 12px; border-radius:6px; font-size:12px; font-weight:700; justify-self:start;">حفظ الملاحظة والشحن</button>
                         </div>
