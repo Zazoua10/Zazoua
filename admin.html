@@ -1235,9 +1235,6 @@
             const M = n => Math.round(Number(n) || 0).toLocaleString('en-US'), tot = purchases.reduce((s, p) => s + (Number(p.price) || 0), 0);
             return `<h3 style="font-size:14px; margin:18px 0 8px;">المشتريات (جبت إيه وبكام) — إجمالي ${M(tot)} ج.م</h3>
                 <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px;">
-                    <div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:6px;"><input id="pu-item" class="form-input" placeholder="جبت إيه؟ (مثال: 50 تيشيرت)"><input id="pu-qty" type="number" min="1" class="form-input" placeholder="العدد"><input id="pu-price" type="number" min="0" class="form-input" placeholder="الإجمالي ج.م"></div>
-                    <select id="pu-prod" class="form-select" style="margin-top:6px;"><option value="">من غير ربط بمنتج</option>${products.map(p => `<option value="${p.id}">اعتمد تكلفة القطعة لـ: ${esc(p.title)}</option>`).join('')}</select>
-                    <button onclick="addPurchase()" class="submit-btn" style="margin-top:6px;">سجّل الشراء</button>
                     ${purchases.map(p => `<div style="font-size:12px; display:flex; justify-content:space-between; gap:6px; padding:5px 0; border-top:1px dashed #ddd;"><span>${new Date(p.date).toLocaleDateString('ar-EG')} — ${esc(p.item)} × ${p.qty} = <strong>${M(p.price)} ج.م</strong> (القطعة ${(p.price / p.qty).toFixed(1)})</span><button onclick="delPurchase('${p.id}')" style="border:none; background:none; color:#c0392b; cursor:pointer;">حذف</button></div>`).join('')}
                 </div>`;
         }
