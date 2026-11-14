@@ -1700,29 +1700,71 @@
             link.click();
         }
 
+        let prodSearch = '';
         function renderProductsAdmin() {
-            const el = document.getElementById('admin-products-list');
-            const opened = new Set(Array.from(el.querySelectorAll('details[open]')).map(d => d.dataset.id));
-            el.innerHTML = products.map(p => `
-                <details class="acc" data-id="${p.id}" ${opened.has(String(p.id)) ? 'open' : ''} style="${p.hidden ? 'opacity:.6;' : ''}">
-                    <summary>
-                        <span style="display:flex; align-items:center; gap:8px;"><img src="${p.image}" style="width:35px; height:35px; object-fit:cover; border-radius:4px;"><strong>${p.title}</strong></span>
-                        <span>${p.price} ج.م ${p.hero ? '<span style="color:#b9770e;">⭐ في السلايدر </span>' : ''}${p.soldOut ? '<span style="color:#c0392b;">• نفذت</span>' : ''}${p.hidden ? '<span style="color:#888;">• مخفي</span>' : ''}</span>
-                    </summary>
-                    <div class="acc-body">
-                        <div><strong>القسم:</strong> ${p.mainCat} / ${p.subCat}</div>
-                        <div><strong>المقاسات:</strong> ${p.sizes.join('، ')} | <strong>الألوان:</strong> ${p.colors.join('، ')}</div>
-                        <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:8px;">
-                            <button onclick="editProduct(${p.id})" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:#2c6fbb;">تعديل</button>
-                            <button onclick="toggleFlag(${p.id}, 'soldOut')" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:#b9770e;">${p.soldOut ? 'متوفر' : 'نفذت'}</button>
-                            <button onclick="toggleFlag(${p.id}, 'hero')" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:#b9770e;">${p.hero ? 'إزالة من السلايدر' : 'إضافة للسلايدر'}</button>
-                            <button onclick="toggleFlag(${p.id}, 'hidden')" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:#666;">${p.hidden ? 'إظهار' : 'إخفاء'}</button>
-                            <button onclick="copyAdLink(${p.id})" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:var(--accent-dark);">رابط الإعلان</button>
-                            <button onclick="deleteProduct(${p.id})" style="cursor:pointer; border:none; color:white; padding:4px 8px; border-radius:4px; font-size:11px; background:var(--danger-color);">حذف</button>
-                        </div>
+            const el = document.getElementById('admin-products-list'); if (!el) return;
+            if (!document.getElementById('prod-search')) {
+                el.innerHTML = `
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                        <input type="search" id="prod-search" placeholder="ابحث باسم المنتج أو القسم" class="form-input" style="flex:1; min-width:220px;" oninput="prodSearch = this.value; renderProductsRows()">
+                        <button type="button" class="submit-btn" style="width:auto; padding:9px 16px;" onclick="document.getElementById('product-form').scrollIntoView({ behavior: 'smooth' })">+ إضافة منتج</button>
                     </div>
-                </details>
-            `).join('');
+                    <div id="prod-count" style="font-size:12px; color:var(--text-muted); margin-bottom:8px;"></div>
+                    <div style="overflow-x:auto; background:#fff; border:1px solid var(--border-color); border-radius:12px;">
+                        <table style="width:100%; border-collapse:collapse; font-size:13px; min-width:760px;">
+                            <thead><tr style="background:#fafafa; color:var(--text-muted); font-size:12px;">
+                                <th style="padding:10px; text-align:right;">المنتج</th>
+                                <th style="padding:10px; text-align:right;">الحالة</th>
+                                <th style="padding:10px; text-align:right;">السعر</th>
+                                <th style="padding:10px; text-align:right;">تاريخ الإنشاء</th>
+                                <th style="padding:10px; text-align:right;">الإجراءات</th>
+                            </tr></thead>
+                            <tbody id="prod-rows"></tbody>
+                        </table>
+                    </div>`;
+            }
+            renderProductsRows();
+        }
+        function renderProductsRows() {
+            const body = document.getElementById('prod-rows'); if (!body) return;
+            const q = prodSearch.trim().toLowerCase();
+            const list = products.filter(p => !q || String(p.title || '').toLowerCase().includes(q) || String(p.subCat || '').toLowerCase().includes(q) || String(p.mainCat || '').toLowerCase().includes(q));
+            const cnt = document.getElementById('prod-count'); if (cnt) cnt.innerText = `${list.length} من ${products.length} منتج`;
+            const btn = (label, fn, color) => `<button onclick="${fn}" style="cursor:pointer; border:1px solid var(--border-color); background:#fff; color:${color || '#222'}; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:700; white-space:nowrap;">${label}</button>`;
+            body.innerHTML = list.map(p => {
+                const st = p.hidden ? ['مخفي', '#666', '#f1f1f1'] : p.soldOut ? ['نفذت', '#c0392b', '#fdecea'] : ['نشط', '#1e8449', '#e9f7ef'];
+                const ts = Number(p.id) > 1e12 ? new Date(Number(p.id)) : null;
+                const date = ts ? `${ts.getFullYear()}/${ts.getMonth() + 1}/${ts.getDate()}` : '—';
+                const sub = [p.mainCat, p.subCat].filter(Boolean).join(' / ');
+                return `
+                <tr style="border-top:1px solid var(--border-color); ${p.hidden ? 'opacity:.6;' : ''}">
+                    <td style="padding:10px;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <img src="${p.image || ''}" style="width:44px; height:44px; object-fit:cover; border-radius:8px; background:#f3f3f3; flex:none;">
+                            <div>
+                                <div style="font-weight:800;">${esc(p.title)}</div>
+                                <div style="font-size:11px; color:var(--text-muted);">${esc(sub) || '—'}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="padding:10px;">
+                        <span style="display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:800; color:${st[1]}; background:${st[2]};">● ${st[0]}</span>
+                        ${p.hero ? '<div style="font-size:11px; color:#b9770e; margin-top:4px;">⭐ في السلايدر</div>' : ''}
+                    </td>
+                    <td style="padding:10px; font-weight:800; white-space:nowrap;">${p.price} ج.م</td>
+                    <td style="padding:10px; color:var(--text-muted); white-space:nowrap;">${date}</td>
+                    <td style="padding:10px;">
+                        <div style="display:flex; gap:4px; flex-wrap:wrap; max-width:360px;">
+                            ${btn('✏️ تعديل', `editProduct(${p.id})`, '#2c6fbb')}
+                            ${btn(p.soldOut ? 'متوفر' : 'نفذت', `toggleFlag(${p.id}, 'soldOut')`)}
+                            ${btn(p.hero ? 'إزالة من السلايدر' : 'للسلايدر', `toggleFlag(${p.id}, 'hero')`)}
+                            ${btn(p.hidden ? 'إظهار' : 'إخفاء', `toggleFlag(${p.id}, 'hidden')`)}
+                            ${btn('🔗 رابط الإعلان', `copyAdLink(${p.id})`)}
+                            ${btn('🗑️ حذف', `deleteProduct(${p.id})`, '#c0392b')}
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('') || `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--text-muted);">مفيش منتجات تطابق البحث</td></tr>`;
         }
 
         function unitCost(id) {
