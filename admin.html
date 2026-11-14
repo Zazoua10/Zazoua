@@ -1370,7 +1370,7 @@
             const cos = [...new Set([...carriers(), ...payments.map(p => p.company)])];
             const form = '';
             const note = '<div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">اليوم = تاريخ إنشاء الأوردر (والدفعة بتاريخ اللي تختاره). المطلوب = إجمالي الأوردر − رسوم الشحن، ومرتجع/رفض = رسوم الشحن بالسالب. المتبقي = المطلوب − اللي اتحصّل + اللي دفعته للشركة.</div>';
-            box.innerHTML = form + note + purchasesHtml() + wrap('all', 'الإجمالي (كل الأيام)', settleBlock(orders, payments)) + Object.keys(days).sort().reverse().map(k => wrap(k, label(k) + ` — ${days[k].o.length} أوردر`, settleBlock(days[k].o, days[k].p))).join('');
+            box.innerHTML = form + note;
             ['pay-co', 'pay-amt', 'pay-note', 'pay-day'].forEach((c, i) => { const e = box.querySelector('.' + c); if (e && keep[i]) e.value = keep[i]; });
         }
         function checkBackup() {
