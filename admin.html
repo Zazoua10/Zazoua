@@ -1149,34 +1149,36 @@
             const from = new Date(fromStr + 'T00:00:00').getTime();
             const toD = new Date(toStr + 'T00:00:00'); toD.setDate(toD.getDate() + 1);
             const to = toD.getTime();
-            const periodO = orders.filter(o => !DEAD.includes(o.status || 'new') && (o.createdAt || 0) >= from && (o.createdAt || 0) < to);
-            let salesAll = 0, knownSales = 0, cost = 0, opex = 0, partial = 0;
-            periodO.forEach(o => {
-                const orderSales = o.items.reduce((s, i) => s + (Number(i.price) || 0), 0) - (o.discount || 0);
-                salesAll += orderSales;
+            // الأوردرات اللي حالتها اتغيرت لـ "اتسلّم" في الفترة (أو تاريخ إنشائها لو مفيش تاريخ تسليم مسجّل)
+            const delO = orders.filter(o => (o.status || 'new') === 'delivered' && (o.deliveredAt || o.createdAt || 0) >= from && (o.deliveredAt || o.createdAt || 0) < to);
+            let goods = 0, sales = 0, opexAll = 0, knownSales = 0, cost = 0, opexKnown = 0, partial = 0;
+            delO.forEach(o => {
+                const items = o.items || [];
+                goods += items.reduce((s, i) => s + (Number(i.price) || 0), 0);
+                const orderSales = items.reduce((s, i) => s + (Number(i.price) || 0), 0) - (o.discount || 0);
+                sales += orderSales;
                 let c = 0, ox = 0, known = true;
-                o.items.forEach(i => { const uc = unitCost(i.id); if (uc == null) known = false; else { c += uc; ox += Number(opexMap[i.id] || 0); } });
-                if (known) { knownSales += orderSales; cost += c; opex += ox; } else partial++;
+                items.forEach(i => { const uc = unitCost(i.id); if (uc == null) known = false; else c += uc; opexAll += Number(opexMap[i.id] || 0); ox += Number(opexMap[i.id] || 0); });
+                if (known) { knownSales += orderSales; cost += c; opexKnown += ox; } else partial++;
             });
-            const profit = knownSales - cost - opex;
+            const profit = knownSales - cost - opexKnown;
+            const label = fromStr === toStr ? (fromStr === todayStr ? 'النهارده' : fromStr) : `من ${fromStr} لـ ${toStr}`;
             const card = (t, v, c) => `<div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; text-align:center;"><div style="font-size:11px; color:var(--text-muted);">${t}</div><div style="font-size:18px; font-weight:800; ${c ? 'color:' + c + ';' : ''}">${v}</div></div>`;
             const dateInp = (w, v) => `<input type="date" value="${v}" onchange="setRange('${w}', this.value)" class="form-input" style="width:auto;">`;
-            const label = fromStr === toStr ? (fromStr === todayStr ? 'النهارده' : fromStr) : `من ${fromStr} لـ ${toStr}`;
             box.innerHTML = `
-                <h3 style="font-size:14px; margin:22px 0 8px;">الأرقام (${label})</h3>
+                <h3 style="font-size:14px; margin:22px 0 8px;">الأوردرات اللي اتسلّمت (${label}) — ${delO.length} أوردر</h3>
                 <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:8px; font-size:12px;">
                     <span>من</span>${dateInp('from', fromStr)}
                     <span>لـ</span>${dateInp('to', toStr)}
                     <button onclick="resetRange()" class="submit-btn" style="font-size:12px; padding:6px 12px;">النهارده</button>
                 </div>
                 <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px;">
-                    ${card('بعت بكام (بعد الخصم)', Math.round(salesAll) + ' ج.م')}
-                    ${card('عدد الطلبات', periodO.length)}
-                    ${card('تكلفة البضاعة', Math.round(cost) + ' ج.م')}
-                    ${card('مصاريف التشغيل', Math.round(opex) + ' ج.م')}
-                    ${card('صافي الربح', Math.round(profit) + ' ج.م', profit >= 0 ? 'var(--success-color)' : 'var(--danger-color)')}
+                    ${card('بعت بكام قبل خصم مصاريف التشغيل وسعر القطعة', Math.round(sales) + ' ج.م')}
+                    ${card('الربح بعد خصم مصاريف التشغيل وسعر القطعة', Math.round(profit) + ' ج.م', profit >= 0 ? 'var(--success-color)' : 'var(--danger-color)')}
+                    ${card('البضاعة اللي اتباعت بسعر الجملة', Math.round(goods) + ' ج.م')}
+                    ${card('مصاريف التشغيل للقطع اللي اتباعت', Math.round(opexAll) + ' ج.م')}
                 </div>
-                <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">المبيعات من غير مصاريف الشحن. ${partial ? partial + ' طلب في الفترة مش محسوب في التكلفة والربح لأن منتجاته من غير سعر تكلفة.' : ''}</div>`;
+                <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">المبيعات من غير مصاريف الشحن. ${partial ? partial + ' أوردر في الفترة مش محسوب في الربح لأن منتجاته من غير سعر تكلفة.' : ''} الأوردرات اللي اتسلّمت قبل التحديث بتتحسب بتاريخ إنشائها.</div>`;
         }
 
         function renderStatsExtra() {
@@ -1314,6 +1316,7 @@
             try {
                 await Promise.all(ids.map(async id => {
                     const o = orders.find(x => x.orderId === id); if (!o) return;
+                    if (data.status === 'delivered' && o.status !== 'delivered') data.deliveredAt = Date.now();
                     await fb.updateOrder(id, data);
                     if (data.status || data.shipCo) await fb.setTracking({ orderId: id, status: data.status || o.status || 'new', phone4: String(o.customer.phone).slice(-4), createdAt: o.createdAt || 0, ...(data.shipCo ? { shipCo: data.shipCo } : {}) });
                     Object.assign(o, data);
@@ -1627,7 +1630,7 @@
         }
 
         async function changeStatus(orderId, status) {
-            try { await fb.updateOrder(orderId, { status }); const o0 = orders.find(x => x.orderId === orderId); if (o0) await fb.setTracking({ orderId, status, phone4: String(o0.customer.phone).slice(-4), createdAt: o0.createdAt || 0 }); } catch (err) { alert('فشل تحديث الحالة: ' + err.message); return; }
+            try { await fb.updateOrder(orderId, status === 'delivered' ? { status, deliveredAt: Date.now() } : { status }); const o0 = orders.find(x => x.orderId === orderId); if (o0) await fb.setTracking({ orderId, status, phone4: String(o0.customer.phone).slice(-4), createdAt: o0.createdAt || 0 }); } catch (err) { alert('فشل تحديث الحالة: ' + err.message); return; }
             const o = orders.find(x => x.orderId === orderId); if (o) o.status = status;
             renderOrders();
             if (/^refused/.test(status) && confirm('تضيف العميل للقائمة السوداء؟')) blacklistCustomer(orderId);
