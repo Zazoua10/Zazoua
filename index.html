@@ -112,6 +112,21 @@
         .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: var(--accent-dark); color: white; padding: 8px 18px; border-radius: 20px; font-size: 12px; z-index: 3000; transition: var(--transition); }
         .toast.show { transform: translateX(-50%) translateY(0); }
 
+        /* ===== الصورة المكبّرة ===== */
+        #pmodal-img { cursor: zoom-in; }
+        .lb { position: fixed; inset: 0; background: rgba(0,0,0,.93); z-index: 4000; display: none; align-items: center; justify-content: center; touch-action: none; overflow: hidden; user-select: none; }
+        .lb.on { display: flex; }
+        .lb img { max-width: 100%; max-height: 100%; object-fit: contain; transform-origin: center; will-change: transform; -webkit-user-drag: none; }
+        .lb-x { position: absolute; top: 12px; right: 14px; z-index: 2; background: rgba(255,255,255,.15); color: #fff; border: none; width: 42px; height: 42px; border-radius: 50%; font-size: 26px; line-height: 1; cursor: pointer; }
+        .lb-nav { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; direction: ltr; background: rgba(255,255,255,.15); color: #fff; border: none; width: 44px; height: 44px; border-radius: 50%; font-size: 28px; line-height: 1; padding: 0 0 3px; cursor: pointer; }
+        .lb-prev { right: 12px; } .lb-next { left: 12px; }
+        .lb-hint { position: absolute; bottom: 16px; left: 0; right: 0; text-align: center; color: rgba(255,255,255,.7); font-size: 12px; pointer-events: none; }
+        /* ===== تقييمات المنتج ===== */
+        .pr-card { background: var(--brand-gray); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; font-size: 13px; line-height: 1.7; }
+        .pr-ok { background: #e7f6ec; color: #1f7244; font-size: 10px; font-weight: 700; padding: 1px 8px; border-radius: 10px; margin-right: 6px; }
+        #pr-form { display: none; background: #fff; border: 1px solid var(--border-color); border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+        #pr-form .form-input, #pr-form .form-select { margin-bottom: 6px; }
+
         /* ===== الباكجات ===== */
         .bn-row { display: flex; gap: 12px; overflow-x: auto; padding: 4px 2px 10px; scrollbar-width: thin; }
         .bn-card { flex: none; width: 250px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 12px; box-shadow: var(--shadow-sm); cursor: pointer; transition: var(--transition); display: flex; flex-direction: column; gap: 8px; }
@@ -303,7 +318,8 @@
             </div>
             <div class="pm-body">
             <div class="pm-gallery">
-            <img id="pmodal-img" style="width:100%; height:230px; object-fit:cover; border-radius:8px; margin-bottom:10px;" src="" alt="">
+            <img id="pmodal-img" style="width:100%; height:230px; object-fit:cover; border-radius:8px; margin-bottom:10px;" src="" alt="" onclick="openLightbox()">
+            <div style="font-size:11px; color:var(--text-muted); text-align:center; margin-bottom:8px;">🔍 اضغط على الصورة للتكبير</div>
             </div>
             <div class="pm-info">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -325,6 +341,7 @@
             <div id="pmodal-sizechart"></div>
             <div id="pieces-details-container"></div>
             <hr style="margin: 15px 0; border: none; border-top: 1px solid var(--border-color);">
+            <div style="font-size:11px; line-height:1.9; background:var(--brand-gray); padding:8px 10px; border-radius:8px; margin-bottom:10px;">🚚 <strong>مواعيد التوصيل:</strong> القاهرة والجيزة والقليوبية خلال يوم أو يومين · باقي المحافظات من يومين إلى 3 أيام · الصعيد من 3 إلى 4 أيام</div>
 
             <button type="button" class="direct-buy-btn" onclick="buyCurrentProductDirectly()"><i class="fa-solid fa-bag-shopping"></i> طلب المنتج الان</button>
             <button type="button" class="add-to-cart-action-btn" onclick="addCurrentProductToCart()"><i class="fa-solid fa-cart-plus"></i> إضافة للسلة</button>
@@ -336,6 +353,7 @@
                 <div style="display:flex; gap:6px;"><input type="tel" id="notify-phone" class="form-input" placeholder="01XXXXXXXXX" maxlength="11"><button type="button" onclick="submitNotify()" style="background:var(--accent-dark); color:#fff; border:none; border-radius:8px; padding:0 14px; font-weight:800; cursor:pointer;">أبلغني</button></div>
             </div>
             </div>
+            <div id="pmodal-reviews" class="pm-related"></div>
             <div id="pmodal-related" class="pm-related"></div>
             </div>
             <div class="pm-sticky">
@@ -343,6 +361,15 @@
                 <button type="button" id="pm-bar-buy" class="pm-bar-btn" onclick="buyCurrentProductDirectly()">اطلب الآن</button>
             </div>
         </div>
+    </div>
+
+    <!-- تكبير الصورة -->
+    <div class="lb" id="lightbox" onclick="if (event.target === this) closeLightbox()">
+        <button type="button" class="lb-x" onclick="closeLightbox()" aria-label="إغلاق">&times;</button>
+        <button type="button" class="lb-nav lb-prev" id="lb-prev" onclick="lbGo(-1)" aria-label="السابقة">&#8250;</button>
+        <button type="button" class="lb-nav lb-next" id="lb-next" onclick="lbGo(1)" aria-label="التالية">&#8249;</button>
+        <img id="lb-img" alt="" draggable="false">
+        <div class="lb-hint">اضغط مرتين أو اقرص بإصبعين للتكبير</div>
     </div>
 
     <!-- Modal الباكج -->
@@ -370,6 +397,7 @@
                 <button class="close-modal" onclick="closeMyOrders()">&times;</button>
             </div>
             <div id="my-orders-list"></div>
+            <button id="notif-btn" type="button" onclick="enableNotifs()" style="display:none; width:100%; margin-bottom:8px; background:#fff; color:var(--accent-dark); border:1px solid var(--border-color); padding:10px; border-radius:var(--radius-md); font-weight:800; font-size:13px; cursor:pointer;">🔔 فعّل تنبيهات حالة الطلب</button>
             <div style="display:flex; gap:8px; margin-top:6px;">
                 <button type="button" onclick="refreshMyOrders()" style="flex:1; background:var(--accent-dark); color:#fff; border:none; padding:10px; border-radius:var(--radius-md); font-weight:800; font-size:13px; cursor:pointer;">تحديث الحالة</button>
                 <button type="button" onclick="clearMyOrders()" style="background:#fff; color:var(--danger-color); border:1px solid var(--border-color); padding:10px 14px; border-radius:var(--radius-md); font-weight:700; font-size:12px; cursor:pointer;">مسح القايمة</button>
@@ -446,10 +474,12 @@
                 <div style="background: var(--brand-gray); padding: 10px; border-radius: 8px; margin: 12px 0;">
                     <div style="display: flex; justify-content: space-between; font-size: 12px;"><span>إجمالي المنتجات:</span><span id="checkout-subtotal">0 ج.م</span></div>
                     <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top:4px;"><span>مصاريف الشحن:</span><span id="checkout-shipping">اختر المحافظة</span></div>
+                    <div id="eta-row" style="display: none; justify-content: space-between; font-size: 12px; margin-top:4px;"><span>🚚 التوصيل المتوقع:</span><strong id="checkout-eta"></strong></div>
                     <div id="discount-row" style="display: none; justify-content: space-between; font-size: 12px; margin-top:4px; color: var(--success-color);"><span>الخصم:</span><span id="checkout-discount"></span></div>
                     <div style="display: flex; justify-content: space-between; font-weight: 800; font-size: 15px; border-top: 1px solid var(--border-color); margin-top: 6px; padding-top: 6px;"><span>المبلغ الإجمالي عند الاستلام:</span><span id="checkout-total">0 ج.م</span></div>
                 </div>
                 <div id="payment-note" style="display:none; white-space:pre-line; font-size:12px; background:var(--brand-gray); padding:8px; border-radius:8px; margin-bottom:10px;"></div>
+                <label style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; margin-bottom:10px; cursor:pointer;"><input type="checkbox" id="cust-remember" checked style="width:auto;"> احفظ بياناتي على الجهاز ده عشان الطلب الجاي <a href="#" onclick="clearSavedCustomer(); return false;" style="margin-right:auto; color:var(--danger-color); font-weight:600;">مسح المحفوظ</a></label>
                 <input type="text" id="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute; left:-9999px; opacity:0;">
                 <button type="submit" class="submit-order-btn"><i class="fa-solid fa-truck-fast"></i> تأكيد الطلب</button>
             </form>
@@ -462,10 +492,11 @@
             <i class="fa-solid fa-circle-check" style="font-size: 50px; color: var(--success-color); margin-bottom: 10px;"></i>
             <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 10px;">تم الطلب بنجاح ❤️</h3>
             <div style="font-size: 14px; line-height: 1.6; background: var(--brand-gray); padding: 12px; border-radius: 8px; margin-bottom: 15px;">
-                ان شاء الله الاوردر هيوصل لحضرتك في خلال يوم اتنين والتأكيد هيرن علي حضرتك قبل ما الاوردر ما يطلع بيوم عشان يأكد مع حضرتك الاوردر والرقم..نورتينا/نورتنا ❤️
+                ان شاء الله الاوردر هيوصل لحضرتك في خلال <span id="eta-span">يوم أو يومين</span> والتأكيد هيرن علي حضرتك قبل ما الاوردر ما يطلع بيوم عشان يأكد مع حضرتك الاوردر والرقم..نورتينا/نورتنا ❤️
             </div>
             <div id="success-order-id" style="font-weight:800; margin-bottom:6px;"></div>
             <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">تقدر تتابع حالة طلبك من "تتبع طلبك" أسفل المتجر بآخر 4 أرقام من هاتفك.</div>
+            <button id="notif-btn2" type="button" class="submit-order-btn" style="display:none; background:#fff; color:var(--accent-dark); border:1px solid var(--border-color); margin-bottom:8px;" onclick="enableNotifs()">🔔 نبّهني لما حالة الطلب تتغيّر</button>
             <button id="wa-order-btn" class="submit-order-btn" style="display:none; background:#25D366; margin-bottom:8px;" onclick="sendOrderWhatsApp()">📲 أرسل تفاصيل الطلب على واتساب</button>
             <button class="submit-order-btn" style="background:#fff; color:var(--accent-dark); border:1px solid var(--border-color); margin-bottom:8px;" onclick="closeSuccessModal(); openMyOrders()">متابعة حالة طلباتي</button>
             <button class="submit-order-btn" style="background: var(--accent-dark);" onclick="closeSuccessModal()">العودة للمتجر</button>
@@ -498,7 +529,7 @@
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
-        import { getFirestore, collection, getDocs, doc, setDoc, getDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, setDoc, getDoc, updateDoc, increment, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         const app = initializeApp({ apiKey: "AIzaSyDsQTX9rCxxT7Dl-OhDSkrce85lM_yDaf4", authDomain: "zazoua-b4d33.firebaseapp.com", projectId: "zazoua-b4d33", storageBucket: "zazoua-b4d33.firebasestorage.app", messagingSenderId: "990100552162", appId: "1:990100552162:web:5b886a47ef93ff3ad7a1bb" });
 // App Check (reCAPTCHA Enterprise / Fraud Defense) - لازم يتعمل قبل أي استخدام لـ Firestore
         try { initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider("6LeTMBouAAAAAPog_ic7r83Gn1IKcq0C9laQMCqT"), isTokenAutoRefreshEnabled: true }); } catch (e) { console.warn("AppCheck init failed", e); }
@@ -511,6 +542,9 @@
                 return d;
             },
             async getProductImages(id) { const s = await getDoc(doc(db, 'productImages', String(id))); return s.exists() ? (s.data().images || []) : []; },
+            async getProductReviews(pid) { const s = await getDocs(query(collection(db, 'productReviews'), where('productId', '==', String(pid)))); return s.docs.map(d => d.data()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); },
+            async addReviewSub(r) { await setDoc(doc(db, 'reviewSubs', r.id), r); },
+            watchTracking(id, cb) { return onSnapshot(doc(db, 'tracking', String(id)), s => cb(s.exists() ? s.data() : null), () => {}); },
             async getBundles() { const s = await getDocs(collection(db, 'bundles')); return s.docs.map(d => d.data()); },
             async getShipping() { const s = await getDocs(collection(db, 'shipping')); return s.docs.map(d => d.data()); },
             async getSettings() { const s = await getDoc(doc(db, 'settings', 'main')); return s.exists() ? s.data() : {}; },
@@ -562,7 +596,7 @@
             renderProducts();
             populateShippingOptions();
             updateCartUI();
-            checkDirectProductUrl(); maybeShowMember();
+            checkDirectProductUrl(); maybeShowMember(); watchMyOrders();
         });
 
         async function loadData() {
@@ -658,7 +692,7 @@
             document.getElementById('pmodal-title').innerText = activeProduct.title;
             document.getElementById('pmodal-name').innerText = activeProduct.title;
             document.getElementById('pmodal-price').innerText = `${activeProduct.price} ج.م`;
-            setupGallery(activeProduct); showSizeChart(activeProduct); rememberViewed(activeProduct.id); showModalExtras(activeProduct);
+            setupGallery(activeProduct); showSizeChart(activeProduct); rememberViewed(activeProduct.id); showModalExtras(activeProduct); loadProductReviews(activeProduct);
             renderPiecesSelectors(); updateStickyBar();
             if (activeProduct.fullImgs && !activeProduct._full) {
                 const ap = activeProduct;
@@ -766,6 +800,8 @@
             document.getElementById('checkout-discount').innerText = `- ${disc} ج.م`;
             document.getElementById('checkout-shipping').innerText = select.value ? (shipFee === 0 && rawFee > 0 ? 'مجاني 🎉' : `${shipFee} ج.م`) : 'اختر المحافظة';
             document.getElementById('checkout-total').innerText = `${subtotal - disc + (select.value ? shipFee : 0)} ج.م`;
+            const eta = select.value ? etaFor(opt.text) : '', er = document.getElementById('eta-row');
+            er.style.display = eta ? 'flex' : 'none'; document.getElementById('checkout-eta').innerText = eta ? 'خلال ' + eta : '';
         }
 
         async function applyCoupon() {
@@ -933,6 +969,191 @@
             document.getElementById('hs-bar').addEventListener('animationend', () => heroGo(heroIdx + 1));
         }
 
+        // ===== مواعيد التوصيل =====
+        const normAr = x => String(x || '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/\s+/g, ' ').trim();
+        function etaFor(gov) {
+            const g = normAr(gov); if (!g) return '';
+            const near = ['القاهره', 'الجيزه', 'القليوبيه'];
+            const upper = ['المنيا', 'اسيوط', 'سوهاج', 'قنا', 'الاقصر', 'اسوان', 'الوادي الجديد', 'البحر الاحمر', 'الغردقه'];
+            if (near.some(n => g.includes(n))) return 'يوم أو يومين';
+            if (upper.some(n => g.includes(n))) return '3 إلى 4 أيام';
+            return 'يومين إلى 3 أيام';
+        }
+
+        // ===== حفظ بيانات العميل على جهازه =====
+        function fillSavedCustomer() {
+            let c = null; try { c = JSON.parse(localStorage.getItem('zz_cust') || 'null'); } catch (e) {}
+            const rem = document.getElementById('cust-remember'); if (rem) rem.checked = !localStorage.getItem('zz_cust_off');
+            if (!c) return;
+            const set = (id, v) => { const el = document.getElementById(id); if (el && v && !el.value) el.value = v; };
+            set('cust-name', c.name); set('cust-phone', c.phone); set('cust-phone2', c.phone2); set('cust-address', c.address);
+            const g = document.getElementById('cust-gov');
+            if (c.gov && !g.value) { const o = [...g.options].find(x => x.text === c.gov); if (o) g.value = o.value; }
+            calculateCartShipping();
+        }
+        function saveCustomer(o) {
+            try {
+                const rem = document.getElementById('cust-remember');
+                if (rem && !rem.checked) { localStorage.removeItem('zz_cust'); localStorage.setItem('zz_cust_off', '1'); return; }
+                localStorage.removeItem('zz_cust_off');
+                localStorage.setItem('zz_cust', JSON.stringify({ name: o.customer.name, phone: o.customer.phone, phone2: o.customer.phone2 === 'لا يوجد' ? '' : o.customer.phone2, gov: o.customer.gov, address: o.customer.address }));
+            } catch (e) {}
+        }
+        function clearSavedCustomer() {
+            try { localStorage.removeItem('zz_cust'); } catch (e) {}
+            ['cust-name', 'cust-phone', 'cust-phone2', 'cust-address'].forEach(id => { document.getElementById(id).value = ''; });
+            document.getElementById('cust-gov').value = ''; calculateCartShipping(); showToast('اتمسحت بياناتك المحفوظة من الجهاز');
+        }
+
+        // ===== تكبير الصورة =====
+        let lbList = [], lbI = 0, lbS = 1, lbX = 0, lbY = 0;
+        const lbEl = () => document.getElementById('lb-img');
+        function lbApply(anim) { const el = lbEl(); el.style.transition = anim ? 'transform .18s ease' : 'none'; el.style.transform = `translate(${lbX}px, ${lbY}px) scale(${lbS})`; el.style.cursor = lbS > 1 ? 'grab' : 'zoom-in'; }
+        function lbClampPan() {
+            const el = lbEl(), box = document.getElementById('lightbox');
+            const mx = Math.max(0, (el.offsetWidth * lbS - box.clientWidth) / 2), my = Math.max(0, (el.offsetHeight * lbS - box.clientHeight) / 2);
+            lbX = Math.max(-mx, Math.min(mx, lbX)); lbY = Math.max(-my, Math.min(my, lbY));
+        }
+        function lbZoom(ns) { lbS = Math.max(1, Math.min(5, ns)); if (lbS === 1) { lbX = 0; lbY = 0; } else lbClampPan(); lbApply(false); }
+        function lbShow() {
+            lbEl().src = lbList[lbI]; lbS = 1; lbX = 0; lbY = 0; lbApply(false);
+            document.getElementById('lb-prev').style.display = document.getElementById('lb-next').style.display = lbList.length > 1 ? 'block' : 'none';
+        }
+        function openLightbox() {
+            const cur = document.getElementById('pmodal-img').src;
+            const th = [...document.querySelectorAll('#pmodal-thumbs img')].map(i => i.src);
+            lbList = th.length ? th : [cur]; lbI = Math.max(0, lbList.indexOf(cur));
+            lbShow(); document.getElementById('lightbox').classList.add('on');
+        }
+        function closeLightbox() { document.getElementById('lightbox').classList.remove('on'); }
+        function lbGo(d) { if (lbList.length < 2) return; lbI = (lbI + d + lbList.length) % lbList.length; lbShow(); }
+        (function lbBind() {
+            const box = document.getElementById('lightbox'), pts = new Map();
+            let d0 = 0, s0 = 1, px = 0, py = 0, sx = 0, sy = 0, lastTap = 0, moved = false;
+            const dist = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
+            box.addEventListener('pointerdown', e => {
+                if (e.target.closest('button')) return;
+                pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                if (pts.size === 1) { sx = e.clientX; sy = e.clientY; px = lbX; py = lbY; moved = false; }
+                if (pts.size === 2) { d0 = dist(); s0 = lbS; moved = true; }
+            });
+            box.addEventListener('pointermove', e => {
+                if (!pts.has(e.pointerId)) return;
+                pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                if (pts.size === 2) { lbZoom(s0 * dist() / d0); return; }
+                if (Math.hypot(e.clientX - sx, e.clientY - sy) > 8) moved = true;
+                if (lbS > 1 && pts.size === 1) { lbX = px + e.clientX - sx; lbY = py + e.clientY - sy; lbClampPan(); lbApply(false); }
+            });
+            const up = e => {
+                if (!pts.has(e.pointerId)) return;
+                const was = pts.size; pts.delete(e.pointerId);
+                if (was !== 1 || e.type === 'pointercancel') return;
+                const dx = e.clientX - sx;
+                if (!moved) { // ضغطة: مرتين ورا بعض = تكبير أو رجوع
+                    const now = Date.now();
+                    if (now - lastTap < 320 && e.target === lbEl()) { lbZoom(lbS > 1 ? 1 : 2.5); lbApply(true); lastTap = 0; } else lastTap = now;
+                } else if (lbS === 1 && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(e.clientY - sy)) lbGo(dx < 0 ? 1 : -1);
+            };
+            box.addEventListener('pointerup', up); box.addEventListener('pointercancel', up);
+            box.addEventListener('wheel', e => { e.preventDefault(); lbZoom(lbS * (e.deltaY < 0 ? 1.15 : 1 / 1.15)); }, { passive: false });
+            document.addEventListener('keydown', e => {
+                if (!box.classList.contains('on')) return;
+                if (e.key === 'Escape') closeLightbox();
+                else if (e.key === 'ArrowLeft') lbGo(1); else if (e.key === 'ArrowRight') lbGo(-1);
+            });
+        })();
+
+        // ===== تقييمات المنتج =====
+        const prCache = {};
+        const starsHtml = n => { n = Math.max(0, Math.min(5, Math.round(n))); return '★'.repeat(n) + '☆'.repeat(5 - n); };
+        async function loadProductReviews(p) {
+            document.getElementById('pmodal-reviews').innerHTML = '';
+            const id = String(p.id);
+            if (!(id in prCache)) { try { prCache[id] = await fb.getProductReviews(id); } catch (e) { console.warn('reviews', e); prCache[id] = null; } }
+            if (activeProduct && String(activeProduct.id) === id) renderProductReviews(p);
+        }
+        function renderProductReviews(p) {
+            const box = document.getElementById('pmodal-reviews'), list = prCache[String(p.id)];
+            if (!list) { box.innerHTML = ''; return; }
+            const avg = list.length ? list.reduce((s, r) => s + (Number(r.stars) || 0), 0) / list.length : 0;
+            const mine = getMyOrders()[0], c = (() => { try { return JSON.parse(localStorage.getItem('zz_cust') || 'null') || {}; } catch (e) { return {}; } })();
+            box.innerHTML = `<div style="margin-top:18px; border-top:1px solid var(--border-color); padding-top:14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+                    <div style="font-weight:800; font-size:14px;">تقييمات العملاء ${list.length ? `<span style="color:#f1c40f;">${starsHtml(avg)}</span> <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${avg.toFixed(1)} (${list.length})</span>` : ''}</div>
+                    <button type="button" onclick="toggleReviewForm()" class="copy-ad-link-btn" style="width:auto; padding:6px 14px;">✍️ قيّم المنتج</button>
+                </div>
+                <div id="pr-form">
+                    <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px; line-height:1.7;">التقييم متاح للطلبات اللي اتسلّمت بس. اكتب رقم طلبك وآخر 4 أرقام من هاتفك.</div>
+                    <input id="pr-order" class="form-input" placeholder="رقم الطلب ZZ-XXXXXXXX" value="${esc(mine ? mine.id : '')}" style="direction:ltr; text-align:right;" autocomplete="off">
+                    <input id="pr-phone4" class="form-input" placeholder="آخر 4 أرقام من الهاتف" inputmode="numeric" maxlength="4" value="${esc(String(c.phone || '').slice(-4))}">
+                    <input id="pr-name" class="form-input" placeholder="اسمك" maxlength="100" value="${esc(c.name || '')}">
+                    <select id="pr-stars" class="form-select"><option value="5">★★★★★ ممتاز</option><option value="4">★★★★☆ جيد جدًا</option><option value="3">★★★☆☆ جيد</option><option value="2">★★☆☆☆ مقبول</option><option value="1">★☆☆☆☆ ضعيف</option></select>
+                    <textarea id="pr-text" class="form-input" rows="3" maxlength="500" placeholder="رأيك في المنتج (الخامة، المقاس، الشكل...)"></textarea>
+                    <button type="button" id="pr-send" class="submit-order-btn" onclick="submitProductReview()">إرسال التقييم</button>
+                </div>
+                ${list.length ? list.slice(0, 6).map(r => `<div class="pr-card"><div><span style="color:#f1c40f;">${starsHtml(r.stars)}</span>${r.verified ? '<span class="pr-ok">✓ مشتري موثّق</span>' : ''}</div><div>${esc(r.text)}</div><div style="font-size:12px; font-weight:800;">${esc(r.name)}</div></div>`).join('') : '<div style="font-size:12px; color:var(--text-muted);">لسه مفيش تقييمات للمنتج ده، كن أول واحد يقيّمه.</div>'}
+            </div>`;
+        }
+        function toggleReviewForm() { const f = document.getElementById('pr-form'); if (f) f.style.display = f.style.display === 'block' ? 'none' : 'block'; }
+        async function submitProductReview() {
+            const p = activeProduct; if (!p) return;
+            const v = id => document.getElementById(id).value.trim();
+            const orderId = v('pr-order').toUpperCase().replace(/[\/\s]/g, ''), phone4 = v('pr-phone4').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/\D/g, ''), name = v('pr-name'), text = v('pr-text'), stars = +v('pr-stars');
+            if (!/^ZZ-[A-Z2-9]{8}$/.test(orderId)) { showToast('اكتب رقم الطلب صح (ZZ-XXXXXXXX)'); return; }
+            if (phone4.length !== 4) { showToast('اكتب آخر 4 أرقام من الهاتف'); return; }
+            if (name.length < 2) { showToast('اكتب اسمك'); return; }
+            if (text.length < 3) { showToast('اكتب رأيك في المنتج'); return; }
+            const btn = document.getElementById('pr-send'); btn.disabled = true;
+            try {
+                const t = await fb.getTracking(orderId);
+                if (!t || t.phone4 !== phone4) { showToast('رقم الطلب أو آخر 4 أرقام مش مظبوطين'); btn.disabled = false; return; }
+                if (t.status !== 'delivered') { showToast('التقييم متاح بعد استلام الطلب بس'); btn.disabled = false; return; }
+                await fb.addReviewSub({ id: orderId + '_' + p.id, productId: String(p.id), orderId, phone4, name: name.slice(0, 100), stars, text: text.slice(0, 500), createdAt: Date.now() });
+                document.getElementById('pr-form').style.display = 'none';
+                showToast('شكرًا لتقييمك! هيظهر بعد المراجعة');
+            } catch (e) {
+                console.error(e);
+                showToast(/permission/i.test(String(e.code || e.message)) ? 'إنت قيّمت المنتج ده قبل كده من نفس الطلب' : 'تعذر إرسال التقييم، حاول لاحقًا');
+            }
+            btn.disabled = false;
+        }
+
+        // ===== تنبيهات حالة الطلب (بتشتغل والموقع مفتوح) =====
+        const SEEN_KEY = 'zz_seen', FINAL_ST = ['delivered', 'cancelled', 'returned', 'refused_receive', 'refused_pay'];
+        const getSeen = () => { try { return JSON.parse(localStorage.getItem(SEEN_KEY) || '{}'); } catch (e) { return {}; } };
+        let trackUnsubs = {};
+        function notifyStatus(id, st) {
+            const m = MY_ST[st]; if (!m) return;
+            showToast(`طلبك ${id}: ${m[0]}`);
+            if (window.Notification && Notification.permission === 'granted') {
+                const title = 'Zazoua · ' + m[0], opts = { body: `${m[1]} (طلب ${id})`, icon: 'icon-192.png', badge: 'icon-192.png', tag: id, dir: 'rtl', lang: 'ar' };
+                try { navigator.serviceWorker.ready.then(r => r.showNotification(title, opts)).catch(() => { try { new Notification(title, opts); } catch (e) {} }); } catch (e) { try { new Notification(title, opts); } catch (e2) {} }
+            }
+        }
+        function watchMyOrders() {
+            if (!window.fb || !fb.watchTracking) return;
+            getMyOrders().slice(0, 5).forEach(o => {
+                if (trackUnsubs[o.id] || FINAL_ST.includes(getSeen()[o.id])) return;
+                trackUnsubs[o.id] = fb.watchTracking(o.id, d => {
+                    if (!d) return;
+                    const seen = getSeen(), prev = seen[o.id];
+                    if (prev !== d.status) {
+                        seen[o.id] = d.status; try { localStorage.setItem(SEEN_KEY, JSON.stringify(seen)); } catch (e) {}
+                        if (prev !== undefined) notifyStatus(o.id, d.status);
+                    }
+                    if (FINAL_ST.includes(d.status)) { const u = trackUnsubs[o.id]; trackUnsubs[o.id] = () => {}; if (typeof u === 'function') u(); }
+                });
+            });
+        }
+        function updateNotifBtn() {
+            const show = window.Notification && Notification.permission === 'default';
+            ['notif-btn', 'notif-btn2'].forEach(id => { const b = document.getElementById(id); if (b) b.style.display = show ? 'block' : 'none'; });
+        }
+        function enableNotifs() {
+            if (!window.Notification) { showToast('المتصفح ده مش بيدعم التنبيهات'); return; }
+            Notification.requestPermission().then(r => { updateNotifBtn(); showToast(r === 'granted' ? 'تمام، هنبلغك لما حالة طلبك تتغيّر' : 'التنبيهات مش متفعّلة'); });
+        }
+
         // ===== الباكجات =====
         let bundles = [], activeBundle = null;
         function bundleInfo(b) {
@@ -1041,7 +1262,7 @@
                 localStorage.setItem(MY_KEY, JSON.stringify(list.slice(0, 20)));
             } catch (e) {}
         }
-        function openMyOrders() { document.getElementById('my-orders-modal').classList.add('active'); refreshMyOrders(); }
+        function openMyOrders() { document.getElementById('my-orders-modal').classList.add('active'); updateNotifBtn(); refreshMyOrders(); }
         function closeMyOrders() { document.getElementById('my-orders-modal').classList.remove('active'); }
         function clearMyOrders() {
             if (!confirm('مسح القايمة من الجهاز ده؟ (مش هيلغي أي طلب)')) return;
@@ -1286,6 +1507,7 @@
             track('InitiateCheckout', { value: subtotal }); renderPromoHint(subtotal, 0);
             const pn = document.getElementById('payment-note'); pn.innerText = settings.paymentText || ''; pn.style.display = settings.paymentText ? 'block' : 'none';
             appliedCoupon = null; document.getElementById('cust-coupon').value = ''; document.getElementById('coupon-msg').innerText = ''; document.getElementById('discount-row').style.display = 'none';
+            fillSavedCustomer();
             document.getElementById('checkout-modal').classList.add('active');
         }
 
@@ -1331,9 +1553,10 @@
                 items: [...cart], subtotal, shipping: shipFee, discount: disc, coupon: calcDisc(subT).label, utm: getUtm(), total: subtotal - disc + shipFee
             });
 
-            try { await fb.addOrder(order); lastOrder = order; saveMyOrder(order); useCouponAfter(order); clearTimeout(leadTimer); fb.saveLead(leadData(true)); localStorage.removeItem('zz_lead_id'); document.getElementById('success-order-id').innerText = 'رقم طلبك: ' + order.orderId; localStorage.setItem('zz_orders_t', JSON.stringify([...hist, nowT])); track('Purchase', { value: order.total, name: order.orderId }); document.getElementById('wa-order-btn').style.display = settings.whatsapp ? 'block' : 'none'; } catch (err) { console.error(err); showToast('تعذر إرسال الطلب، حاول مرة أخرى'); return; }
+            try { await fb.addOrder(order); lastOrder = order; saveMyOrder(order); saveCustomer(order); watchMyOrders(); useCouponAfter(order); clearTimeout(leadTimer); fb.saveLead(leadData(true)); localStorage.removeItem('zz_lead_id'); document.getElementById('success-order-id').innerText = 'رقم طلبك: ' + order.orderId; localStorage.setItem('zz_orders_t', JSON.stringify([...hist, nowT])); track('Purchase', { value: order.total, name: order.orderId }); document.getElementById('wa-order-btn').style.display = settings.whatsapp ? 'block' : 'none'; } catch (err) { console.error(err); showToast('تعذر إرسال الطلب، حاول مرة أخرى'); return; }
             cart = []; saveCartState();
             closeCheckoutModal();
+            document.getElementById('eta-span').innerText = etaFor(govName); updateNotifBtn();
             document.getElementById('order-success-modal').classList.add('active');
         }
 

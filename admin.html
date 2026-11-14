@@ -334,6 +334,10 @@
             <button type="submit" class="submit-btn" style="margin-top:8px; width:100%;">إضافة التقييم</button>
         </form>
         <div id="reviews-list"></div>
+        <h4 style="font-size:14px; margin:22px 0 8px;">تقييمات المنتجات المعلّقة (من العملاء، محتاجة موافقتك)</h4>
+        <div id="revsubs-list"></div>
+        <h4 style="font-size:14px; margin:22px 0 8px;">تقييمات المنتجات المنشورة</h4>
+        <div id="prodreviews-list"></div>
     </div>
 
     <div id="tab-leads" class="admin-section">
@@ -434,6 +438,12 @@
             saveReview: (r) => setDoc(doc(db, 'reviews', r.id), r),
             deleteReview: (id) => deleteDoc(doc(db, 'reviews', String(id))),
             getLeads: () => list('leads'),
+            markLead: (id) => setDoc(doc(db, 'leads', String(id)), { remindedAt: Date.now() }, { merge: true }),
+            getReviewSubs: async () => (await list('reviewSubs')).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)),
+            deleteReviewSub: (id) => deleteDoc(doc(db, 'reviewSubs', String(id))),
+            getProductReviews: async () => (await list('productReviews')).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)),
+            saveProductReview: (r) => setDoc(doc(db, 'productReviews', String(r.id)), r),
+            deleteProductReview: (id) => deleteDoc(doc(db, 'productReviews', String(id))),
             getMembers: () => list('members'),
             deleteMember: (id) => deleteDoc(doc(db, 'members', String(id))),
             deleteLead: (id) => deleteDoc(doc(db, 'leads', String(id))),
@@ -480,6 +490,7 @@
         let shippingRates = [];
         let orders = [], bundles = [], bundleDraft = [], coupons = [], settings = {}, reviews = [], leads = [], blacklist = [], costsMap = {};
         let members = [], payments = [], requests = [], purchases = [], colorSel = {};
+        let reviewSubs = [], productReviews = [];
         let IS_OWNER = true;
         const OWNER_EMAIL = 'trader872007@gmail.com';
         let currentImages = [];
@@ -550,9 +561,10 @@
                     try { bundles = await fb.getBundles(); } catch (e) { console.warn('bundles', e); }
                     reviews = await fb.getReviews();
                     costsMap = await fb.getCosts(); try { payments = await fb.getPayments(); } catch (e) { console.warn('payments', e); } try { purchases = await fb.getPurchases(); } catch (e) { console.warn('purchases', e); } members = await fb.getMembers();
+                    try { reviewSubs = await fb.getReviewSubs(); productReviews = await fb.getProductReviews(); } catch (e) { console.warn('product reviews', e); }
                 }
             } catch (err) { console.error(err); alert('تعذر تحميل البيانات: ' + err.message); }
-            renderProductsAdmin(); renderShipping(); renderCoupons(); renderBundlesAdmin(); renderReviews(); renderLeads(); renderBlacklist(); fillSettings(); startOrderWatch(); renderMembers(); renderSettle(); checkBackup();
+            renderProductsAdmin(); renderShipping(); renderCoupons(); renderBundlesAdmin(); renderReviews(); renderProdReviews(); renderLeads(); renderBlacklist(); fillSettings(); startOrderWatch(); renderMembers(); renderSettle(); checkBackup();
         }
 
 
@@ -814,6 +826,51 @@
             reviews = reviews.filter(r => r.id !== id); renderReviews();
         }
 
+        // ===== تقييمات المنتجات (مراجعة قبل النشر) =====
+        function prodTitle(id) { const p = products.find(x => String(x.id) === String(id)); return p ? p.title : 'منتج محذوف'; }
+        function boughtIn(r) { const o = orders.find(x => x.orderId === r.orderId); return !!(o && (o.items || []).some(i => String(i.id) === String(r.productId))); }
+        function renderProdReviews() {
+            const a = document.getElementById('revsubs-list'), b = document.getElementById('prodreviews-list'); if (!a || !b) return;
+            const btn = (bg, fn, t) => `<button onclick="${fn}" style="cursor:pointer; border:none; color:#fff; background:${bg}; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700;">${t}</button>`;
+            a.innerHTML = reviewSubs.length ? reviewSubs.map(r => {
+                const ok = boughtIn(r);
+                return `<div style="padding:8px 10px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; font-size:12px; line-height:1.9;">
+                    <div><span style="color:#f1c40f;">${'★'.repeat(Math.max(0, Math.min(5, r.stars)))}</span> <strong>${esc(r.name)}</strong> على <strong>${esc(prodTitle(r.productId))}</strong></div>
+                    <div>${esc(r.text)}</div>
+                    <div style="color:var(--text-muted);">الطلب: ${esc(r.orderId)} ${ok ? '<span style="color:#1f7244; font-weight:700;">✓ الطلب فيه المنتج ده</span>' : '<span style="color:#c0392b; font-weight:700;">⚠ الطلب مش لاقيه أو مفيهوش المنتج ده</span>'}</div>
+                    <div style="margin-top:4px; display:flex; gap:6px;">${btn('#1f7244', `publishReviewSub('${esc(r.id)}')`, 'نشر')}${btn('#c0392b', `rejectReviewSub('${esc(r.id)}')`, 'رفض وحذف')}</div>
+                </div>`;
+            }).join('') : '<div style="font-size:12px; color:var(--text-muted);">مفيش تقييمات منتظرة.</div>';
+            b.innerHTML = productReviews.length ? productReviews.map(r => `<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 10px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:6px; font-size:12px;">
+                    <span><span style="color:#f1c40f;">${'★'.repeat(Math.max(0, Math.min(5, r.stars)))}</span> <strong>${esc(r.name)}</strong> على ${esc(prodTitle(r.productId))}${r.verified ? ' <span style="color:#1f7244;">✓ موثّق</span>' : ''} — ${esc(r.text)}</span>
+                    ${btn('var(--danger-color)', `deleteProdReview('${esc(r.id)}')`, 'حذف')}</div>`).join('') : '<div style="font-size:12px; color:var(--text-muted);">لا توجد تقييمات منشورة.</div>';
+        }
+        async function publishReviewSub(id) {
+            const r = reviewSubs.find(x => x.id === id); if (!r) return;
+            const ok = boughtIn(r);
+            if (!ok && !confirm('الطلب ده مش لاقيه أو مفيهوش المنتج ده. تنشر التقييم برضو؟')) return;
+            const pr = { id: r.id, productId: String(r.productId), name: String(r.name || '').slice(0, 100), stars: r.stars, text: String(r.text || '').slice(0, 500), verified: ok, createdAt: r.createdAt || Date.now() };
+            try { await fb.saveProductReview(pr); await fb.deleteReviewSub(id); } catch (err) { alert('فشل النشر (راجع قواعد productReviews): ' + err.message); return; }
+            productReviews = [pr, ...productReviews.filter(x => x.id !== pr.id)]; reviewSubs = reviewSubs.filter(x => x.id !== id); renderProdReviews();
+        }
+        async function rejectReviewSub(id) {
+            if (!confirm('رفض وحذف التقييم ده؟')) return;
+            try { await fb.deleteReviewSub(id); } catch (err) { alert('فشل الحذف: ' + err.message); return; }
+            reviewSubs = reviewSubs.filter(x => x.id !== id); renderProdReviews();
+        }
+        async function deleteProdReview(id) {
+            if (!confirm('حذف التقييم ده من الموقع؟')) return;
+            try { await fb.deleteProductReview(id); } catch (err) { alert('فشل الحذف: ' + err.message); return; }
+            productReviews = productReviews.filter(x => x.id !== id); renderProdReviews();
+        }
+
+        // ===== تذكير واتساب للسلة المتروكة =====
+        async function markReminded(key) {
+            const l = leads.find(x => (x.id || x.phone) === key); if (!l) return;
+            l.remindedAt = Date.now(); renderLeads();
+            try { await fb.markLead(key); } catch (err) { console.warn('markLead', err); }
+        }
+
         function renderLeads() {
             const el = document.getElementById('leads-list'); if (!el) return;
             const done = new Set(orders.map(o => String(o.customer.phone)));
@@ -824,12 +881,16 @@
             el.innerHTML = ls.length ? ls.map(l => {
                 const key = l.id || l.phone;
                 const ph = String(l.phone || '').replace(/\D/g, '');
-                const wa = /^01[0125]\d{8}$/.test(ph) ? `<a href="https://wa.me/20${ph.slice(1)}?text=${encodeURIComponent('أهلاً ' + (l.name || '') + '، شوفنا إنك كنت بتطلب من Zazoua. تحب نساعدك تكمّل الطلب؟')}" target="_blank" rel="noopener" style="background:#25D366; color:#fff; padding:4px 8px; border-radius:6px; text-decoration:none; font-weight:700;">واتساب</a>` : '<span style="color:var(--text-muted);">لا يوجد رقم صالح</span>';
+                const site = location.href.replace(/admin\.html.*$/, 'index.html'), isNotify = String(l.items || '').startsWith('نبلغه لما يتوفر');
+                const msg = isNotify
+                    ? `أهلاً${l.name ? ' ' + l.name : ''} 👋 المنتج اللي كنت مستني يتوفر (${String(l.items).replace(/^نبلغه لما يتوفر:\s*/, '')}) رجع تاني على Zazoua. تقدر تطلبه من هنا: ${site}`
+                    : `أهلاً ${l.name || ''} 👋 شوفنا إنك سبت في سلتك على Zazoua: ${l.items || 'منتجاتك'}${l.total ? ' (إجمالي ' + l.total + ' ج.م)' : ''}. لسه حابب تكمّل الطلب؟ كمّله من هنا: ${site}`;
+                const wa = /^01[0125]\d{8}$/.test(ph) ? `<a href="https://wa.me/20${ph.slice(1)}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" onclick="markReminded(this.closest('details').dataset.id)" style="background:#25D366; color:#fff; padding:4px 8px; border-radius:6px; text-decoration:none; font-weight:700;">${l.remindedAt ? 'أعد التذكير على واتساب' : (isNotify ? 'بلّغه إن المنتج رجع' : 'تذكير واتساب بالسلة')}</a>` : '<span style="color:var(--text-muted);">لا يوجد رقم صالح</span>';
                 return `
                 <details class="acc" data-id="${esc(key)}" ${openedL.has(key) ? 'open' : ''}>
                     <summary><span><strong>${esc(l.name || l.phone || 'عميل بدون اسم')}</strong></span><span class="acc-sub">${l.total ? l.total + ' ج.م' : ''} ${when(l) ? '· ' + new Date(when(l)).toLocaleString('ar-EG') : ''}</span></summary>
                     <div class="acc-body">
-                        ${row('الاسم', l.name)}${row('الهاتف', l.phone)}${row('هاتف ثاني', l.phone2)}${row('المحافظة', l.gov)}${row('العنوان', l.address)}${row('المنتجات', l.items)}${row('إجمالي السلة', l.total ? l.total + ' ج.م' : '')}
+                        ${row('الاسم', l.name)}${row('الهاتف', l.phone)}${row('هاتف ثاني', l.phone2)}${row('المحافظة', l.gov)}${row('العنوان', l.address)}${row('المنتجات', l.items)}${row('إجمالي السلة', l.total ? l.total + ' ج.م' : '')}${row('آخر تذكير', l.remindedAt ? new Date(l.remindedAt).toLocaleString('ar-EG') : '')}
                         <div style="margin-top:8px;">${wa} <button onclick="deleteLead(this.closest('details').dataset.id)" style="cursor:pointer; border:none; color:#fff; background:var(--danger-color); padding:4px 8px; border-radius:4px; font-size:11px; margin-right:4px;">حذف</button></div>
                     </div>
                 </details>`;
@@ -882,7 +943,7 @@
             fb.watchOrders(list => {
                 list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
                 const added = list.length - orders.length;
-                orders = list; renderOrders(); renderStats(); renderStatsExtra(); renderLeads(); renderMembers(); renderSettle();
+                orders = list; renderOrders(); renderProdReviews(); renderStats(); renderStatsExtra(); renderLeads(); renderMembers(); renderSettle();
                 if (!firstSnap && added > 0) { beep(); document.title = `🔔 (${added}) طلب جديد - لوحة الإدارة`; }
                 firstSnap = false;
             }, err => { console.error(err); if (loggingOut) return; alert('تعذر تحميل الطلبات: ' + err.message); });
