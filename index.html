@@ -459,10 +459,6 @@
                     <div class="error-hint" id="err-address">يرجى كتابة العنوان التفصيلي بوضوح</div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">تاريخ ميلادك 🎂 (اختياري - هنبعتلك هدية يوم ميلادك من زعزوعة-Zazoua)</label>
-                    <div class="bp" data-for="cust-birth" style="display:flex; gap:6px;"></div><input type="hidden" id="cust-birth">
-                </div>
-                <div class="form-group">
                     <label class="form-label">كود الخصم (اختياري)</label>
                     <div style="display:flex; gap:6px;">
                         <input type="text" id="cust-coupon" class="form-input" placeholder="اكتب كود الخصم هنا">
@@ -495,6 +491,12 @@
                 ان شاء الله الاوردر هيوصل لحضرتك في خلال <span id="eta-span">يوم أو يومين</span> والتأكيد هيرن علي حضرتك قبل ما الاوردر ما يطلع بيوم عشان يأكد مع حضرتك الاوردر والرقم..نورتينا/نورتنا ❤️
             </div>
             <div id="success-order-id" style="font-weight:800; margin-bottom:6px;"></div>
+            <div id="succ-bday" style="display:none; text-align:right; border-top:1px dashed #ddd; padding-top:12px; margin-bottom:12px;">
+                <div style="font-size:13px; font-weight:800; margin-bottom:8px;">🎂 تاريخ ميلادك (اختياري) — هنبعتلك هدية يوم ميلادك</div>
+                <div class="bp" data-for="succ-birth" style="display:flex; gap:6px; margin-bottom:8px;"></div><input type="hidden" id="succ-birth">
+                <input type="email" id="succ-email" class="form-input" placeholder="إيميلك (عشان نبعتلك الهدية)" style="margin-bottom:8px;">
+                <button type="button" class="submit-order-btn" onclick="saveSuccessBirthday()">احفظ هديتي 🎁</button>
+            </div>
             <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">تقدر تتابع حالة طلبك من "تتبع طلبك" أسفل المتجر بآخر 4 أرقام من هاتفك.</div>
             <button id="notif-btn2" type="button" class="submit-order-btn" style="display:none; background:#fff; color:var(--accent-dark); border:1px solid var(--border-color); margin-bottom:8px;" onclick="enableNotifs()">🔔 نبّهني لما حالة الطلب تتغيّر</button>
             <button id="wa-order-btn" class="submit-order-btn" style="display:none; background:#25D366; margin-bottom:8px;" onclick="sendOrderWhatsApp()">📲 أرسل تفاصيل الطلب على واتساب</button>
@@ -1349,6 +1351,18 @@
             document.getElementById('member-modal').classList.remove('active');
             try { localStorage.setItem(MEM_SKIP, Date.now()); } catch (e) {}
         }
+        async function saveSuccessBirthday() {
+            const c = lastOrder && lastOrder.customer; if (!c) return;
+            const birth = birthOf('succ-birth');
+            const email = (document.getElementById('succ-email').value || '').trim().toLowerCase();
+            if (!birth || birth === 'invalid') { showToast('اختار تاريخ ميلادك كامل'); return; }
+            if (!/^[^@ ]+@[^@ ]+\.[^@ ]+$/.test(email)) { showToast('اكتب إيميل صحيح عشان نبعتلك الهدية'); return; }
+            try {
+                await fb.addMember({ name: String(c.name || '').slice(0, 100), email: email.slice(0, 120), phone: String(c.phone), birth, createdAt: Date.now() });
+                try { localStorage.setItem(MEM_KEY, '1'); } catch (e) {}
+                document.getElementById('succ-bday').innerHTML = '<div style="font-weight:800; color:var(--success-color);">تم التسجيل 🎉 هنبعتلك هدية يوم ميلادك</div>';
+            } catch (err) { console.error(err); showToast('تعذر الحفظ، حاول لاحقًا'); }
+        }
         async function handleMemberSubmit(e) {
             e.preventDefault();
             const v = id => document.getElementById(id).value.trim();
@@ -1530,8 +1544,6 @@
             if (!govSelect.value) { govSelect.classList.add('invalid'); document.getElementById('err-gov').style.display='block'; isValid = false; }
             if (addressInput.value.trim().length < 6) { addressInput.classList.add('invalid'); document.getElementById('err-address').style.display='block'; isValid = false; }
 
-            const birthVal = birthOf('cust-birth');
-            if (birthVal) { const maxB = new Date(); maxB.setFullYear(maxB.getFullYear() - 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(birthVal) || birthVal < '1930-01-01' || birthVal > maxB.toISOString().slice(0, 10)) { isValid = false; showToast('اكتب تاريخ ميلاد صحيح أو سيبه فاضي'); } }
             if (!isValid) return;
             if (document.getElementById('hp-field').value) { cart = []; saveCartState(); closeCheckoutModal(); return; }
             if (appliedCoupon && appliedCoupon.phone && String(appliedCoupon.phone) !== cleanPhone) { showToast('كود الخصم ده خاص بعميل تاني'); return; }
@@ -1549,11 +1561,11 @@
             const order = ({
                 status: 'new', createdAt: Date.now(), orderId: 'ZZ-' + (() => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', b = crypto.getRandomValues(new Uint8Array(8)); return Array.from(b, x => A[x % A.length]).join(''); })(),
                 dateStr: new Date().toLocaleString('ar-EG'),
-                customer: { name: nameInput.value.trim(), phone: cleanPhone, phone2: phone2Input.value.trim() || 'لا يوجد', address: addressInput.value.trim(), gov: govName, ...(birthVal ? { birth: birthVal } : {}) },
+                customer: { name: nameInput.value.trim(), phone: cleanPhone, phone2: phone2Input.value.trim() || 'لا يوجد', address: addressInput.value.trim(), gov: govName },
                 items: [...cart], subtotal, shipping: shipFee, discount: disc, coupon: calcDisc(subT).label, utm: getUtm(), total: subtotal - disc + shipFee
             });
 
-            try { await fb.addOrder(order); lastOrder = order; saveMyOrder(order); saveCustomer(order); watchMyOrders(); useCouponAfter(order); clearTimeout(leadTimer); fb.saveLead(leadData(true)); localStorage.removeItem('zz_lead_id'); document.getElementById('success-order-id').innerText = 'رقم طلبك: ' + order.orderId; localStorage.setItem('zz_orders_t', JSON.stringify([...hist, nowT])); track('Purchase', { value: order.total, name: order.orderId }); document.getElementById('wa-order-btn').style.display = settings.whatsapp ? 'block' : 'none'; } catch (err) { console.error(err); showToast('تعذر إرسال الطلب، حاول مرة أخرى'); return; }
+            try { await fb.addOrder(order); lastOrder = order; saveMyOrder(order); saveCustomer(order); watchMyOrders(); useCouponAfter(order); clearTimeout(leadTimer); fb.saveLead(leadData(true)); localStorage.removeItem('zz_lead_id'); document.getElementById('success-order-id').innerText = 'رقم طلبك: ' + order.orderId; try { if (!localStorage.getItem(MEM_KEY)) document.getElementById('succ-bday').style.display = 'block'; } catch (e) {} localStorage.setItem('zz_orders_t', JSON.stringify([...hist, nowT])); track('Purchase', { value: order.total, name: order.orderId }); document.getElementById('wa-order-btn').style.display = settings.whatsapp ? 'block' : 'none'; } catch (err) { console.error(err); showToast('تعذر إرسال الطلب، حاول مرة أخرى'); return; }
             cart = []; saveCartState();
             closeCheckoutModal();
             document.getElementById('eta-span').innerText = etaFor(govName); updateNotifBtn();
