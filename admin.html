@@ -1144,7 +1144,7 @@
             const profit = rev - disc - cost;
             const n = k => orders.filter(o => (o.status || 'new') === k).length;
             box.insertAdjacentHTML('beforeend', `
-                <h3 style="font-size:14px; margin:22px 0 8px;">الربح (من الطلبات اللي كل منتجاتها ليها سعر تكلفة)</h3>
+                <h3 style="font-size:14px; margin:22px 0 8px;">الربح </h3>
                 <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
                     <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; text-align:center;"><div style="font-size:11px; color:var(--text-muted);">صافي الربح</div><div style="font-size:18px; font-weight:800; color:${profit >= 0 ? 'var(--success-color)' : 'var(--danger-color)'};">${Math.round(profit)} ج.م</div></div>
                     <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; text-align:center;"><div style="font-size:11px; color:var(--text-muted);">هامش الربح</div><div style="font-size:18px; font-weight:800;">${rev ? Math.round(profit / rev * 100) : 0}%</div></div>
