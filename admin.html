@@ -108,14 +108,6 @@
     </div>
 
     <div id="bk-bar" style="display:none; background:#fff3cd; border:1px solid #e0b100; padding:8px 12px; margin:8px 12px; border-radius:8px; font-size:13px; font-weight:700; align-items:center; gap:8px; flex-wrap:wrap;"><span id="bk-msg"></span><button onclick="backupAll()" class="submit-btn" style="font-size:12px;">نزّل النسخة الآن</button></div>
-    <div id="sound-bar" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; padding:8px 12px; font-size:12px;">
-        <button id="sound-toggle" onclick="toggleSound()" class="submit-btn" style="font-size:12px;"></button>
-        <button onclick="document.getElementById('sound-file').click()" class="submit-btn" style="background:var(--accent-dark); font-size:12px;">🎵 اختر صوت من الجهاز</button>
-        <input type="file" id="sound-file" accept="audio/*" style="display:none;" onchange="pickSound(this)">
-        <button onclick="beep(true)" class="submit-btn" style="background:#2c6fbb; font-size:12px;">▶ تجربة الصوت</button>
-        <button onclick="resetSound()" class="submit-btn" style="background:#888; font-size:12px;">الصوت الافتراضي</button>
-        <span id="sound-name" style="color:var(--text-muted);"></span>
-    </div>
 
     <button class="menu-toggle" onclick="document.querySelector('.admin-tabs').classList.toggle('open')">☰ القائمة</button>
     <div class="admin-layout">
@@ -131,6 +123,15 @@
         <button class="tab-btn" onclick="switchTab('leads', this)"><i class="fa-solid fa-user-clock"></i> عملاء مهتمين</button>
         <button class="tab-btn" onclick="switchTab('blacklist', this)"><i class="fa-solid fa-ban"></i> القائمة السوداء</button>
         <button class="tab-btn" onclick="switchTab('members', this)"><i class="fa-solid fa-gift"></i> الأعضاء وأعياد الميلاد</button>
+        <div style="margin-top:10px; border-top:1px dashed var(--border-color); padding-top:10px; display:flex; flex-direction:column; gap:4px;">
+            <button id="push-toggle" type="button" onclick="enablePush()" class="tab-btn" style="background:#f4f8ff; color:#2c6fbb;">🔔 إشعارات الخلفية (لاب / موبايل)</button>
+            <button id="sound-toggle" type="button" onclick="toggleSound()" class="tab-btn" style="color:#fff;"></button>
+            <button type="button" onclick="document.getElementById('sound-file').click()" class="tab-btn">🎵 اختر صوت من الجهاز</button>
+            <input type="file" id="sound-file" accept="audio/*" style="display:none;" onchange="pickSound(this)">
+            <button type="button" onclick="beep(true)" class="tab-btn">▶ تجربة الصوت</button>
+            <button type="button" onclick="resetSound()" class="tab-btn">الصوت الافتراضي</button>
+            <span id="sound-name" style="font-size:11px; color:var(--text-muted); padding:0 14px;"></span>
+        </div>
     </div>
 
     <div class="admin-content">
@@ -422,6 +423,7 @@
         import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, updateDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getMessaging, getToken, isSupported } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
         const app = initializeApp({ apiKey: "AIzaSyDsQTX9rCxxT7Dl-OhDSkrce85lM_yDaf4", authDomain: "zazoua-b4d33.firebaseapp.com", projectId: "zazoua-b4d33", storageBucket: "zazoua-b4d33.firebasestorage.app", messagingSenderId: "990100552162", appId: "1:990100552162:web:5b886a47ef93ff3ad7a1bb" });
 // App Check (reCAPTCHA Enterprise / Fraud Defense) - لازم يتعمل قبل أي استخدام لـ Firestore
         try { initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider("6LeTMBouAAAAAPog_ic7r83Gn1IKcq0C9laQMCqT"), isTokenAutoRefreshEnabled: true }); } catch (e) { console.warn("AppCheck init failed", e); }
@@ -1431,6 +1433,29 @@
         }
 
         // ===== لوحة النهارده =====
+        // ===== إشعارات الخلفية (FCM) =====
+        // حط الـ VAPID key من Firebase Console > Project settings > Cloud Messaging > Web Push certificates
+        const VAPID_KEY = 'PUT_VAPID_KEY_HERE';
+        async function enablePush() {
+            if (VAPID_KEY.startsWith('PUT_')) { alert('لازم تحط الـ VAPID key في الكود الأول (من Firebase > Cloud Messaging > Web Push certificates)'); return; }
+            try {
+                if (!(await isSupported())) { alert('المتصفح ده مش بيدعم إشعارات الخلفية'); return; }
+                const perm = await Notification.requestPermission();
+                if (perm !== 'granted') { alert('لازم تسمح بالإشعارات من إعدادات المتصفح'); return; }
+                const reg = await navigator.serviceWorker.register('firebase-messaging-sw.js', { scope: './firebase-push/' });
+                const token = await getToken(getMessaging(app), { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+                if (!token) { alert('تعذر تفعيل الإشعارات'); return; }
+                await setDoc(doc(db, 'adminTokens', token), { token, createdAt: Date.now(), ua: navigator.userAgent.slice(0, 120) });
+                document.getElementById('push-toggle').innerText = '🔔 إشعارات الخلفية: مفعّلة';
+                alert('تم تفعيل الإشعارات 🔔');
+            } catch (e) { console.error(e); alert('تعذر التفعيل: ' + e.message); }
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+                const b = document.getElementById('push-toggle'); if (b) b.innerText = '🔔 إشعارات الخلفية: مفعّلة';
+            }
+        });
+
         function setOrderFilter(f) { document.getElementById('order-filter').value = f; renderOrders(); }
         function renderToday() {
             const el = document.getElementById('today-box'); if (!el) return;
