@@ -151,7 +151,13 @@
         </div>
         <div id="bulk-bar" style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:10px; margin-bottom:10px; font-size:12px;">
             <div style="font-weight:800; margin-bottom:6px;">إجراءات على الأوردرات المحددة (علّم المربعات الأول):</div>
-            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;"> { this.value = ''; })">
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;">
+                <select id="bulk-co" class="form-select" style="width:auto;" onfocus="if(!this.dataset.f){this.innerHTML=carrierOpts('');this.dataset.f=1}" onchange="carrierPick(this)"></select>
+                <button onclick="bulkApply('co')" class="submit-btn" style="background:#2c6fbb; font-size:12px;">حدّد الشركة</button>
+                <input id="bulk-fee" type="number" min="0" class="form-input" placeholder="رسوم الشحن" style="width:110px;">
+                <button onclick="bulkApply('fee')" class="submit-btn" style="background:#2c6fbb; font-size:12px;">حدّد الرسوم</button>
+                <button onclick="bulkApply('paid')" class="submit-btn" style="font-size:12px;">اتحصّل</button>
+                <button onclick="bulkApply('unpaid')" class="submit-btn" style="background:#888; font-size:12px;">لسه</button>
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
                 <select id="bulk-st" class="form-select" style="width:auto;"><option value="new">جديد</option><option value="confirmed">تم التأكيد</option><option value="shipped">اتشحن</option><option value="delivered">اتسلّم</option><option value="cancelled">ملغي</option><option value="returned">مرتجع</option><option value="exchange">استبدال</option><option value="refused_receive">رفض الاستلام</option><option value="refused_pay">رفض الدفع</option></select>
@@ -362,7 +368,7 @@
         <div id="members-list"></div>
     </div>
 
-    <div id="tab-stats" class="admin-section"><div id="stats-box"></div></div>
+    <div id="tab-stats" class="admin-section"><div id="stats-box"></div><div id="settle-box" style="margin-top:20px;"></div></div>
 
     </div></div>
 
@@ -1306,7 +1312,7 @@
             const cos = [...new Set([...carriers(), ...payments.map(p => p.company)])];
             const form = `<div class="st-co" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:10px;"><strong style="width:100%; font-size:13px;">سجّل دفعة لشركة شحن</strong><select class="pay-co form-select" style="width:auto;">${cos.map(n => `<option>${esc(n)}</option>`).join('')}</select><input class="pay-day form-input" type="date" value="${today}" style="width:auto;"><input class="pay-amt form-input" type="number" min="0" placeholder="دفعت كام؟" style="flex:1; min-width:100px;"><input class="pay-note form-input" placeholder="ملاحظة (اختياري)" style="flex:1; min-width:100px;"><button onclick="addPay(this, this.closest('.st-co').querySelector('.pay-co').value)" class="submit-btn" style="font-size:12px;">سجّل دفعة</button></div>`;
             const note = '<div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">اليوم = تاريخ إنشاء الأوردر (والدفعة بتاريخ اللي تختاره). المطلوب = إجمالي الأوردر − رسوم الشحن، ومرتجع/رفض = رسوم الشحن بالسالب. المتبقي = المطلوب − اللي اتحصّل + اللي دفعته للشركة.</div>';
-            box.innerHTML = form + note + wrap('all', 'الإجمالي (كل الأيام)', settleBlock(orders, payments)) + Object.keys(days).sort().reverse().map(k => wrap(k, label(k) + ` — ${days[k].o.length} أوردر`, settleBlock(days[k].o, days[k].p))).join('');
+            box.innerHTML = form + note + purchasesHtml() + wrap('all', 'الإجمالي (كل الأيام)', settleBlock(orders, payments)) + Object.keys(days).sort().reverse().map(k => wrap(k, label(k) + ` — ${days[k].o.length} أوردر`, settleBlock(days[k].o, days[k].p))).join('');
             ['pay-co', 'pay-amt', 'pay-note', 'pay-day'].forEach((c, i) => { const e = box.querySelector('.' + c); if (e && keep[i]) e.value = keep[i]; });
         }
         function checkBackup() {
