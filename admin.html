@@ -229,6 +229,7 @@
             <div id="color-imgs" class="form-group"></div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                 <div class="form-group"><label class="form-label">سعر التكلفة (لحساب الربح، لا يظهر للعميل)</label><input type="number" id="prod-cost" class="form-input" min="0"></div>
+                <div class="form-group"><label class="form-label">مصاريف تشغيل للقطعة (تتضاف للتكلفة في الربح، لا تظهر للعميل)</label><input type="number" id="prod-opex" class="form-input" min="0" step="0.01"></div>
                 <div class="form-group"><label class="form-label">ينتهي العرض في (اختياري)</label><input type="datetime-local" id="prod-offer-ends" class="form-input"></div>
             </div>
             <div class="form-group"><label class="form-label">جدول المقاسات لهذا المنتج (اختياري، يظهر للعميل)</label><textarea id="prod-sizechart" class="form-input" rows="3" placeholder="M: صدر 100 - طول 70"></textarea></div>
@@ -464,6 +465,9 @@
             getCosts: async () => { const m = {}; (await list('costs')).forEach(x => m[x.id] = x.cost); return m; },
             saveCost: (id, cost) => setDoc(doc(db, 'costs', String(id)), { id: String(id), cost }),
             deleteCost: (id) => deleteDoc(doc(db, 'costs', String(id))),
+            getOpex: async () => { const m = {}; (await list('opex')).forEach(x => m[x.id] = x.opex); return m; },
+            saveOpex: (id, opex) => setDoc(doc(db, 'opex', String(id)), { id: String(id), opex }),
+            deleteOpex: (id) => deleteDoc(doc(db, 'opex', String(id))),
             getBlacklist: () => list('blacklist'),
             saveBlack: (b) => setDoc(doc(db, 'blacklist', b.phone), b),
             deleteBlack: (p) => deleteDoc(doc(db, 'blacklist', String(p))),
@@ -488,7 +492,7 @@
 
         let products = [];
         let shippingRates = [];
-        let orders = [], bundles = [], bundleDraft = [], coupons = [], settings = {}, reviews = [], leads = [], blacklist = [], costsMap = {};
+        let orders = [], bundles = [], bundleDraft = [], coupons = [], settings = {}, reviews = [], leads = [], blacklist = [], costsMap = {}, opexMap = {};
         let members = [], payments = [], requests = [], purchases = [], colorSel = {};
         let reviewSubs = [], productReviews = [];
         let IS_OWNER = true;
@@ -560,7 +564,7 @@
                     coupons = await fb.getCoupons();
                     try { bundles = await fb.getBundles(); } catch (e) { console.warn('bundles', e); }
                     reviews = await fb.getReviews();
-                    costsMap = await fb.getCosts(); try { payments = await fb.getPayments(); } catch (e) { console.warn('payments', e); } try { purchases = await fb.getPurchases(); } catch (e) { console.warn('purchases', e); } members = await fb.getMembers();
+                    costsMap = await fb.getCosts(); try { opexMap = await fb.getOpex(); } catch (e) { console.warn('opex', e); } try { payments = await fb.getPayments(); } catch (e) { console.warn('payments', e); } try { purchases = await fb.getPurchases(); } catch (e) { console.warn('purchases', e); } members = await fb.getMembers();
                     try { reviewSubs = await fb.getReviewSubs(); productReviews = await fb.getProductReviews(); } catch (e) { console.warn('product reviews', e); }
                 }
             } catch (err) { console.error(err); alert('تعذر تحميل البيانات: ' + err.message); }
@@ -1138,13 +1142,13 @@
             let rev = 0, cost = 0, disc = 0, counted = 0, partial = 0;
             orders.filter(o => !dead(o)).forEach(o => {
                 let c = 0, known = true;
-                o.items.forEach(i => { if (costsMap[i.id] == null) known = false; else c += Number(costsMap[i.id]); });
+                o.items.forEach(i => { const uc = unitCost(i.id); if (uc == null) known = false; else c += uc; });
                 if (known) { rev += o.items.reduce((s, i) => s + i.price, 0); cost += c; disc += o.discount || 0; counted++; } else partial++;
             });
             const profit = rev - disc - cost;
             const n = k => orders.filter(o => (o.status || 'new') === k).length;
             box.insertAdjacentHTML('beforeend', `
-                <h3 style="font-size:14px; margin:22px 0 8px;">الربح </h3>
+                <h3 style="font-size:14px; margin:22px 0 8px;">الربح (من الطلبات اللي كل منتجاتها ليها سعر تكلفة)</h3>
                 <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
                     <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; text-align:center;"><div style="font-size:11px; color:var(--text-muted);">صافي الربح</div><div style="font-size:18px; font-weight:800; color:${profit >= 0 ? 'var(--success-color)' : 'var(--danger-color)'};">${Math.round(profit)} ج.م</div></div>
                     <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; text-align:center;"><div style="font-size:11px; color:var(--text-muted);">هامش الربح</div><div style="font-size:18px; font-weight:800;">${rev ? Math.round(profit / rev * 100) : 0}%</div></div>
@@ -1313,7 +1317,7 @@
             if (st === 'cancelled') return { net: 0, cost: 0, fee: 0, known: true };
             if (['returned', 'refused_receive', 'refused_pay'].includes(st)) return { net: -fee, cost: 0, fee, known: true, loss: true };
             let cost = 0, known = true;
-            (o.items || []).forEach(i => { if (costsMap[i.id] == null) known = false; else cost += Number(costsMap[i.id]); });
+            (o.items || []).forEach(i => { const uc = unitCost(i.id); if (uc == null) known = false; else cost += uc; });
             return { net: (o.total || 0) - cost - fee, cost, fee, known };
         }
         async function setSettled(id, v) {
@@ -1676,6 +1680,10 @@
             `).join('');
         }
 
+        function unitCost(id) {
+            if (costsMap[id] == null) return null;
+            return Number(costsMap[id]) + Number(opexMap[id] || 0);
+        }
         function resetProductForm() {
             document.getElementById('product-form').reset();
             document.getElementById('edit-prod-id').value = '';
@@ -1694,6 +1702,7 @@
             document.getElementById('prod-old-price').value = p.oldPrice || '';
             document.getElementById('prod-sizechart').value = p.sizeChart || '';
             document.getElementById('prod-cost').value = costsMap[p.id] != null ? costsMap[p.id] : '';
+            document.getElementById('prod-opex').value = opexMap[p.id] != null ? opexMap[p.id] : '';
             document.getElementById('prod-offer-ends').value = p.offerEnds ? new Date(p.offerEnds - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
             document.getElementById('prod-main-cat').value = p.mainCat;
             document.getElementById('prod-sub-cat').value = p.subCat;
@@ -1739,6 +1748,7 @@
             try { prod.image = prod.thumb = await makeThumb(currentImages[0]); await fb.saveProductImages(prod.id, currentImages); } catch (err) { alert('فشل حفظ الصور (راجع قواعد productImages): ' + err.message); return; }
             try { await fb.saveProduct(prod); } catch (err) { console.error(err); alert('فشل الحفظ: ' + err.message); return; }
             try { const cv = parseFloat(document.getElementById('prod-cost').value); if (!isNaN(cv)) { await fb.saveCost(prod.id, cv); costsMap[prod.id] = cv; } } catch (e2) { console.error(e2); }
+            try { const ov = parseFloat(document.getElementById('prod-opex').value); if (!isNaN(ov)) { await fb.saveOpex(prod.id, ov); opexMap[prod.id] = ov; } else if (opexMap[prod.id] != null) { await fb.deleteOpex(prod.id); delete opexMap[prod.id]; } } catch (e3) { console.error(e3); }
             if (old) products = products.map(p => p.id === prod.id ? prod : p); else products.unshift(prod);
             renderProductsAdmin();
             resetProductForm();
@@ -1747,7 +1757,7 @@
 
         async function deleteProduct(id) {
             if (!confirm('هل أنت متأكد من حذف المنتج؟')) return;
-            try { await fb.deleteProduct(id); try { await fb.deleteCost(id); } catch (e2) {} try { await fb.deleteProductImages(id); } catch (e3) {} } catch (err) { alert('فشل الحذف: ' + err.message); return; }
+            try { await fb.deleteProduct(id); try { await fb.deleteCost(id); } catch (e2) {} try { await fb.deleteOpex(id); } catch (e4) {} try { await fb.deleteProductImages(id); } catch (e3) {} } catch (err) { alert('فشل الحذف: ' + err.message); return; }
             products = products.filter(p => p.id !== id);
             renderProductsAdmin();
         }
