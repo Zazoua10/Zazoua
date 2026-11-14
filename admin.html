@@ -233,6 +233,7 @@
                 <div class="form-group"><label class="form-label">ينتهي العرض في (اختياري)</label><input type="datetime-local" id="prod-offer-ends" class="form-input"></div>
             </div>
             <div class="form-group"><label class="form-label">جدول المقاسات لهذا المنتج (اختياري، يظهر للعميل)</label><textarea id="prod-sizechart" class="form-input" rows="3" placeholder="M: صدر 100 - طول 70"></textarea></div>
+            <div class="form-group"><label class="form-label">تفاصيل المنتج (اختياري، يظهر للعميل)</label><textarea id="prod-caption" class="form-input" rows="3" placeholder="مثال: قماش قطن 100%، مناسب للصيف"></textarea></div>
             <button type="submit" id="prod-save-btn" class="submit-btn" style="background:var(--accent-dark); width: 100%; margin-top: 10px;">حفظ المنتج</button>
             <button type="button" id="prod-cancel-btn" onclick="cancelEdit()" class="submit-btn" style="display:none; background:#888; width:100%; margin-top:6px;">إلغاء التعديل</button>
         </form>
@@ -1760,6 +1761,7 @@
             document.getElementById('prod-price').value = p.price;
             document.getElementById('prod-old-price').value = p.oldPrice || '';
             document.getElementById('prod-sizechart').value = p.sizeChart || '';
+            document.getElementById('prod-caption').value = p.caption || '';
             document.getElementById('prod-cost').value = costsMap[p.id] != null ? costsMap[p.id] : '';
             document.getElementById('prod-opex').value = opexMap[p.id] != null ? opexMap[p.id] : '';
             document.getElementById('prod-offer-ends').value = p.offerEnds ? new Date(p.offerEnds - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
@@ -1794,6 +1796,7 @@
                 price: parseFloat(document.getElementById('prod-price').value),
                 oldPrice: parseFloat(document.getElementById('prod-old-price').value) || 0,
                 sizeChart: document.getElementById('prod-sizechart').value.trim(),
+                caption: document.getElementById('prod-caption').value.trim().slice(0, 600),
                 offerEnds: document.getElementById('prod-offer-ends').value ? new Date(document.getElementById('prod-offer-ends').value).getTime() : 0,
                 mainCat: document.getElementById('prod-main-cat').value,
                 subCat: document.getElementById('prod-sub-cat').value.trim(),

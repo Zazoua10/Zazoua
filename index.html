@@ -338,6 +338,7 @@
             </div>
 
             <!-- الحاوية الديناميكية لمقاس ولون كل قطعة -->
+            <div id="pmodal-caption" style="font-size:13px; line-height:1.8; white-space:pre-line; margin-bottom:10px; color:#333;"></div>
             <div id="pmodal-sizechart"></div>
             <div id="pieces-details-container"></div>
             <hr style="margin: 15px 0; border: none; border-top: 1px solid var(--border-color);">
@@ -694,7 +695,7 @@
             document.getElementById('pmodal-title').innerText = activeProduct.title;
             document.getElementById('pmodal-name').innerText = activeProduct.title;
             document.getElementById('pmodal-price').innerText = `${activeProduct.price} ج.م`;
-            setupGallery(activeProduct); showSizeChart(activeProduct); rememberViewed(activeProduct.id); showModalExtras(activeProduct); loadProductReviews(activeProduct);
+            setupGallery(activeProduct); showSizeChart(activeProduct); document.getElementById('pmodal-caption').innerText = activeProduct.caption || ''; rememberViewed(activeProduct.id); showModalExtras(activeProduct); loadProductReviews(activeProduct);
             renderPiecesSelectors(); updateStickyBar();
             if (activeProduct.fullImgs && !activeProduct._full) {
                 const ap = activeProduct;
