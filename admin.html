@@ -1139,22 +1139,29 @@
             const li = arr => arr.length ? arr.map(([n, c]) => `<div style="padding:5px 8px; background:var(--bg-main); border-radius:6px; margin-bottom:4px; font-size:12px; display:flex; justify-content:space-between; gap:8px;"><span>${esc(n)}</span><strong>${c}</strong></div>`).join('') : '<div style="font-size:12px; color:var(--text-muted);">لا توجد بيانات بعد.</div>';
             const src = {};
             orders.forEach(o => { const s = (o.utm && o.utm.source) || 'غير معروف', k = o.utm && o.utm.campaign ? s + ' / ' + o.utm.campaign : s; src[k] = src[k] || { n: 0, rev: 0 }; src[k].n++; if (!dead(o)) src[k].rev += o.total || 0; });
-            let rev = 0, cost = 0, disc = 0, counted = 0, partial = 0;
-            orders.filter(o => !dead(o)).forEach(o => {
-                let c = 0, known = true;
-                o.items.forEach(i => { const uc = unitCost(i.id); if (uc == null) known = false; else c += uc; });
-                if (known) { rev += o.items.reduce((s, i) => s + i.price, 0); cost += c; disc += o.discount || 0; counted++; } else partial++;
+            const d0 = new Date(); d0.setHours(0, 0, 0, 0);
+            const todayO = orders.filter(o => !dead(o) && (o.createdAt || 0) >= d0.getTime());
+            let salesAll = 0, knownSales = 0, cost = 0, opex = 0, counted = 0, partial = 0;
+            todayO.forEach(o => {
+                const orderSales = o.items.reduce((s, i) => s + (Number(i.price) || 0), 0) - (o.discount || 0);
+                salesAll += orderSales;
+                let c = 0, ox = 0, known = true;
+                o.items.forEach(i => { const uc = unitCost(i.id); if (uc == null) known = false; else { c += uc; ox += Number(opexMap[i.id] || 0); } });
+                if (known) { knownSales += orderSales; cost += c; opex += ox; counted++; } else partial++;
             });
-            const profit = rev - disc - cost;
+            const profit = knownSales - cost - opex;
             const n = k => orders.filter(o => (o.status || 'new') === k).length;
+            const card = (t, v, c) => `<div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; text-align:center;"><div style="font-size:11px; color:var(--text-muted);">${t}</div><div style="font-size:18px; font-weight:800; ${c ? 'color:' + c + ';' : ''}">${v}</div></div>`;
             box.insertAdjacentHTML('beforeend', `
-                <h3 style="font-size:14px; margin:22px 0 8px;">الربح (من الطلبات اللي كل منتجاتها ليها سعر تكلفة)</h3>
-                <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
-                    <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; text-align:center;"><div style="font-size:11px; color:var(--text-muted);">صافي الربح</div><div style="font-size:18px; font-weight:800; color:${profit >= 0 ? 'var(--success-color)' : 'var(--danger-color)'};">${Math.round(profit)} ج.م</div></div>
-                    <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; text-align:center;"><div style="font-size:11px; color:var(--text-muted);">هامش الربح</div><div style="font-size:18px; font-weight:800;">${rev ? Math.round(profit / rev * 100) : 0}%</div></div>
-                    <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; text-align:center;"><div style="font-size:11px; color:var(--text-muted);">طلبات محسوبة</div><div style="font-size:18px; font-weight:800;">${counted}</div></div>
+                <h3 style="font-size:14px; margin:22px 0 8px;">أرقام النهارده</h3>
+                <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px;">
+                    ${card('بعت بكام (بعد الخصم)', Math.round(salesAll) + ' ج.م')}
+                    ${card('عدد الطلبات', todayO.length)}
+                    ${card('تكلفة البضاعة', Math.round(cost) + ' ج.م')}
+                    ${card('مصاريف التشغيل', Math.round(opex) + ' ج.م')}
+                    ${card('صافي الربح', Math.round(profit) + ' ج.م', profit >= 0 ? 'var(--success-color)' : 'var(--danger-color)')}
                 </div>
-                ${partial ? `<div style="font-size:11px; color:var(--text-muted); margin-top:4px;">${partial} طلب غير محسوب لأن منتجاته من غير سعر تكلفة. الربح هنا قبل مصاريف الشحن.</div>` : ''}
+                <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">المبيعات من غير مصاريف الشحن. ${partial ? partial + ' طلب من النهارده مش محسوب في التكلفة والربح لأن منتجاته من غير سعر تكلفة.' : ''}</div>
                 <h3 style="font-size:14px; margin:22px 0 8px;">مصدر الطلبات</h3>${li(Object.entries(src).sort((a, b) => b[1].n - a[1].n).slice(0, 8).map(([k, v]) => [k, `${v.n} طلب — ${v.rev} ج.م`]))}
                 <h3 style="font-size:14px; margin:22px 0 8px;">المرتجعات والإلغاء</h3>${li([['مرتجع', n('returned')], ['استبدال', n('exchange')], ['ملغي', n('cancelled')]])}`);
         }
