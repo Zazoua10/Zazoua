@@ -279,6 +279,10 @@
                 <div class="form-group" style="margin:0;"><label class="form-label">اسم الباكج</label><input type="text" id="bn-name" class="form-input" placeholder="مثال: طقم الصيف" required></div>
                 <div class="form-group" style="margin:0;"><label class="form-label">سعر الباكج (ج.م)</label><input type="number" id="bn-price" class="form-input" min="1" required oninput="renderBundleDraft()"></div>
             </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                <div class="form-group" style="margin:0;"><label class="form-label">تكلفة الباكج كلها (ج.م، لحساب الربح)</label><input type="number" id="bn-cost" class="form-input" min="0" step="0.01"></div>
+                <div class="form-group" style="margin:0;"><label class="form-label">مصاريف تشغيل الباكج (ج.م)</label><input type="number" id="bn-opex" class="form-input" min="0" step="0.01"></div>
+            </div>
             <div style="display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:end;">
                 <div class="form-group" style="margin:0;"><label class="form-label">أضف منتج للباكج (ممكن تكرر نفس المنتج)</label><select id="bn-prod" class="form-select"></select></div>
                 <button type="button" class="submit-btn" style="background:var(--accent-dark);" onclick="addBundleProduct()">+ إضافة</button>
@@ -592,7 +596,7 @@
                 + (price && price >= full ? '<div style="color:var(--danger-color); font-weight:700;">تنبيه: سعر الباكج مش أقل من مجموع الأسعار العادية.</div>' : '');
         }
         function resetBundleForm() {
-            document.getElementById('bn-id').value = ''; document.getElementById('bn-name').value = ''; document.getElementById('bn-price').value = '';
+            document.getElementById('bn-id').value = ''; document.getElementById('bn-name').value = ''; document.getElementById('bn-price').value = ''; document.getElementById('bn-cost').value = ''; document.getElementById('bn-opex').value = '';
             bundleDraft = []; renderBundleDraft(); document.getElementById('bn-submit').innerText = 'حفظ الباكج';
         }
         async function handleSaveBundle(e) {
@@ -601,6 +605,8 @@
             const id = document.getElementById('bn-id').value || ('B' + Date.now().toString(36));
             const old = bundles.find(x => x.id === id);
             const b = { id, name: document.getElementById('bn-name').value.trim().slice(0, 80), price: parseFloat(document.getElementById('bn-price').value), productIds: [...bundleDraft], active: old ? old.active !== false : true, createdAt: old ? old.createdAt : Date.now() };
+            const bc = parseFloat(document.getElementById('bn-cost').value), bo = parseFloat(document.getElementById('bn-opex').value);
+            if (!isNaN(bc)) b.cost = bc; if (!isNaN(bo)) b.opex = bo;
             if (!b.name || !(b.price > 0)) return;
             try { await fb.saveBundle(b); } catch (err) { alert('فشل الحفظ: ' + err.message + '\n(تأكد إنك نشرت قواعد Firestore الجديدة للباكجات)'); return; }
             bundles = [...bundles.filter(x => x.id !== id), b]; renderBundlesAdmin(); resetBundleForm();
@@ -608,6 +614,7 @@
         function editBundle(id) {
             const b = bundles.find(x => x.id === id); if (!b) return;
             document.getElementById('bn-id').value = b.id; document.getElementById('bn-name').value = b.name; document.getElementById('bn-price').value = b.price;
+            document.getElementById('bn-cost').value = b.cost != null ? b.cost : ''; document.getElementById('bn-opex').value = b.opex != null ? b.opex : '';
             bundleDraft = [...b.productIds]; renderBundleDraft(); document.getElementById('bn-submit').innerText = 'حفظ التعديلات';
             document.getElementById('tab-bundles').scrollIntoView({ behavior: 'smooth' });
         }
@@ -1158,7 +1165,7 @@
                 const orderSales = items.reduce((s, i) => s + (Number(i.price) || 0), 0) - (o.discount || 0);
                 sales += orderSales;
                 let c = 0, ox = 0, known = true;
-                items.forEach(i => { const uc = unitCost(i.id); if (uc == null) known = false; else c += uc; opexAll += Number(opexMap[i.id] || 0); ox += Number(opexMap[i.id] || 0); });
+                items.forEach(i => { const pc = pieceCost(i); const po = pieceOpex(i); if (pc == null) known = false; else c += pc; opexAll += po; ox += po; });
                 if (known) { knownSales += orderSales; cost += c; opexKnown += ox; } else partial++;
             });
             const profit = knownSales - cost - opexKnown;
@@ -1354,7 +1361,7 @@
             if (st === 'cancelled') return { net: 0, cost: 0, fee: 0, known: true };
             if (['returned', 'refused_receive', 'refused_pay'].includes(st)) return { net: -fee, cost: 0, fee, known: true, loss: true };
             let cost = 0, known = true;
-            (o.items || []).forEach(i => { const uc = unitCost(i.id); if (uc == null) known = false; else cost += uc; });
+            (o.items || []).forEach(i => { const pc = pieceCost(i); if (pc == null) known = false; else cost += pc + pieceOpex(i); });
             return { net: (o.total || 0) - cost - fee, cost, fee, known };
         }
         async function setSettled(id, v) {
@@ -1720,6 +1727,21 @@
         function unitCost(id) {
             if (costsMap[id] == null) return null;
             return Number(costsMap[id]) + Number(opexMap[id] || 0);
+        }
+        function bundleOfItem(i) {
+            const m = String(i.title || '').match(/\(باكج (.+)\)$/);
+            if (!m) return null;
+            return bundles.find(b => b.name === m[1]) || null;
+        }
+        function pieceCost(i) {
+            const b = bundleOfItem(i);
+            if (b) { if (b.cost == null) return null; return Number(b.cost) / ((b.productIds || []).length || 1); }
+            return costsMap[i.id] == null ? null : Number(costsMap[i.id]);
+        }
+        function pieceOpex(i) {
+            const b = bundleOfItem(i);
+            if (b) return Number(b.opex || 0) / ((b.productIds || []).length || 1);
+            return Number(opexMap[i.id] || 0);
         }
         function resetProductForm() {
             document.getElementById('product-form').reset();
