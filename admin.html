@@ -428,6 +428,7 @@
 // App Check (reCAPTCHA Enterprise / Fraud Defense) - لازم يتعمل قبل أي استخدام لـ Firestore
         try { initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider("6LeTMBouAAAAAPog_ic7r83Gn1IKcq0C9laQMCqT"), isTokenAutoRefreshEnabled: true }); } catch (e) { console.warn("AppCheck init failed", e); }
         const auth = getAuth(app), db = getFirestore(app);
+        window.fcm = { app, db, getMessaging, getToken, setDoc, doc };
         const list = async (name) => (await getDocs(collection(db, name))).docs.map(d => d.data());
         window.fb = {
             login: (e, p) => signInWithEmailAndPassword(auth, e, p),
@@ -1443,9 +1444,9 @@
                 const perm = await Notification.requestPermission();
                 if (perm !== 'granted') { alert('لازم تسمح بالإشعارات من إعدادات المتصفح'); return; }
                 const reg = await navigator.serviceWorker.register('firebase-messaging-sw.js', { scope: './firebase-push/' });
-                const token = await getToken(getMessaging(app), { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+                const token = await fcm.getToken(fcm.getMessaging(fcm.app), { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
                 if (!token) { alert('تعذر تفعيل الإشعارات'); return; }
-                await setDoc(doc(db, 'adminTokens', token), { token, createdAt: Date.now(), ua: navigator.userAgent.slice(0, 120) });
+                await fcm.setDoc(fcm.doc(fcm.db, 'adminTokens', token), { token, createdAt: Date.now(), ua: navigator.userAgent.slice(0, 120) });
                 document.getElementById('push-toggle').innerText = '🔔 إشعارات الخلفية: مفعّلة';
                 alert('تم تفعيل الإشعارات 🔔');
             } catch (e) { console.error(e); alert('تعذر التفعيل: ' + e.message); }
