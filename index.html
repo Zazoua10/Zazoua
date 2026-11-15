@@ -218,7 +218,85 @@
         .mo-ship { margin-top: 8px; background: #f1f8f4; border: 1px solid #cfe8d8; border-radius: 8px; padding: 8px 10px; font-size: 12px; font-weight: 700; line-height: 1.8; }
         .mo-steps { display: flex; gap: 4px; margin-top: 10px; }
         .mo-steps span { flex: 1; height: 5px; border-radius: 3px; background: #e9ecef; }
-    </style>
+    
+        /* ===== تحسينات الشكل (CSS فقط، من غير ما نغيّر منطق الموقع) ===== */
+        :root {
+            --btn-radius: 10px;
+            --btn-min-h: 44px;
+            --focus-ring: 0 0 0 3px rgba(18, 18, 18, 0.18);
+        }
+        /* حالات موحدة لكل الأزرار */
+        button, .header-cart-btn, .header-orders-btn, .main-cat-btn, .color-btn, .qty-btn,
+        .add-to-cart-action-btn, .direct-buy-btn, .checkout-btn, .submit-order-btn,
+        .pm-bar-btn, .bn-btn, .hs-btn, .open-details-btn, .copy-ad-link-btn {
+            transition: transform 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+        button:active, .add-to-cart-action-btn:active, .direct-buy-btn:active, .checkout-btn:active,
+        .submit-order-btn:active, .pm-bar-btn:active, .header-cart-btn:active {
+            transform: scale(0.97);
+        }
+        button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+            outline: none;
+            box-shadow: var(--focus-ring);
+        }
+        button:disabled, button[disabled] {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        /* أزرار الإجراء الأساسية: حجم مناسب للمس على الموبايل */
+        .add-to-cart-action-btn, .direct-buy-btn, .checkout-btn, .submit-order-btn, .pm-bar-btn {
+            min-height: var(--btn-min-h);
+            border-radius: var(--btn-radius);
+            font-weight: 800;
+            letter-spacing: 0.1px;
+        }
+        @media (hover: hover) {
+            .add-to-cart-action-btn:hover, .direct-buy-btn:hover, .checkout-btn:hover,
+            .submit-order-btn:hover, .pm-bar-btn:hover, .header-cart-btn:hover {
+                filter: brightness(1.08);
+                box-shadow: var(--shadow-md);
+            }
+            .main-cat-btn:hover, .color-btn:hover, .open-details-btn:hover {
+                border-color: var(--accent-dark);
+            }
+        }
+        /* تنعيم الكروت والحدود */
+        .product-card, .card, .box {
+            transition: box-shadow 0.25s ease, transform 0.25s ease;
+        }
+        @media (hover: hover) {
+            .product-card:hover, .card:hover {
+                box-shadow: var(--shadow-md);
+            }
+        }
+        /* رسائل التأكيد (Toast) أوضح وأنيقة */
+        .toast {
+            top: 16px; max-width: calc(100% - 32px); text-align: center;
+            padding: 10px 20px; font-size: 13px; font-weight: 700;
+            box-shadow: var(--shadow-md); border-radius: 999px;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        /* زرار أضف للسلة في الشريط الثابت أسفل صفحة المنتج */
+        .pm-sticky { gap: 8px; }
+        .pm-cart-btn {
+            flex: 1; max-width: 200px; min-height: var(--btn-min-h);
+            background: #fff; color: var(--accent-dark); border: 2px solid var(--accent-dark);
+            padding: 10px; border-radius: var(--btn-radius); font-weight: 800; font-size: 14px; cursor: pointer;
+            transition: transform 0.15s ease, background-color 0.2s ease;
+        }
+        .pm-cart-btn:active { transform: scale(0.97); }
+        .pm-cart-btn:hover { background: var(--brand-gray); }
+        /* إحساس أنظف بالنصوص على الشاشات الصغيرة */
+        @media (max-width: 480px) {
+            .brand-title { font-size: 24px; }
+            .header-container { padding: 10px 14px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { transition: none !important; animation: none !important; }
+        }
+</style>
 </head>
 <body>
 
@@ -359,6 +437,7 @@
             </div>
             <div class="pm-sticky">
                 <div><div style="font-size:11px; color:var(--text-muted);">الإجمالي</div><div id="pm-bar-price" style="font-weight:900; font-size:17px; color:var(--accent-dark);"></div></div>
+                <button type="button" id="pm-bar-cart" class="pm-cart-btn" onclick="addCurrentProductToCart()"><i class="fa-solid fa-cart-plus"></i> أضف للسلة</button>
                 <button type="button" id="pm-bar-buy" class="pm-bar-btn" onclick="buyCurrentProductDirectly()">اطلب الآن</button>
             </div>
         </div>
