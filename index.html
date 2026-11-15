@@ -537,6 +537,16 @@
 // App Check (reCAPTCHA Enterprise / Fraud Defense) - لازم يتعمل قبل أي استخدام لـ Firestore
         try { initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider("6LeTMBouAAAAAPog_ic7r83Gn1IKcq0C9laQMCqT"), isTokenAutoRefreshEnabled: true }); } catch (e) { console.warn("AppCheck init failed", e); }
         const db = getFirestore(app);
+        // عدّ زيارة واحدة لكل جهاز في اليوم (من غير قراءة من Firestore)
+        (function countVisit() {
+            try {
+                const d = new Date();
+                const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                if (localStorage.getItem('zz_visit') === day) return;
+                localStorage.setItem('zz_visit', day);
+                setDoc(doc(db, 'visits', day), { count: increment(1) }, { merge: true }).catch(() => localStorage.removeItem('zz_visit'));
+            } catch (e) {}
+        })();
         window.fb = {
             async getProducts() {
                 try { const c = JSON.parse(localStorage.getItem('zz_pc') || 'null'); if (c && Date.now() - c.t < 300000) return c.d; } catch (e) {}

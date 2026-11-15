@@ -489,6 +489,7 @@
             deletePurchase: (id) => deleteDoc(doc(db, 'purchases', String(id))),
             getOrders: async () => (await list('orders')).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
         };
+        window.fb.getVisits = async () => { const m = {}; (await getDocs(collection(db, 'visits'))).forEach(d => m[d.id] = Number(d.data().count) || 0); return m; };
     </script>
     <script>
         const defaultShippingRates = [
@@ -1146,6 +1147,11 @@
 
         // ===== أرقام حسب فترة محددة =====
         let rangeFrom = '', rangeTo = '';
+        let visitsMap = {}, visitsLoaded = false;
+        async function refreshVisits() {
+            try { visitsMap = await fb.getVisits(); visitsLoaded = true; renderProfitRange(); }
+            catch (e) { console.warn('visits', e); }
+        }
         const dayStr = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         function setRange(which, v) {
             if (which === 'from') rangeFrom = v; else rangeTo = v;
@@ -1173,6 +1179,13 @@
                 if (known) { knownSales += orderSales; cost += c; opexKnown += ox; } else partial++;
             });
             const profit = knownSales - cost - opexKnown;
+            // الزوار: مجموع الزيارات اليومية في الفترة
+            let visitors = 0;
+            Object.keys(visitsMap).forEach(day => { if (day >= fromStr && day <= toStr) visitors += visitsMap[day]; });
+            // اللي اشتروا: عملاء مختلفين (بالتليفون) عملوا أوردر في الفترة
+            const buyersSet = new Set();
+            orders.forEach(o => { const t = o.createdAt || 0; if (!DEAD.includes(o.status || 'new') && t >= from && t < to) buyersSet.add(String(o.customer && o.customer.phone || o.orderId)); });
+            const buyers = buyersSet.size;
             const label = fromStr === toStr ? (fromStr === todayStr ? 'النهارده' : fromStr) : `من ${fromStr} لـ ${toStr}`;
             const card = (t, v, c) => `<div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:12px; text-align:center;"><div style="font-size:11px; color:var(--text-muted);">${t}</div><div style="font-size:18px; font-weight:800; ${c ? 'color:' + c + ';' : ''}">${v}</div></div>`;
             const dateInp = (w, v) => `<input type="date" value="${v}" onchange="setRange('${w}', this.value)" class="form-input" style="width:auto;">`;
@@ -1188,6 +1201,8 @@
                     ${card('الربح بعد خصم مصاريف التشغيل وسعر القطعة', Math.round(profit) + ' ج.م', profit >= 0 ? 'var(--success-color)' : 'var(--danger-color)')}
                     ${card('البضاعة اللي اتباعت بسعر الجملة', Math.round(goods) + ' ج.م')}
                     ${card('مصاريف التشغيل للقطع اللي اتباعت', Math.round(opexAll) + ' ج.م')}
+                    ${card('عدد الزوار', visitsLoaded ? visitors : '...')}
+                    ${card('اللي اشتروا (عملاء)', buyers)}
                 </div>
                 <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">المبيعات من غير مصاريف الشحن. ${partial ? partial + ' أوردر في الفترة مش محسوب في الربح لأن منتجاته من غير سعر تكلفة.' : ''} الأوردرات اللي اتسلّمت قبل التحديث بتتحسب بتاريخ إنشائها.</div>`;
         }
@@ -1199,6 +1214,7 @@
             const src = {};
             orders.forEach(o => { const s = (o.utm && o.utm.source) || 'غير معروف', k = o.utm && o.utm.campaign ? s + ' / ' + o.utm.campaign : s; src[k] = src[k] || { n: 0, rev: 0 }; src[k].n++; if (!dead(o)) src[k].rev += o.total || 0; });
             const n = k => orders.filter(o => (o.status || 'new') === k).length;
+            if (!visitsLoaded) refreshVisits();
             box.insertAdjacentHTML('beforeend', `
                 <div id="range-box"></div>
                 <h3 style="font-size:14px; margin:22px 0 8px;">مصدر الطلبات</h3>${li(Object.entries(src).sort((a, b) => b[1].n - a[1].n).slice(0, 8).map(([k, v]) => [k, `${v.n} طلب — ${v.rev} ج.م`]))}
