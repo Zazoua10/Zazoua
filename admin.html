@@ -220,11 +220,11 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div class="form-group">
                     <label class="form-label">المقاسات (بفواصل)</label>
-                    <input type="text" id="prod-sizes" class="form-input" value="M, L, XL, 2XL" required>
+                    <input type="text" id="prod-sizes" class="form-input" value="" placeholder="اختياري، مثال: M, L, XL">
                 </div>
                 <div class="form-group">
                     <label class="form-label">الألوان (بفواصل)</label>
-                    <input type="text" id="prod-colors" class="form-input" value="أسود, أبيض, رمادي" required>
+                    <input type="text" id="prod-colors" class="form-input" value="" placeholder="اختياري، مثال: أسود, أبيض">
                 </div>
             </div>
 
@@ -1229,7 +1229,7 @@
             if (!list.length) list = orders.filter(o => (o.status || 'new') === 'confirmed');
             if (!list.length) { alert('حدد الطلبات أولًا، أو غيّر حالة الطلبات إلى "تم التأكيد"'); return; }
             let csv = "\uFEFFرقم الطلب,الاسم,الهاتف,هاتف إضافي,المحافظة,العنوان,المحتوى,المبلغ المطلوب تحصيله,ملاحظات\n";
-            list.forEach(o => { csv += [o.orderId, o.customer.name, o.customer.phone, o.customer.phone2, o.customer.gov, o.customer.address, o.items.map(i => `${i.title} (${i.size}/${i.color})`).join(' - '), o.total, o.note].map(csvCell).join(',') + '\n'; });
+            list.forEach(o => { csv += [o.orderId, o.customer.name, o.customer.phone, o.customer.phone2, o.customer.gov, o.customer.address, o.items.map(i => `${i.title}${varTxt(i)}`).join(' - '), o.total, o.note].map(csvCell).join(',') + '\n'; });
             const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' })); a.download = 'Zazoua_Shipping.csv'; a.click();
         }
 
@@ -1565,7 +1565,7 @@
             document.getElementById('eo-ship').value = o.shipping || 0;
             document.getElementById('eo-disc').value = o.discount || 0;
             const sub = o.subtotal != null ? o.subtotal : o.items.reduce((s, i) => s + i.price, 0);
-            document.getElementById('eo-sub').innerText = 'المنتجات: ' + o.items.map(i => `${i.title} (${i.size}/${i.color})`).join(' - ') + ' — قيمتها ' + sub + ' ج.م. لتعديل المنتجات الغي الطلب وسجل طلب يدوي جديد.';
+            document.getElementById('eo-sub').innerText = 'المنتجات: ' + o.items.map(i => `${i.title}${varTxt(i)}`).join(' - ') + ' — قيمتها ' + sub + ' ج.م. لتعديل المنتجات الغي الطلب وسجل طلب يدوي جديد.';
             document.getElementById('edit-modal').style.display = 'flex';
         }
         async function saveEditOrder(e) {
@@ -1734,7 +1734,7 @@
             if (orders.length === 0) { alert('لا توجد طلبات للتصدير'); return; }
             let csv = "\uFEFFرقم الطلب,التاريخ,اسم العميل,رقم الهاتف 1,رقم الهاتف 2,المحافظة,العنوان,المنتجات,الإجمالي,شركة الشحن,رقم الشحنة,ملاحظة\n";
             orders.forEach(o => {
-                const items = o.items.map(i => `${i.title} (${i.size}/${i.color})`).join(' - ');
+                const items = o.items.map(i => `${i.title}${varTxt(i)}`).join(' - ');
                 csv += [o.orderId, o.dateStr, o.customer.name, o.customer.phone, o.customer.phone2, o.customer.gov, o.customer.address, items, o.total, o.shipCo, o.shipNo, o.note].map(csvCell).join(",") + "\n";
             });
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -1744,6 +1744,7 @@
             link.click();
         }
 
+        const varTxt = i => { const v = [i.size, i.color].filter(Boolean); return v.length ? ' (' + v.join('/') + ')' : ''; };
         const DEFAULT_MAIN_CATS = [{ key: 'men', name: 'ملابس رجالي' }, { key: 'women', name: 'ملابس حريمي' }];
         function mainCatsList() { return (Array.isArray(settings.mainCats) && settings.mainCats.length) ? settings.mainCats : DEFAULT_MAIN_CATS; }
         function renderMainCatOptions(selected) {
@@ -1909,8 +1910,8 @@
                 offerEnds: document.getElementById('prod-offer-ends').value ? new Date(document.getElementById('prod-offer-ends').value).getTime() : 0,
                 mainCat: document.getElementById('prod-main-cat').value,
                 subCat: document.getElementById('prod-sub-cat').value.trim(),
-                sizes: document.getElementById('prod-sizes').value.split(',').map(s => s.trim()),
-                colors: document.getElementById('prod-colors').value.split(',').map(c => c.trim()),
+                sizes: document.getElementById('prod-sizes').value.split(',').map(s => s.trim()).filter(Boolean),
+                colors: document.getElementById('prod-colors').value.split(',').map(c => c.trim()).filter(Boolean),
                 image: '', images: [], fullImgs: true, imgCount: currentImages.length,
                 colorImages: Object.fromEntries(Object.entries(colorSel).filter(([c, v]) => v !== '' && v != null && currentImages[v] && document.getElementById('prod-colors').value.split(',').map(x => x.trim()).includes(c)).map(([c, v]) => [c, Number(v)]))
             };
