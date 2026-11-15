@@ -694,7 +694,7 @@
         async function loadData() {
             try {
                 products = (await fb.getProducts()).filter(p => !p.hidden); applyOffers();
-                try { settings = await fb.getSettings(); initPixels(); if (settings.banner) document.querySelector('.announcement').innerText = settings.banner; let wn = String(settings.whatsapp || '').replace(/\D/g, ''); if (wn.startsWith('0')) wn = '20' + wn.slice(1); if (wn) { const wf = document.getElementById('wa-float'); wf.href = 'https://wa.me/' + wn; wf.style.display = 'flex'; } } catch (e) { console.error(e); }
+                try { settings = await fb.getSettings(); initPixels(); renderMainCats(); if (settings.banner) document.querySelector('.announcement').innerText = settings.banner; let wn = String(settings.whatsapp || '').replace(/\D/g, ''); if (wn.startsWith('0')) wn = '20' + wn.slice(1); if (wn) { const wf = document.getElementById('wa-float'); wf.href = 'https://wa.me/' + wn; wf.style.display = 'flex'; } } catch (e) { console.error(e); }
                 try { reviews = await fb.getReviews(); } catch (e) { console.error(e); }
                 try { bundles = await fb.getBundles(); } catch (e) { console.error(e); }
                 const s = await fb.getShipping();
@@ -719,6 +719,21 @@
         }
 
         function saveCartState() { localStorage.setItem('zazoua_cart', JSON.stringify(cart)); updateCartUI(); }
+
+        function mainCatsList() {
+            return (settings && Array.isArray(settings.mainCats) && settings.mainCats.length)
+                ? settings.mainCats : [{ key: 'men', name: 'ملابس رجالي' }, { key: 'women', name: 'ملابس حريمي' }];
+        }
+        function mainCatName(key) {
+            const c = mainCatsList().find(x => x.key === key);
+            return c ? c.name : (key || '');
+        }
+        function renderMainCats() {
+            const bar = document.querySelector('.main-cats-bar'); if (!bar) return;
+            const active = currentMainCat || 'all';
+            bar.innerHTML = `<button class="main-cat-btn ${active === 'all' ? 'active' : ''}" id="main-btn-all" onclick="selectMainCategory('all')">الكل</button>` +
+                mainCatsList().map(c => `<button class="main-cat-btn ${active === c.key ? 'active' : ''}" id="main-btn-${c.key}" onclick="selectMainCategory('${c.key}')">${String(c.name).replace(/[<>"']/g, '')}</button>`).join('');
+        }
 
         function selectMainCategory(mainCat) {
             currentMainCat = mainCat; currentSubCat = 'all';
@@ -994,7 +1009,7 @@
         let heroIdx = 0, heroItems = [];
         const HERO_MS = 5000;
         const heroWide = () => window.matchMedia('(min-width: 768px)').matches;
-        const heroCat = p => (p.mainCat === 'men' ? 'ملابس رجالي' : 'ملابس حريمي') + (p.subCat ? ' · ' + p.subCat : '');
+        const heroCat = p => mainCatName(p.mainCat) + (p.subCat ? ' · ' + p.subCat : '');
         const heroSrc = p => (p.images && p.images.length) ? p.images[0] : p.image;
         // على الشاشات الكبيرة بنحمّل الصورة الكاملة للشريحة الحالية والجاية بس (عشان الصورة المصغّرة بتبان مش واضحة)
         function heroFull(i) {

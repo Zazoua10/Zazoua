@@ -206,10 +206,11 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div class="form-group">
                     <label class="form-label">التصنيف الرئيسي *</label>
-                    <select id="prod-main-cat" class="form-select" required>
-                        <option value="men">ملابس رجالي</option>
-                        <option value="women">ملابس حريمي</option>
-                    </select>
+                    <select id="prod-main-cat" class="form-select" required></select>
+                    <div style="display:flex; gap:6px; margin-top:6px;">
+                        <input type="text" id="new-main-cat" class="form-input" placeholder="اسم تصنيف رئيسي جديد">
+                        <button type="button" class="submit-btn" style="width:auto; padding:0 12px;" onclick="addMainCat()">+ أضف تصنيف</button>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">القسم الفرعي *</label>
@@ -566,6 +567,7 @@
                 products = await fb.getProducts();
                 shippingRates = await fb.getShipping();
                 settings = await fb.getSettings();
+                renderMainCatOptions();
                 leads = await fb.getLeads();
                 blacklist = await fb.getBlacklist();
                 if (IS_OWNER) {
@@ -1740,6 +1742,29 @@
             link.href = URL.createObjectURL(blob);
             link.download = `Zazoua_Orders.csv`;
             link.click();
+        }
+
+        const DEFAULT_MAIN_CATS = [{ key: 'men', name: 'ملابس رجالي' }, { key: 'women', name: 'ملابس حريمي' }];
+        function mainCatsList() { return (Array.isArray(settings.mainCats) && settings.mainCats.length) ? settings.mainCats : DEFAULT_MAIN_CATS; }
+        function renderMainCatOptions(selected) {
+            const el = document.getElementById('prod-main-cat'); if (!el) return;
+            const cur = selected !== undefined ? selected : el.value;
+            el.innerHTML = mainCatsList().map(c => `<option value="${esc(c.key)}">${esc(c.name)}</option>`).join('');
+            if (cur && [...el.options].some(o => o.value === cur)) el.value = cur;
+        }
+        async function addMainCat() {
+            const input = document.getElementById('new-main-cat');
+            const name = (input.value || '').trim().slice(0, 40);
+            if (!name) { alert('اكتب اسم التصنيف'); return; }
+            const list = [...mainCatsList()];
+            if (list.some(c => c.name === name)) { alert('التصنيف ده موجود بالفعل'); return; }
+            const key = 'c' + Date.now().toString(36);
+            list.push({ key, name });
+            try { await fb.saveSettings({ mainCats: list }); } catch (err) { alert('فشل الحفظ: ' + err.message); return; }
+            settings = { ...settings, mainCats: list };
+            input.value = '';
+            renderMainCatOptions(key);
+            alert('تم إضافة التصنيف ✅');
         }
 
         let prodSearch = '';
