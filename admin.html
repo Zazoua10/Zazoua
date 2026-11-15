@@ -749,7 +749,7 @@
             const ok = orders.filter(o => !DEAD.includes(o.status || 'new'));
             const now = Date.now(), DAY = 864e5;
             const money = n => Math.round(Number(n) || 0).toLocaleString('en-US');
-            const tot = o => Number(o.total) || 0;
+            const tot = o => (o.subtotal != null ? Number(o.subtotal) - (Number(o.discount) || 0) : (Number(o.total) || 0) - (Number(o.shipping) || 0)); // سعر المنتجات بعد الخصم من غير الشحن
             const sum = a => a.reduce((s, o) => s + tot(o), 0);
             const within = d => ok.filter(o => o.createdAt && now - o.createdAt < d * DAY);
             const MUTED = 'color:var(--text-muted);';
@@ -1212,7 +1212,7 @@
             const dead = o => DEAD.includes(o.status || 'new');
             const li = arr => arr.length ? arr.map(([n, c]) => `<div style="padding:5px 8px; background:var(--bg-main); border-radius:6px; margin-bottom:4px; font-size:12px; display:flex; justify-content:space-between; gap:8px;"><span>${esc(n)}</span><strong>${c}</strong></div>`).join('') : '<div style="font-size:12px; color:var(--text-muted);">لا توجد بيانات بعد.</div>';
             const src = {};
-            orders.forEach(o => { const s = (o.utm && o.utm.source) || 'غير معروف', k = o.utm && o.utm.campaign ? s + ' / ' + o.utm.campaign : s; src[k] = src[k] || { n: 0, rev: 0 }; src[k].n++; if (!dead(o)) src[k].rev += o.total || 0; });
+            orders.forEach(o => { const s = (o.utm && o.utm.source) || 'غير معروف', k = o.utm && o.utm.campaign ? s + ' / ' + o.utm.campaign : s; src[k] = src[k] || { n: 0, rev: 0 }; src[k].n++; if (!dead(o)) src[k].rev += (o.subtotal != null ? (Number(o.subtotal) - (Number(o.discount) || 0)) : ((Number(o.total) || 0) - (Number(o.shipping) || 0))); });
             const n = k => orders.filter(o => (o.status || 'new') === k).length;
             if (!visitsLoaded) refreshVisits();
             box.insertAdjacentHTML('beforeend', `
