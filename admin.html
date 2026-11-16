@@ -2079,10 +2079,19 @@ let installEvt = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; const b = document.getElementById('install-btn'); if (b) b.style.display = 'inline-block'; });
 window.addEventListener('appinstalled', () => { installEvt = null; const b = document.getElementById('install-btn'); if (b) b.style.display = 'none'; });
 function installApp() {
-    if (!installEvt) { alert('لو على iPhone: اضغط زر المشاركة ثم "إضافة إلى الشاشة الرئيسية".'); return; }
+    if (!installEvt) {
+        const ua = navigator.userAgent || '';
+        if (/iphone|ipad|ipod/i.test(ua)) alert('على iPhone/iPad (من Safari): اضغط زر المشاركة (المربع والسهم) ثم "إضافة إلى الشاشة الرئيسية".');
+        else alert('اضغط على قائمة المتصفح (⋮ فوق) ثم "تثبيت التطبيق" أو "إضافة إلى الشاشة الرئيسية".\nولو مش ظاهرة: افتح الصفحة من Chrome مش من متصفح جوه تطبيق تاني (فيسبوك/واتساب).');
+        return;
+    }
     installEvt.prompt();
     installEvt.userChoice.finally(() => { installEvt = null; const b = document.getElementById('install-btn'); if (b) b.style.display = 'none'; });
 }
+(function () {
+    const standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
+    if (!standalone) { const b = document.getElementById('install-btn'); if (b) b.style.display = 'inline-block'; }
+})();
 if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 </script>
 </body>
