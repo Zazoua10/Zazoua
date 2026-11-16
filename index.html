@@ -1031,7 +1031,7 @@
         const HERO_MS = 5000;
         const heroWide = () => window.matchMedia('(min-width: 768px)').matches;
         const heroCat = p => mainCatName(p.mainCat) + (p.subCat ? ' · ' + p.subCat : '');
-        const heroSrc = p => { const f = (p.images && p.images.length) ? p.images[0] : p.image; return isVidUrl(f) ? posterOf(f) : f; };
+        const heroSrc = p => { const hi = Number(p.heroImg) || 0; if (hi > 0 && p.heroThumb && !(p._full && p.images && p.images[hi])) return p.heroThumb; const f = (p.images && p.images.length) ? (p.images[hi] || p.images[0]) : p.image; return isVidUrl(f) ? posterOf(f) : f; };
         // على الشاشات الكبيرة بنحمّل الصورة الكاملة للشريحة الحالية والجاية بس (عشان الصورة المصغّرة بتبان مش واضحة)
         function heroFull(i) {
             const p = heroItems[i];
@@ -1040,7 +1040,7 @@
             fb.getProductImages(p.id).then(im => {
                 if (!im.length) return;
                 p.images = im; p._full = true;
-                const el = document.querySelector(`.hs-slide[data-pid="${p.id}"] .hs-img`); if (el) el.src = im[0];
+                const el = document.querySelector(`.hs-slide[data-pid="${p.id}"] .hs-img`); if (el) el.src = heroSrc(p);
             }).catch(() => {});
         }
         function renderHero() {
