@@ -713,7 +713,7 @@
         async function loadData() {
             try {
                 products = (await fb.getProducts()).filter(p => !p.hidden); applyOffers();
-                try { settings = await fb.getSettings(); initPixels(); renderMainCats(); if (settings.banner) document.querySelector('.announcement').innerText = settings.banner; let wn = String(settings.whatsapp || '').replace(/\D/g, ''); if (wn.startsWith('0')) wn = '20' + wn.slice(1); if (wn) { const wf = document.getElementById('wa-float'); wf.href = 'https://wa.me/' + wn; wf.style.display = 'flex'; } } catch (e) { console.error(e); }
+                try { settings = await fb.getSettings(); initPixels(); renderMainCats(); if (settings.banner) document.querySelector('.announcement').innerText = settings.banner; if (settings.brandName) { const bt = document.querySelector('.brand-title'); if (bt) bt.textContent = settings.brandName; } let wn = String(settings.whatsapp || '').replace(/\D/g, ''); if (wn.startsWith('0')) wn = '20' + wn.slice(1); if (wn) { const wf = document.getElementById('wa-float'); wf.href = 'https://wa.me/' + wn; wf.style.display = 'flex'; } } catch (e) { console.error(e); }
                 try { reviews = await fb.getReviews(); } catch (e) { console.error(e); }
                 try { bundles = await fb.getBundles(); } catch (e) { console.error(e); }
                 const s = await fb.getShipping();

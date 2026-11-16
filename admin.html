@@ -313,6 +313,7 @@
     <div id="tab-settings" class="admin-section">
         <form onsubmit="handleSaveSettings(event)">
             <div class="form-group"><label class="form-label">رقم واتساب المتجر (لاستلام الطلبات وزر تواصل معنا)</label><input type="tel" id="set-wa" class="form-input" placeholder="01XXXXXXXXX"></div>
+            <div class="form-group"><label class="form-label">اسم المتجر (الكلمة اللي فوق على اليمين)</label><input type="text" id="set-brand" class="form-input" maxlength="30" placeholder="Zazoua"></div>
             <div class="form-group"><label class="form-label">الإعلان الذي يظهر أعلى المتجر</label><input type="text" id="set-banner" class="form-input" placeholder="مثال: شحن مجاني على الطلبات فوق 1000 ج.م"></div>
             <div class="form-group"><label class="form-label">شحن مجاني للطلبات من (ج.م) — اتركه فارغًا لإلغائه</label><input type="number" id="set-free" class="form-input" min="0"></div>
             <div class="form-group"><label class="form-label">جدول مقاسات عام (يظهر لأي منتج ليس له جدول خاص)</label><textarea id="set-sizechart" class="form-input" rows="3"></textarea></div>
@@ -710,6 +711,7 @@
 
         function fillSettings() {
             document.getElementById('set-wa').value = settings.whatsapp || '';
+            document.getElementById('set-brand').value = settings.brandName || '';
             document.getElementById('set-banner').value = settings.banner || '';
             document.getElementById('set-free').value = settings.freeShipFrom || '';
             document.getElementById('set-bq').value = settings.bundleQty || '';
@@ -734,6 +736,7 @@
             e.preventDefault();
             const d = {
                 whatsapp: document.getElementById('set-wa').value.trim(),
+                brandName: document.getElementById('set-brand').value.trim().slice(0, 30),
                 banner: document.getElementById('set-banner').value.trim(),
                 freeShipFrom: parseFloat(document.getElementById('set-free').value) || 0,
                 bundleQty: parseInt(document.getElementById('set-bq').value) || 0,
