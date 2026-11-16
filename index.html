@@ -1533,6 +1533,10 @@
         function setupGallery(p) {
             const imgs = (p.images && p.images.length) ? p.images : [p.image];
             const main = document.getElementById('pmodal-img');
+            let v = document.getElementById('pmodal-video');
+            if (!v) { v = document.createElement('video'); v.id = 'pmodal-video'; v.controls = true; v.playsInline = true; v.preload = 'metadata'; v.style.cssText = 'width:100%; max-height:260px; border-radius:10px; margin-bottom:10px; background:#000; display:none;'; main.before(v); }
+            if (p.video) { v.src = p.video.replace('/upload/', '/upload/q_auto,f_auto/'); v.style.display = 'block'; }
+            else { v.pause(); v.removeAttribute('src'); v.style.display = 'none'; }
             main.src = imgs[0];
             let t = document.getElementById('pmodal-thumbs');
             if (!t) { t = document.createElement('div'); t.id = 'pmodal-thumbs'; t.style.cssText = 'display:flex; gap:6px; margin-bottom:10px; overflow-x:auto;'; main.after(t); }

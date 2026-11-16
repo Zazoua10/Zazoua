@@ -234,7 +234,16 @@
                 <div class="form-group"><label class="form-label">مصاريف تشغيل للقطعة (تتضاف للتكلفة في الربح، لا تظهر للعميل)</label><input type="number" id="prod-opex" class="form-input" min="0" step="0.01"></div>
                 <div class="form-group"><label class="form-label">ينتهي العرض في (اختياري)</label><input type="datetime-local" id="prod-offer-ends" class="form-input"></div>
             </div>
-            <div class="form-group"><label class="form-label">جدول المقاسات لهذا المنتج (اختياري، يظهر للعميل)</label><textarea id="prod-sizechart" class="form-input" rows="3" placeholder="M: صدر 100 - طول 70"></textarea></div>
+            <div class="form-group"><label class="form-label">فيديو المنتج (اختياري، يظهر في صفحة المنتج)</label>
+            <input type="file" id="prod-video-file" accept="video/*" style="display:none;" onchange="uploadProductVideo(this)">
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button type="button" class="submit-btn" style="width:auto; padding:8px 14px;" onclick="document.getElementById('prod-video-file').click()">📹 ارفع فيديو من المعرض</button>
+                <button type="button" onclick="clearProductVideo()" style="cursor:pointer; border:1px solid var(--border-color); background:#fff; padding:8px 12px; border-radius:8px;">حذف الفيديو</button>
+            </div>
+            <input type="hidden" id="prod-video">
+            <div id="prod-video-status" style="font-size:12px; color:var(--text-muted); margin-top:4px;"></div>
+        </div>
+    <div class="form-group"><label class="form-label">جدول المقاسات لهذا المنتج (اختياري، يظهر للعميل)</label><textarea id="prod-sizechart" class="form-input" rows="3" placeholder="M: صدر 100 - طول 70"></textarea></div>
             <div class="form-group"><label class="form-label">تفاصيل المنتج (اختياري، يظهر للعميل)</label><textarea id="prod-caption" class="form-input" rows="3" placeholder="مثال: قماش قطن 100%، مناسب للصيف"></textarea></div>
             <button type="submit" id="prod-save-btn" class="submit-btn" style="background:var(--accent-dark); width: 100%; margin-top: 10px;">حفظ المنتج</button>
             <button type="button" id="prod-cancel-btn" onclick="cancelEdit()" class="submit-btn" style="display:none; background:#888; width:100%; margin-top:6px;">إلغاء التعديل</button>
@@ -1768,6 +1777,32 @@
             alert('تم إضافة التصنيف ✅');
         }
 
+        // ===== رفع الفيديو على Cloudinary (مجاني) =====
+        // حط بيانات حسابك من Cloudinary: Cloud name و Upload preset (نوعه Unsigned)
+        const CLOUDINARY = { cloudName: 'mzawfkiz', preset: 'zazoua_videos' };
+        async function uploadProductVideo(input) {
+            const file = input.files && input.files[0]; if (!file) return;
+            const status = document.getElementById('prod-video-status');
+            if (CLOUDINARY.cloudName.startsWith('PUT_')) { alert('لازم تحط Cloud name و Upload preset في الكود الأول'); input.value = ''; return; }
+            if (file.size > 100 * 1024 * 1024) { alert('الفيديو أكبر من 100 ميجا، اضغطه الأول'); input.value = ''; return; }
+            status.innerText = 'جاري رفع الفيديو... متقفلش الصفحة';
+            try {
+                const fd = new FormData();
+                fd.append('file', file);
+                fd.append('upload_preset', CLOUDINARY.preset);
+                const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY.cloudName}/video/upload`, { method: 'POST', body: fd });
+                const data = await res.json();
+                if (!res.ok || !data.secure_url) throw new Error(data.error ? data.error.message : 'فشل الرفع');
+                document.getElementById('prod-video').value = data.secure_url;
+                status.innerText = '✅ الفيديو اتراح. اضغط حفظ المنتج عشان يتسجل.';
+            } catch (e) { console.error(e); status.innerText = 'فشل الرفع: ' + e.message; }
+            input.value = '';
+        }
+        function clearProductVideo() {
+            document.getElementById('prod-video').value = '';
+            document.getElementById('prod-video-status').innerText = 'اتشال الفيديو. اضغط حفظ المنتج عشان يتحدّث.';
+        }
+
         let prodSearch = '';
         function renderProductsAdmin() {
             const el = document.getElementById('admin-products-list'); if (!el) return;
@@ -1872,6 +1907,8 @@
             document.getElementById('prod-old-price').value = p.oldPrice || '';
             document.getElementById('prod-sizechart').value = p.sizeChart || '';
             document.getElementById('prod-caption').value = p.caption || '';
+            document.getElementById('prod-video').value = p.video || '';
+            document.getElementById('prod-video-status').innerText = p.video ? 'فيه فيديو مرفوع للمنتج' : '';
             document.getElementById('prod-cost').value = costsMap[p.id] != null ? costsMap[p.id] : '';
             document.getElementById('prod-opex').value = opexMap[p.id] != null ? opexMap[p.id] : '';
             document.getElementById('prod-offer-ends').value = p.offerEnds ? new Date(p.offerEnds - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
@@ -1907,6 +1944,7 @@
                 oldPrice: parseFloat(document.getElementById('prod-old-price').value) || 0,
                 sizeChart: document.getElementById('prod-sizechart').value.trim(),
                 caption: document.getElementById('prod-caption').value.trim().slice(0, 600),
+                video: document.getElementById('prod-video').value || '',
                 offerEnds: document.getElementById('prod-offer-ends').value ? new Date(document.getElementById('prod-offer-ends').value).getTime() : 0,
                 mainCat: document.getElementById('prod-main-cat').value,
                 subCat: document.getElementById('prod-sub-cat').value.trim(),
