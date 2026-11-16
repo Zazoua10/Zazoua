@@ -1744,9 +1744,22 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
 // وضع صفحة الطلب المستقلة: نفس الفورم والمنطق، بس على صفحة كاملة بدل النافذة المنبثقة
 (function () {
     document.body.classList.add('checkout-page');
-    Array.from(document.body.children).forEach(el => {
-        if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE') return;
-        if (el.id === 'checkout-modal' || el.id === 'order-success-modal' || el.querySelector('#checkout-modal') || el.querySelector('#order-success-modal')) return;
+    // نخفي كل حاجة مش جزء من الفورم (في أي مستوى)، ونسيب رسالة النجاح لو ظهرت
+    const keep = [document.getElementById('checkout-modal'), document.getElementById('order-success-modal')].filter(Boolean);
+    const isAncestorOfKept = el => keep.some(k => el.contains(k));
+    keep.forEach(k => {
+        let node = k;
+        while (node && node !== document.body && node.parentElement) {
+            Array.from(node.parentElement.children).forEach(sib => {
+                if (sib === node || sib.tagName === 'SCRIPT' || sib.tagName === 'STYLE' || isAncestorOfKept(sib) || keep.includes(sib)) return;
+                sib.style.display = 'none';
+            });
+            node = node.parentElement;
+        }
+    });
+    document.querySelectorAll('body > *').forEach(el => {
+        if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || isAncestorOfKept(el)) return;
+        if (el.id === 'checkout-modal' || el.id === 'order-success-modal') return;
         el.style.display = 'none';
     });
     // بعد ما الطلب يتسجل: نعرض رسالة النجاح بس، ومن غير ما نرجع للفورم
