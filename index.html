@@ -303,6 +303,15 @@
             #pmodal-video { background: #000; }
             #pmodal-thumbs { padding: 8px 12px; margin: 0 !important; }
         }
+        /* صفحة إتمام الطلب على الموبايل: من غير زحلقة يمين وشمال */
+        @media (max-width: 767px) {
+            html { overflow-x: hidden; }
+            #checkout-modal { overflow-x: hidden; }
+            #checkout-modal .modal-box { overflow-x: hidden; max-width: 100%; }
+            #checkout-modal .modal-box > *, #checkout-modal .form-group { min-width: 0; max-width: 100%; }
+            #checkout-modal input, #checkout-modal select, #checkout-modal textarea { font-size: 16px; max-width: 100%; box-sizing: border-box; width: 100%; }
+            #checkout-modal .modal-box > div[style*="display:flex"], #checkout-modal .modal-box > div[style*="display: flex"] { flex-wrap: wrap; }
+        }
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { transition: none !important; animation: none !important; }
         }
