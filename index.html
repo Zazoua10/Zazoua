@@ -293,6 +293,16 @@
             .brand-title { font-size: 24px; }
             .header-container { padding: 10px 14px; }
         }
+        /* صفحة المنتج على الموبايل: الصورة/الفيديو يملّوا العرض، ومن غير سحب يمين وشمال */
+        @media (max-width: 767px) {
+            #product-page-modal .modal-box { overflow-x: hidden; }
+            #product-page-modal .pm-body { grid-template-columns: 1fr !important; padding: 0 0 40px !important; margin: 0 !important; max-width: 100% !important; overflow-x: hidden; gap: 0 !important; }
+            #product-page-modal .pm-body > * { min-width: 0; max-width: 100%; }
+            #product-page-modal .pm-gallery { position: static !important; width: 100%; padding: 0 !important; }
+            #pmodal-img, #pmodal-video { width: 100% !important; max-width: 100% !important; height: auto !important; aspect-ratio: 4 / 5; max-height: 80vh; object-fit: cover !important; border-radius: 0 !important; margin: 0 !important; display: block; }
+            #pmodal-video { background: #000; }
+            #pmodal-thumbs { padding: 8px 12px; margin: 0 !important; }
+        }
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { transition: none !important; animation: none !important; }
         }
