@@ -319,6 +319,8 @@
 
 <style>
 body.checkout-page .modal-overlay:not(#checkout-modal):not(#order-success-modal) { display: none !important; }
+body.checkout-page > *:not(#checkout-modal):not(#order-success-modal):not(#toast):not(script):not(style) { display: none !important; }
+html, body.checkout-page { overflow-x: hidden; }
 body.checkout-page { background: #f8f9fa; }
 body.checkout-page #checkout-modal { position: static; display: block; opacity: 1; pointer-events: all; background: #f8f9fa; padding: 0; min-height: 100vh; }
 body.checkout-page #checkout-modal .modal-box { max-width: 560px; width: 100%; margin: 0 auto; max-height: none; height: auto; overflow: visible; border-radius: 0; box-shadow: none; padding: 0 14px 40px; min-height: 100vh; background: #fff; }
@@ -330,7 +332,7 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
 }
 </style>
 </head>
-<body>
+<body class="checkout-page">
 
     <div id="toast" class="toast">تمت العملية بنجاح</div>
     <div class="announcement">هدفنا الأساسي هو أن يجد العميل راحته في الملابس</div>
@@ -588,7 +590,7 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
                 </div>
                 <div id="payment-note" style="display:none; white-space:pre-line; font-size:12px; background:var(--brand-gray); padding:8px; border-radius:8px; margin-bottom:10px;"></div>
                 <label style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; margin-bottom:10px; cursor:pointer;"><input type="checkbox" id="cust-remember" checked style="width:auto;"> احفظ بياناتي على الجهاز ده عشان الطلب الجاي <a href="#" onclick="clearSavedCustomer(); return false;" style="margin-right:auto; color:var(--danger-color); font-weight:600;">مسح المحفوظ</a></label>
-                <input type="text" id="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute; left:-9999px; opacity:0;">
+                <input type="text" id="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute; left:0; top:0; width:1px; height:1px; overflow:hidden; opacity:0; pointer-events:none;">
                 <button type="submit" class="submit-order-btn"><i class="fa-solid fa-truck-fast"></i> تأكيد الطلب</button>
             </form>
         </div>
@@ -630,7 +632,7 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
                 <div class="form-group"><label class="form-label">البريد الإلكتروني *</label><input type="email" id="mem-email" class="form-input" maxlength="120" placeholder="name@example.com" autocomplete="email" style="direction:ltr; text-align:right;"></div>
                 <div class="form-group"><label class="form-label">رقم الهاتف (11 رقم - واتساب) *</label><input type="tel" id="mem-phone" class="form-input" maxlength="11" placeholder="01XXXXXXXXX" autocomplete="tel"></div>
                 <div class="form-group"><label class="form-label">تاريخ الميلاد *</label><div class="bp" data-for="mem-birth" style="display:flex; gap:6px;"></div><input type="hidden" id="mem-birth"></div>
-                <input type="text" id="mem-hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute; left:-9999px; opacity:0;">
+                <input type="text" id="mem-hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute; left:0; top:0; width:1px; height:1px; overflow:hidden; opacity:0; pointer-events:none;">
                 <div style="font-size:10px; color:var(--text-muted); margin-bottom:10px; line-height:1.6;">بياناتك بنستخدمها لإرسال الهدية والتواصل معاك بس، ومش بنشاركها مع أي طرف. التفاصيل في <a href="page.html?p=privacy" style="color:var(--accent-dark); font-weight:700;">سياسة الخصوصية</a>.</div>
                 <button type="submit" id="mem-submit" class="submit-order-btn">سجّلني واستلم هديتي 🎁</button>
                 <button type="button" onclick="closeMemberModal()" style="width:100%; margin-top:6px; background:none; border:none; color:var(--text-muted); font-size:12px; cursor:pointer;">مش دلوقتي</button>
