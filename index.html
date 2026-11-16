@@ -858,8 +858,8 @@
             btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('selected')); btn.classList.add('selected');
             if (btn.classList.contains('color-btn') && activeProduct && activeProduct.colorImages) {
                 const v = activeProduct.colorImages[btn.textContent.trim()];
-                if (typeof v === 'string' && v.startsWith('http')) { document.getElementById('pmodal-img').src = v; }
-                else { const imgs = (activeProduct.images && activeProduct.images.length) ? activeProduct.images : [activeProduct.image]; if (v != null && imgs[v]) document.getElementById('pmodal-img').src = imgs[v]; }
+                if (typeof v === 'string' && v.startsWith('http')) { showMedia(v); }
+                else { const imgs = (activeProduct.images && activeProduct.images.length) ? activeProduct.images : [activeProduct.image]; if (v != null && imgs[v]) showMedia(imgs[v]); }
             }
         }
 
@@ -1531,17 +1531,25 @@
             if (d.name || d.phone || d.address) fb.saveLead(d);
         }
 
+        const isVidUrl = u => String(u || '').includes('/video/upload/');
+        const posterOf = u => String(u).replace('/video/upload/', '/video/upload/so_0/').replace(/\.[a-z0-9]+$/i, '.jpg');
+        function showMedia(u) {
+            const main = document.getElementById('pmodal-img');
+            const v = document.getElementById('pmodal-video');
+            if (!v) return;
+            if (isVidUrl(u)) { v.src = u.replace('/upload/', '/upload/q_auto,f_auto/'); v.poster = posterOf(u); v.style.display = 'block'; main.style.display = 'none'; }
+            else { v.pause(); v.removeAttribute('src'); v.style.display = 'none'; main.style.display = ''; main.src = u; }
+        }
         function setupGallery(p) {
-            const imgs = (p.images && p.images.length) ? p.images : [p.image];
+            let imgs = (p.images && p.images.length) ? [...p.images] : [p.image];
+            if (p.video && !imgs.includes(p.video)) imgs.push(p.video);
             const main = document.getElementById('pmodal-img');
             let v = document.getElementById('pmodal-video');
             if (!v) { v = document.createElement('video'); v.id = 'pmodal-video'; v.controls = true; v.playsInline = true; v.preload = 'metadata'; v.style.cssText = 'width:100%; max-height:260px; border-radius:10px; margin-bottom:10px; background:#000; display:none;'; main.before(v); }
-            if (p.video) { v.src = p.video.replace('/upload/', '/upload/q_auto,f_auto/'); v.style.display = 'block'; }
-            else { v.pause(); v.removeAttribute('src'); v.style.display = 'none'; }
-            main.src = imgs[0];
+            showMedia(imgs[0]);
             let t = document.getElementById('pmodal-thumbs');
             if (!t) { t = document.createElement('div'); t.id = 'pmodal-thumbs'; t.style.cssText = 'display:flex; gap:6px; margin-bottom:10px; overflow-x:auto;'; main.after(t); }
-            t.innerHTML = imgs.length > 1 ? imgs.map(s => `<img src="${s}" onclick="document.getElementById('pmodal-img').src=this.src" style="width:56px; height:56px; object-fit:cover; border-radius:6px; cursor:pointer; border:1px solid #ddd;">`).join('') : '';
+            t.innerHTML = imgs.length > 1 ? imgs.map(s => `<img src="${isVidUrl(s) ? posterOf(s) : s}" onclick="showMedia('${s}')" style="width:56px; height:56px; object-fit:cover; border-radius:6px; cursor:pointer; border:1px solid #ddd;">`).join('') : '';
         }
 
         function sendOrderWhatsApp() {

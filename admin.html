@@ -1018,7 +1018,7 @@
 
         function renderThumbs() {
             document.getElementById('img-thumbs').innerHTML = currentImages.map((s, i) => `
-                <div style="position:relative;"><img src="${s}" style="width:60px; height:60px; object-fit:cover; border-radius:6px; border:${i === 0 ? '2px solid var(--accent-dark)' : '1px solid #ddd'};">
+                <div style="position:relative;"><img src="${isVidUrl(s) ? posterOf(s) : s}" style="width:60px; height:60px; object-fit:cover; border-radius:6px; border:${i === 0 ? '2px solid var(--accent-dark)' : '1px solid #ddd'};">
                 <span onclick="removeImage(${i})" style="position:absolute; top:-6px; left:-6px; background:#c0392b; color:#fff; border-radius:50%; width:18px; height:18px; font-size:13px; text-align:center; line-height:18px; cursor:pointer;">×</span></div>`).join('');
             renderColorImgs();
             const pv = document.getElementById('img-preview'), ph = document.getElementById('img-preview-placeholder');
@@ -1814,6 +1814,8 @@
         // ===== رفع الفيديو على Cloudinary (مجاني) =====
         // حط بيانات حسابك من Cloudinary: Cloud name و Upload preset (نوعه Unsigned)
         const CLOUDINARY = { cloudName: 'mzawfkiz', preset: 'zazoua_videos' };
+        const isVidUrl = u => String(u || '').includes('/video/upload/');
+        const posterOf = u => String(u).replace('/video/upload/', '/video/upload/so_0/').replace(/\.[a-z0-9]+$/i, '.jpg');
         async function cloudUpload(file, kind) {
             const fd = new FormData();
             fd.append('file', file);
@@ -1829,8 +1831,10 @@
             if (file.size > 100 * 1024 * 1024) { alert('الفيديو أكبر من 100 ميجا، اضغطه الأول'); return; }
             status.innerText = 'جاري رفع الفيديو... متقفلش الصفحة';
             try {
-                document.getElementById('prod-video').value = await cloudUpload(file, 'video');
-                status.innerText = '✅ الفيديو اتراح. اضغط حفظ المنتج عشان يتسجل.';
+                if (currentImages.length >= 5) { status.innerText = 'الحد الأقصى 5 ملفات'; return; }
+                currentImages.push(await cloudUpload(file, 'video'));
+                renderThumbs();
+                status.innerText = '✅ الفيديو اتضاف للمعرض. اضغط حفظ المنتج عشان يتسجل.';
             } catch (e) { console.error(e); status.innerText = 'فشل رفع الفيديو: ' + e.message; }
         }
         async function uploadProductVideo(input) {
@@ -1991,11 +1995,11 @@
                 sizes: document.getElementById('prod-sizes').value.split(',').map(s => s.trim()).filter(Boolean),
                 colors: document.getElementById('prod-colors').value.split(',').map(c => c.trim()).filter(Boolean),
                 image: '', images: [], fullImgs: true, imgCount: currentImages.length,
-                colorImages: Object.fromEntries(Object.entries(colorSel).filter(([c, v]) => v !== '' && v != null && currentImages[v] && document.getElementById('prod-colors').value.split(',').map(x => x.trim()).includes(c)).map(([c, v]) => [c, Number(v)]))
+                colorImages: Object.fromEntries(Object.entries(colorSel).filter(([c, v]) => v !== '' && v != null && document.getElementById('prod-colors').value.split(',').map(x => x.trim()).includes(c) && (String(v).startsWith('http') || currentImages[v])).map(([c, v]) => [c, String(v).startsWith('http') ? v : Number(v)]))
             };
             if (!currentImages[0]) { alert('يرجى اختيار صورة للمنتج من المعرض أولاً!'); return; }
             if (JSON.stringify(currentImages).length > 950000) { alert('حجم الصور كبير، قلّل عدد الصور'); return; }
-            try { prod.image = prod.thumb = await makeThumb(currentImages[0]); await fb.saveProductImages(prod.id, currentImages); } catch (err) { alert('فشل حفظ الصور (راجع قواعد productImages): ' + err.message); return; }
+            try { prod.image = prod.thumb = isVidUrl(currentImages[0]) ? posterOf(currentImages[0]) : await makeThumb(currentImages[0]); await fb.saveProductImages(prod.id, currentImages); } catch (err) { alert('فشل حفظ الصور (راجع قواعد productImages): ' + err.message); return; }
             try { await fb.saveProduct(prod); } catch (err) { console.error(err); alert('فشل الحفظ: ' + err.message); return; }
             try { const cv = parseFloat(document.getElementById('prod-cost').value); if (!isNaN(cv)) { await fb.saveCost(prod.id, cv); costsMap[prod.id] = cv; } } catch (e2) { console.error(e2); }
             try { const ov = parseFloat(document.getElementById('prod-opex').value); if (!isNaN(ov)) { await fb.saveOpex(prod.id, ov); opexMap[prod.id] = ov; } else if (opexMap[prod.id] != null) { await fb.deleteOpex(prod.id); delete opexMap[prod.id]; } } catch (e3) { console.error(e3); }
