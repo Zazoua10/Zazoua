@@ -1650,6 +1650,7 @@
 
         function openCartCheckoutModal() {
             if (cart.length === 0) return;
+            location.href = 'checkout.html'; return;
             closeCartModal();
             const subtotal = cart.reduce((s, i) => s + i.price, 0);
             document.getElementById('checkout-subtotal').innerText = `${subtotal} ج.م`;
