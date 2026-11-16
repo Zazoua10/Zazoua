@@ -1050,6 +1050,7 @@
                 + `<div style="margin:4px 0;">${b ? btn('#666', `removeBlack('${b.phone}')`, 'إزالة من القائمة السوداء') : btn('#c0392b', `blacklistCustomer('${o.orderId}')`, 'علّم العميل كمرفوض')}</div>`;
         }
 
+        const MAX_BDAY_DISCOUNT = 30; // أقصى نسبة خصم لكود الهدية (غيّرها لو عايز)
         async function sendBirthdayGift(phone) {
             const m = allMembers().find(x => x.phone === phone); if (!m) return;
             const d = bdayInfo(m.birth);
@@ -1062,7 +1063,7 @@
                 const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', r = crypto.getRandomValues(new Uint8Array(6));
                 const code = 'HB-' + Array.from(r, x => A[x % A.length]).join('');
                 const exp = new Date(); exp.setHours(23, 59, 59, 0);
-                c = { id: code, code, type: 'percent', value: age, active: true, expires: exp.getTime(), minOrder: 0, maxUses: 1, used: 0, phone: m.phone, forName: String(m.name || '').slice(0, 100), createdAt: Date.now() };
+                c = { id: code, code, type: 'percent', value: Math.min(age, MAX_BDAY_DISCOUNT), active: true, expires: exp.getTime(), minOrder: 0, maxUses: 1, used: 0, phone: m.phone, forName: String(m.name || '').slice(0, 100), createdAt: Date.now() };
                 try { await fb.saveCoupon(c); } catch (err) { if (w) w.close(); alert('فشل إنشاء الكود: ' + err.message); return; }
                 coupons = [...coupons, c]; renderCoupons();
             }
@@ -1388,10 +1389,11 @@
             try {
                 await Promise.all(ids.map(async id => {
                     const o = orders.find(x => x.orderId === id); if (!o) return;
-                    if (data.status === 'delivered' && o.status !== 'delivered') data.deliveredAt = Date.now();
-                    await fb.updateOrder(id, data);
-                    if (data.status || data.shipCo) await fb.setTracking({ orderId: id, status: data.status || o.status || 'new', phone4: String(o.customer.phone).slice(-4), createdAt: o.createdAt || 0, ...(data.shipCo ? { shipCo: data.shipCo } : {}) });
-                    Object.assign(o, data);
+                    const d = { ...data }; // نسخة لكل أوردر عشان deliveredAt ما يتشاركش بينهم
+                    if (d.status === 'delivered' && o.status !== 'delivered') d.deliveredAt = Date.now();
+                    await fb.updateOrder(id, d);
+                    if (d.status || d.shipCo) await fb.setTracking({ orderId: id, status: d.status || o.status || 'new', phone4: String(o.customer.phone).slice(-4), createdAt: o.createdAt || 0, ...(d.shipCo ? { shipCo: d.shipCo } : {}) });
+                    Object.assign(o, d);
                 }));
             } catch (e) { alert('فشل التطبيق: ' + e.message); return; }
             document.getElementById('select-all').checked = false; renderOrders(); renderSettle();
@@ -1481,9 +1483,31 @@
             const label = k => new Date(k + 'T12:00:00').toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' }) + (k === today ? ' (النهارده)' : '');
             const wrap = (k, title, body) => `<details data-k="${k}" ${(prev ? prev.has(k) : k === today) ? 'open' : ''} style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:10px; margin-bottom:8px;"><summary style="cursor:pointer; font-weight:800; font-size:14px;">${title}</summary><div style="margin-top:10px;">${body}</div></details>`;
             const cos = [...new Set([...carriers(), ...payments.map(p => p.company)])];
-            const form = '';
+            const inp = 'padding:6px 8px; border:1px solid var(--border-color); border-radius:6px; font-size:12px; font-family:inherit;';
+            const form = `<div class="st-co" style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:10px; margin-bottom:10px;">
+                    <div style="font-weight:800; font-size:13px; margin-bottom:6px;">تسجيل دفعة لشركة شحن (اللي دفعته للشركة)</div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <select class="pay-co" style="${inp}">${cos.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('') || '<option value="">مفيش شركات لسه</option>'}</select>
+                        <input class="pay-amt" type="number" min="0" placeholder="المبلغ" style="${inp} width:100px;">
+                        <input class="pay-note" maxlength="120" placeholder="ملاحظة" style="${inp} flex:1; min-width:100px;">
+                        <input class="pay-day" type="date" style="${inp}">
+                        <button type="button" class="submit-btn" style="font-size:12px;" onclick="addPay(this, this.closest('.st-co').querySelector('.pay-co').value)">حفظ الدفعة</button>
+                    </div>
+                </div>
+                <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:10px; margin-bottom:10px;">
+                    <div style="font-weight:800; font-size:13px; margin-bottom:6px;">تسجيل مشتريات (اشتريت إيه وبكام)</div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <input id="pu-item" maxlength="100" placeholder="الصنف" style="${inp} flex:1; min-width:110px;">
+                        <input id="pu-qty" type="number" min="1" placeholder="العدد" style="${inp} width:80px;">
+                        <input id="pu-price" type="number" min="0" placeholder="الإجمالي (ج.م)" style="${inp} width:110px;">
+                        <select id="pu-prod" style="${inp}"><option value="">من غير ربط بمنتج</option>${products.map(pr => `<option value="${pr.id}">${esc(pr.title)}</option>`).join('')}</select>
+                        <button type="button" class="submit-btn" style="font-size:12px;" onclick="addPurchase()">حفظ الشراء</button>
+                    </div>
+                    <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">لو ربطت الشراء بمنتج، سعر التكلفة للمنتج بيتحدّث تلقائيًا (الإجمالي ÷ العدد).</div>
+                </div>`;
             const note = '<div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">اليوم = تاريخ إنشاء الأوردر (والدفعة بتاريخ اللي تختاره). المطلوب = إجمالي الأوردر − رسوم الشحن، ومرتجع/رفض = رسوم الشحن بالسالب. المتبقي = المطلوب − اللي اتحصّل + اللي دفعته للشركة.</div>';
-            box.innerHTML = form + note;
+            const body = Object.keys(days).sort().reverse().map(k => wrap(k, label(k), settleBlock(days[k].o, days[k].p))).join('') || '<div style="font-size:12px; color:var(--text-muted);">لا توجد بيانات بعد.</div>';
+            box.innerHTML = form + note + body + (purchases.length ? purchasesHtml() : '');
             ['pay-co', 'pay-amt', 'pay-note', 'pay-day'].forEach((c, i) => { const e = box.querySelector('.' + c); if (e && keep[i]) e.value = keep[i]; });
         }
         function checkBackup() {

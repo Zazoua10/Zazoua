@@ -1031,7 +1031,7 @@
         const HERO_MS = 5000;
         const heroWide = () => window.matchMedia('(min-width: 768px)').matches;
         const heroCat = p => mainCatName(p.mainCat) + (p.subCat ? ' · ' + p.subCat : '');
-        const heroSrc = p => (p.images && p.images.length) ? p.images[0] : p.image;
+        const heroSrc = p => { const f = (p.images && p.images.length) ? p.images[0] : p.image; return isVidUrl(f) ? posterOf(f) : f; };
         // على الشاشات الكبيرة بنحمّل الصورة الكاملة للشريحة الحالية والجاية بس (عشان الصورة المصغّرة بتبان مش واضحة)
         function heroFull(i) {
             const p = heroItems[i];
@@ -1674,6 +1674,8 @@
             const govSelect = document.getElementById('cust-gov');
             const addressInput = document.getElementById('cust-address');
 
+            document.querySelectorAll('#checkout-order-form .invalid').forEach(el => el.classList.remove('invalid'));
+            document.querySelectorAll('#checkout-order-form .error-hint').forEach(el => { el.style.display = 'none'; });
             let isValid = true;
             if (nameInput.value.trim().split(/\s+/).length < 2) { nameInput.classList.add('invalid'); document.getElementById('err-name').style.display='block'; isValid = false; }
             

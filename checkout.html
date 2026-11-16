@@ -612,7 +612,7 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
             <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">تقدر تتابع حالة طلبك من "تتبع طلبك" أسفل المتجر بآخر 4 أرقام من هاتفك.</div>
             <button id="notif-btn2" type="button" class="submit-order-btn" style="display:none; background:#fff; color:var(--accent-dark); border:1px solid var(--border-color); margin-bottom:8px;" onclick="enableNotifs()">🔔 نبّهني لما حالة الطلب تتغيّر</button>
             <button id="wa-order-btn" class="submit-order-btn" style="display:none; background:#25D366; margin-bottom:8px;" onclick="sendOrderWhatsApp()">📲 أرسل تفاصيل الطلب على واتساب</button>
-            <button class="submit-order-btn" style="background:#fff; color:var(--accent-dark); border:1px solid var(--border-color); margin-bottom:8px;" onclick="closeSuccessModal(); openMyOrders()">متابعة حالة طلباتي</button>
+            <button class="submit-order-btn" style="background:#fff; color:var(--accent-dark); border:1px solid var(--border-color); margin-bottom:8px;" onclick="location.href='track.html'">متابعة حالة طلبي</button>
             <button class="submit-order-btn" style="background: var(--accent-dark);" onclick="closeSuccessModal()">العودة للمتجر</button>
         </div>
     </div>
@@ -1044,7 +1044,7 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
         const HERO_MS = 5000;
         const heroWide = () => window.matchMedia('(min-width: 768px)').matches;
         const heroCat = p => mainCatName(p.mainCat) + (p.subCat ? ' · ' + p.subCat : '');
-        const heroSrc = p => (p.images && p.images.length) ? p.images[0] : p.image;
+        const heroSrc = p => { const f = (p.images && p.images.length) ? p.images[0] : p.image; return isVidUrl(f) ? posterOf(f) : f; };
         // على الشاشات الكبيرة بنحمّل الصورة الكاملة للشريحة الحالية والجاية بس (عشان الصورة المصغّرة بتبان مش واضحة)
         function heroFull(i) {
             const p = heroItems[i];
@@ -1686,6 +1686,8 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
             const govSelect = document.getElementById('cust-gov');
             const addressInput = document.getElementById('cust-address');
 
+            document.querySelectorAll('#checkout-order-form .invalid').forEach(el => el.classList.remove('invalid'));
+            document.querySelectorAll('#checkout-order-form .error-hint').forEach(el => { el.style.display = 'none'; });
             let isValid = true;
             if (nameInput.value.trim().split(/\s+/).length < 2) { nameInput.classList.add('invalid'); document.getElementById('err-name').style.display='block'; isValid = false; }
             
@@ -1751,25 +1753,31 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
         let node = k;
         while (node && node !== document.body && node.parentElement) {
             Array.from(node.parentElement.children).forEach(sib => {
-                if (sib === node || sib.tagName === 'SCRIPT' || sib.tagName === 'STYLE' || isAncestorOfKept(sib) || keep.includes(sib)) return;
+                if (sib === node || sib.tagName === 'SCRIPT' || sib.tagName === 'STYLE' || sib.id === 'toast' || isAncestorOfKept(sib) || keep.includes(sib)) return;
                 sib.style.display = 'none';
             });
             node = node.parentElement;
         }
     });
     document.querySelectorAll('body > *').forEach(el => {
-        if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || isAncestorOfKept(el)) return;
+        if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.id === 'toast' || isAncestorOfKept(el)) return;
         if (el.id === 'checkout-modal' || el.id === 'order-success-modal') return;
         el.style.display = 'none';
     });
     // بعد ما الطلب يتسجل: نعرض رسالة النجاح بس، ومن غير ما نرجع للفورم
-    const oa = fb.addOrder;
-    fb.addOrder = async (o) => { const r = await oa(o); window.__orderPlaced = true; return r; };
+    // fb بيتعرّف جوه الـ module (بيشتغل بعد تحميل الصفحة)، فلازم نستنى DOMContentLoaded
+    window.addEventListener('DOMContentLoaded', () => {
+        const oa = fb.addOrder;
+        fb.addOrder = async (o) => { const r = await oa(o); window.__orderPlaced = true; return r; };
+    });
     const origClose = closeCheckoutModal;
     closeCheckoutModal = function () {
         if (window.__orderPlaced) { origClose(); return; }
-        location.href = 'index.html';
+        origClose(); // يحفظ بيانات العميل (lead) قبل ما نخرج
+        setTimeout(() => { location.href = 'index.html'; }, 300);
     };
+    // بعد نجاح الطلب أي قفل لرسالة النجاح يرجّع العميل للمتجر
+    closeSuccessModal = function () { location.href = 'index.html'; };
     let tries = 0;
     const start = () => {
         tries++;
