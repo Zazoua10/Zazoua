@@ -180,12 +180,12 @@
             <input type="hidden" id="edit-prod-id">
             
             <div class="form-group">
-                <label class="form-label">صور المنتج (حتى 5 صور، الأولى هي الرئيسية) *</label>
-                <input type="file" id="prod-img-file" accept="image/*" multiple onchange="previewImageFile(this)" style="display: none;">
+                <label class="form-label">إضافة صورة أو فيديو (حتى 5 صور، الأولى هي الرئيسية) *</label>
+                <input type="file" id="prod-img-file" accept="image/*,video/*" multiple onchange="previewImageFile(this)" style="display: none;">
                 <div onclick="document.getElementById('prod-img-file').click()" style="height: 120px; border: 2px dashed var(--border-color); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: var(--bg-main); overflow: hidden;">
                     <div id="img-preview-placeholder" style="text-align: center; color: var(--text-muted);">
                         <i class="fa-solid fa-cloud-arrow-up" style="font-size: 24px; margin-bottom: 4px;"></i>
-                        <p style="font-size: 11px; font-weight: 700;">اضغط لاختيار صورة المنتج من جهازك</p>
+                        <p style="font-size: 11px; font-weight: 700;">اضغط لإضافة صورة أو فيديو من جهازك</p>
                     </div>
                     <img id="img-preview" src="" style="display: none; width: 100%; height: 100%; object-fit: contain;">
                 </div>
@@ -224,7 +224,7 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">الألوان (بفواصل)</label>
-                    <input type="text" id="prod-colors" class="form-input" value="" placeholder="اختياري، مثال: أسود, أبيض">
+                    <input type="text" id="prod-colors" class="form-input" value="" placeholder="اختياري، مثال: أسود, أبيض" oninput="renderColorImgs()">
                 </div>
             </div>
 
@@ -1003,12 +1003,15 @@
         }
 
         async function previewImageFile(input) {
-            for (const f of Array.from(input.files)) {
-                if (currentImages.length >= 5) { alert('الحد الأقصى 5 صور'); break; }
-                currentImages.push(await compressImage(f));
-            }
-            input.value = '';
-            renderThumbs();
+            (async () => {
+                for (const f of Array.from(input.files)) {
+                    if (f.type.startsWith('video/')) { await uploadVideoFile(f); continue; }
+                    if (currentImages.length >= 5) { alert('الحد الأقصى 5 صور'); break; }
+                    currentImages.push(await compressImage(f));
+                }
+                input.value = '';
+                renderThumbs();
+            })();
         }
 
         function removeImage(i) { currentImages.splice(i, 1); renderThumbs(); }
@@ -1336,8 +1339,39 @@
         function renderColorImgs() {
             const el = document.getElementById('color-imgs'); if (!el) return;
             const cols = document.getElementById('prod-colors').value.split(',').map(c => c.trim()).filter(Boolean);
-            if (currentImages.length < 2 || !cols.length) { el.innerHTML = ''; return; }
-            el.innerHTML = '<div class="form-label">صورة كل لون (اختياري، العميل يشوفها لما يختار اللون)</div>' + cols.map(c => `<div style="display:flex; gap:8px; align-items:center; margin-bottom:4px; font-size:12px;"><span style="min-width:70px;">${esc(c)}</span><select class="form-select" style="width:auto;" onchange="colorSel[this.dataset.c] = this.value" data-c="${esc(c)}"><option value="">تلقائي</option>${currentImages.map((_, i) => `<option value="${i}" ${String(colorSel[c]) === String(i) ? 'selected' : ''}>صورة ${i + 1}</option>`).join('')}</select></div>`).join('');
+            if (!cols.length) { el.innerHTML = ''; return; }
+            el.innerHTML = '<div class="form-label">صورة كل لون (اختياري، العميل يشوفها لما يختار اللون)</div>' + cols.map((c, k) => {
+                const v = colorSel[c];
+                const custom = typeof v === 'string' && v.startsWith('http');
+                const opts = currentImages.map((_, i) => `<option value="${i}" ${!custom && String(v) === String(i) ? 'selected' : ''}>صورة ${i + 1}</option>`).join('');
+                return `<div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:6px; font-size:12px;">
+                    <span style="min-width:70px;">${esc(c)}</span>
+                    <select class="form-select" data-c="${esc(c)}" style="width:auto;" onchange="setColorChoice(this)">
+                        <option value="">تلقائي</option>${opts}
+                    </select>
+                    <button type="button" class="submit-btn" style="width:auto; padding:4px 10px; font-size:12px;" onclick="document.getElementById('cimg-${k}').click()">📷 ارفع صورة لهذا اللون</button>
+                    <input type="file" id="cimg-${k}" data-c="${esc(c)}" accept="image/*" style="display:none;" onchange="uploadColorImage(this)">
+                    ${custom ? `<img src="${v}" style="width:36px; height:36px; object-fit:cover; border-radius:6px; border:1px solid var(--border-color);">
+                    <span onclick="clearColorImage('${k}')" style="cursor:pointer; color:#c0392b; font-weight:700;" data-c="${esc(c)}">×</span>` : ''}
+                </div>`;
+            }).join('');
+        }
+        function setColorChoice(sel) {
+            const c = sel.dataset.c;
+            if (sel.value === '') delete colorSel[c]; else colorSel[c] = sel.value;
+        }
+        async function uploadColorImage(input) {
+            const c = input.dataset.c, file = input.files && input.files[0]; if (!file) return;
+            try {
+                colorSel[c] = await cloudUpload(file, 'image');
+                renderColorImgs();
+            } catch (e) { console.error(e); alert('فشل رفع صورة اللون: ' + e.message); }
+            input.value = '';
+        }
+        function clearColorImage(k) {
+            const span = document.querySelector(`#color-imgs [onclick="clearColorImage('${k}')"]`);
+            if (span) delete colorSel[span.dataset.c];
+            renderColorImgs();
         }
 
         // ===== إجراءات جماعية =====
@@ -1780,22 +1814,27 @@
         // ===== رفع الفيديو على Cloudinary (مجاني) =====
         // حط بيانات حسابك من Cloudinary: Cloud name و Upload preset (نوعه Unsigned)
         const CLOUDINARY = { cloudName: 'mzawfkiz', preset: 'zazoua_videos' };
-        async function uploadProductVideo(input) {
-            const file = input.files && input.files[0]; if (!file) return;
+        async function cloudUpload(file, kind) {
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('upload_preset', CLOUDINARY.preset);
+            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY.cloudName}/${kind}/upload`, { method: 'POST', body: fd });
+            const data = await res.json();
+            if (!res.ok || !data.secure_url) throw new Error(data.error ? data.error.message : 'فشل الرفع');
+            return data.secure_url;
+        }
+        async function uploadVideoFile(file) {
             const status = document.getElementById('prod-video-status');
-            if (CLOUDINARY.cloudName.startsWith('PUT_')) { alert('لازم تحط Cloud name و Upload preset في الكود الأول'); input.value = ''; return; }
-            if (file.size > 100 * 1024 * 1024) { alert('الفيديو أكبر من 100 ميجا، اضغطه الأول'); input.value = ''; return; }
+            if (CLOUDINARY.cloudName.startsWith('PUT_')) { alert('لازم تحط Cloud name و Upload preset في الكود الأول'); return; }
+            if (file.size > 100 * 1024 * 1024) { alert('الفيديو أكبر من 100 ميجا، اضغطه الأول'); return; }
             status.innerText = 'جاري رفع الفيديو... متقفلش الصفحة';
             try {
-                const fd = new FormData();
-                fd.append('file', file);
-                fd.append('upload_preset', CLOUDINARY.preset);
-                const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY.cloudName}/video/upload`, { method: 'POST', body: fd });
-                const data = await res.json();
-                if (!res.ok || !data.secure_url) throw new Error(data.error ? data.error.message : 'فشل الرفع');
-                document.getElementById('prod-video').value = data.secure_url;
+                document.getElementById('prod-video').value = await cloudUpload(file, 'video');
                 status.innerText = '✅ الفيديو اتراح. اضغط حفظ المنتج عشان يتسجل.';
-            } catch (e) { console.error(e); status.innerText = 'فشل الرفع: ' + e.message; }
+            } catch (e) { console.error(e); status.innerText = 'فشل رفع الفيديو: ' + e.message; }
+        }
+        async function uploadProductVideo(input) {
+            const file = input.files && input.files[0]; if (file) await uploadVideoFile(file);
             input.value = '';
         }
         function clearProductVideo() {
@@ -1916,6 +1955,7 @@
             document.getElementById('prod-sub-cat').value = p.subCat;
             document.getElementById('prod-sizes').value = p.sizes.join(', ');
             document.getElementById('prod-colors').value = p.colors.join(', ');
+            renderColorImgs();
             if (p.fullImgs) { try { currentImages = await fb.getProductImages(p.id); } catch (e) { currentImages = []; } if (!currentImages.length) currentImages = [p.image]; } else currentImages = (p.images && p.images.length) ? [...p.images] : [p.image]; colorSel = { ...(p.colorImages || {}) };
             renderThumbs();
             document.getElementById('prod-save-btn').innerText = 'حفظ التعديلات';

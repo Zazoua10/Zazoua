@@ -857,8 +857,9 @@
         function selectOption(btn) {
             btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('selected')); btn.classList.add('selected');
             if (btn.classList.contains('color-btn') && activeProduct && activeProduct.colorImages) {
-                const i = activeProduct.colorImages[btn.textContent.trim()], imgs = (activeProduct.images && activeProduct.images.length) ? activeProduct.images : [activeProduct.image];
-                if (i != null && imgs[i]) document.getElementById('pmodal-img').src = imgs[i];
+                const v = activeProduct.colorImages[btn.textContent.trim()];
+                if (typeof v === 'string' && v.startsWith('http')) { document.getElementById('pmodal-img').src = v; }
+                else { const imgs = (activeProduct.images && activeProduct.images.length) ? activeProduct.images : [activeProduct.image]; if (v != null && imgs[v]) document.getElementById('pmodal-img').src = imgs[v]; }
             }
         }
 
