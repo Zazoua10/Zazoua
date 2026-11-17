@@ -147,6 +147,11 @@
                 <button onclick="printSelectedInvoices()" class="submit-btn" style="background:var(--accent-dark); font-size:12px;"><i class="fa-solid fa-print"></i> طباعة الفواتير المحددة (3/صفحة)</button>
                 <button onclick="deleteSelectedOrders()" class="submit-btn" style="background:var(--danger-color); font-size:12px;"><i class="fa-solid fa-trash"></i> حذف المحدد</button>
                 <button onclick="exportForCarrier()" class="submit-btn" style="background:#2c6fbb; font-size:12px;"><i class="fa-solid fa-truck"></i> تصدير لشركة الشحن</button>
+                <span style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap; font-size:12px; font-weight:700;">
+                    من <input type="datetime-local" id="exp-from" class="form-input" style="width:auto; padding:6px; font-size:12px;">
+                    إلى <input type="datetime-local" id="exp-to" class="form-input" style="width:auto; padding:6px; font-size:12px;">
+                    <button type="button" onclick="document.getElementById('exp-from').value=''; document.getElementById('exp-to').value='';" class="submit-btn" style="background:#888; font-size:11px; padding:6px 10px;">مسح</button>
+                </span>
                 <button onclick="exportToExcel()" class="submit-btn" style="background:#1f7244; font-size:12px;"><i class="fa-solid fa-file-excel"></i> تصدير Excel</button>
             </div>
         </div>
@@ -1808,8 +1813,13 @@
 
         function exportToExcel() {
             if (orders.length === 0) { alert('لا توجد طلبات للتصدير'); return; }
+            const fv = document.getElementById('exp-from').value, tv = document.getElementById('exp-to').value;
+            const fromT = fv ? new Date(fv).getTime() : 0, toT = tv ? new Date(tv).getTime() + 59999 : Infinity;
+            if (fromT > toT) { alert('وقت البداية لازم يكون قبل وقت النهاية'); return; }
+            const expList = orders.filter(o => { const t = Number(o.createdAt) || 0; return t >= fromT && t <= toT; });
+            if (!expList.length) { alert('مفيش طلبات في الفترة دي'); return; }
             let csv = "\uFEFFرقم الطلب,التاريخ,اسم العميل,رقم الهاتف 1,رقم الهاتف 2,المحافظة,العنوان,المنتجات,الإجمالي,شركة الشحن,رقم الشحنة,ملاحظة\n";
-            orders.forEach(o => {
+            expList.forEach(o => {
                 const items = o.items.map(i => `${i.title}${varTxt(i)}`).join(' - ');
                 csv += [o.orderId, o.dateStr, o.customer.name, csvTxt(o.customer.phone), csvTxt(o.customer.phone2), o.customer.gov, o.customer.address, items, o.total, o.shipCo, csvTxt(o.shipNo), o.note].map(csvCell).join(",") + "\n";
             });
