@@ -1237,9 +1237,9 @@
                     <button type="button" onclick="toggleReviewForm()" class="copy-ad-link-btn" style="width:auto; padding:6px 14px;">✍️ قيّم المنتج</button>
                 </div>
                 <div id="pr-form">
-                    <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px; line-height:1.7;">التقييم متاح للطلبات اللي اتسلّمت بس. اكتب رقم طلبك وآخر 4 أرقام من هاتفك.</div>
-                    <input id="pr-order" class="form-input" placeholder="رقم الطلب ZZ-XXXXXXXX" value="${esc(mine ? mine.id : '')}" style="direction:ltr; text-align:right;" autocomplete="off">
-                    <input id="pr-phone4" class="form-input" placeholder="آخر 4 أرقام من الهاتف" inputmode="numeric" maxlength="4" value="${esc(String(c.phone || '').slice(-4))}">
+                    <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px; line-height:1.7;">اكتب اسمك ورأيك وهيظهر بعد المراجعة. ولو عايز تقييمك يظهر بعلامة "مشتري موثّق"، اكتب رقم طلبك وآخر 4 أرقام من هاتفك (اختياري).</div>
+                    <input id="pr-order" class="form-input" placeholder="رقم الطلب ZZ-XXXXXXXX (اختياري)" value="${esc(mine ? mine.id : '')}" style="direction:ltr; text-align:right;" autocomplete="off">
+                    <input id="pr-phone4" class="form-input" placeholder="آخر 4 أرقام من الهاتف (اختياري)" inputmode="numeric" maxlength="4" value="${esc(String(c.phone || '').slice(-4))}">
                     <input id="pr-name" class="form-input" placeholder="اسمك" maxlength="100" value="${esc(c.name || '')}">
                     <select id="pr-stars" class="form-select"><option value="5">★★★★★ ممتاز</option><option value="4">★★★★☆ جيد جدًا</option><option value="3">★★★☆☆ جيد</option><option value="2">★★☆☆☆ مقبول</option><option value="1">★☆☆☆☆ ضعيف</option></select>
                     <textarea id="pr-text" class="form-input" rows="3" maxlength="500" placeholder="رأيك في المنتج (الخامة، المقاس، الشكل...)"></textarea>
@@ -1253,16 +1253,22 @@
             const p = activeProduct; if (!p) return;
             const v = id => document.getElementById(id).value.trim();
             const orderId = v('pr-order').toUpperCase().replace(/[\/\s]/g, ''), phone4 = v('pr-phone4').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/\D/g, ''), name = v('pr-name'), text = v('pr-text'), stars = +v('pr-stars');
-            if (!/^ZZ-[A-Z2-9]{8}$/.test(orderId)) { showToast('اكتب رقم الطلب صح (ZZ-XXXXXXXX)'); return; }
-            if (phone4.length !== 4) { showToast('اكتب آخر 4 أرقام من الهاتف'); return; }
+            const withOrder = !!(orderId || phone4);
+            if (withOrder && !/^ZZ-[A-Z2-9]{8}$/.test(orderId)) { showToast('اكتب رقم الطلب صح (ZZ-XXXXXXXX) أو سيب الخانتين فاضيين'); return; }
+            if (withOrder && phone4.length !== 4) { showToast('اكتب آخر 4 أرقام من الهاتف أو سيب الخانتين فاضيين'); return; }
             if (name.length < 2) { showToast('اكتب اسمك'); return; }
             if (text.length < 3) { showToast('اكتب رأيك في المنتج'); return; }
             const btn = document.getElementById('pr-send'); btn.disabled = true;
             try {
-                const t = await fb.getTracking(orderId);
-                if (!t || t.phone4 !== phone4) { showToast('رقم الطلب أو آخر 4 أرقام مش مظبوطين'); btn.disabled = false; return; }
-                if (t.status !== 'delivered') { showToast('التقييم متاح بعد استلام الطلب بس'); btn.disabled = false; return; }
-                await fb.addReviewSub({ id: orderId + '_' + p.id, productId: String(p.id), orderId, phone4, name: name.slice(0, 100), stars, text: text.slice(0, 500), createdAt: Date.now() });
+                if (withOrder) {
+                    const t = await fb.getTracking(orderId);
+                    if (!t || t.phone4 !== phone4) { showToast('رقم الطلب أو آخر 4 أرقام مش مظبوطين'); btn.disabled = false; return; }
+                    if (t.status !== 'delivered') { showToast('التقييم الموثّق متاح بعد استلام الطلب. سيب الخانتين فاضيين لو عايز تبعت رأيك من غير توثيق'); btn.disabled = false; return; }
+                    await fb.addReviewSub({ id: orderId + '_' + p.id, productId: String(p.id), orderId, phone4, name: name.slice(0, 100), stars, text: text.slice(0, 500), createdAt: Date.now() });
+                } else {
+                    const rid = 'N' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+                    await fb.addReviewSub({ id: rid + '_' + p.id, productId: String(p.id), name: name.slice(0, 100), stars, text: text.slice(0, 500), createdAt: Date.now() });
+                }
                 document.getElementById('pr-form').style.display = 'none';
                 showToast('شكرًا لتقييمك! هيظهر بعد المراجعة');
             } catch (e) {
