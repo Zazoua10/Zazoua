@@ -1704,7 +1704,12 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
             if (!govSelect.value) { govSelect.classList.add('invalid'); document.getElementById('err-gov').style.display='block'; isValid = false; }
             if (addressInput.value.trim().length < 6) { addressInput.classList.add('invalid'); document.getElementById('err-address').style.display='block'; isValid = false; }
 
-            if (!isValid) return;
+            if (!isValid) {
+                const firstBad = document.querySelector('#checkout-order-form .invalid');
+                if (firstBad) { firstBad.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => { try { firstBad.focus({ preventScroll: true }); } catch (e) {} }, 350); }
+                showToast('لم يتم إدخال المطلوب، راجع الخانات باللون الأحمر');
+                return;
+            }
             if (document.getElementById('hp-field').value) { cart = []; saveCartState(); closeCheckoutModal(); return; }
             if (appliedCoupon && appliedCoupon.phone && String(appliedCoupon.phone) !== cleanPhone) { showToast('كود الخصم ده خاص بعميل تاني'); return; }
             const nowT = Date.now();
