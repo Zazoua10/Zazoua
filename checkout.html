@@ -574,6 +574,10 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
                     <div class="error-hint" id="err-address">يرجى كتابة العنوان التفصيلي بوضوح</div>
                 </div>
                 <div class="form-group">
+                    <label class="form-label">ملاحظات على الطلب (اختياري)</label>
+                    <textarea id="cust-note" class="form-input" rows="2" maxlength="300" placeholder="مثال: التوصيل بعد الساعة 5، أو اتصل قبل الوصول" style="resize:vertical;"></textarea>
+                </div>
+                <div class="form-group">
                     <label class="form-label">كود الخصم (اختياري)</label>
                     <div style="display:flex; gap:6px;">
                         <input type="text" id="cust-coupon" class="form-input" placeholder="اكتب كود الخصم هنا">
@@ -1592,7 +1596,7 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
             let n = String(settings.whatsapp || '').replace(/\D/g, '');
             if (n.startsWith('0')) n = '20' + n.slice(1);
             const o = lastOrder;
-            const txt = `طلب جديد من Zazoua 🛍️\nرقم الطلب: ${o.orderId}\nالاسم: ${o.customer.name}\nالهاتف: ${o.customer.phone}\nالعنوان: ${o.customer.gov} - ${o.customer.address}\nالمنتجات: ${o.items.map(i => `${i.title}${varTxt(i)}`).join(' - ')}\nالإجمالي: ${o.total} ج.م`;
+            const txt = `طلب جديد من Zazoua 🛍️\nرقم الطلب: ${o.orderId}\nالاسم: ${o.customer.name}\nالهاتف: ${o.customer.phone}\nالعنوان: ${o.customer.gov} - ${o.customer.address}${o.customer.note ? '\nملاحظة العميل: ' + o.customer.note : ''}\nالمنتجات: ${o.items.map(i => `${i.title}${varTxt(i)}`).join(' - ')}\nالإجمالي: ${o.total} ج.م`;
             window.open(`https://wa.me/${n}?text=${encodeURIComponent(txt)}`, '_blank');
         }
 
@@ -1717,11 +1721,11 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
             const order = ({
                 status: 'new', createdAt: Date.now(), orderId: 'ZZ-' + (() => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', b = crypto.getRandomValues(new Uint8Array(8)); return Array.from(b, x => A[x % A.length]).join(''); })(),
                 dateStr: new Date().toLocaleString('ar-EG'),
-                customer: { name: nameInput.value.trim(), phone: cleanPhone, phone2: phone2Input.value.trim() || 'لا يوجد', address: addressInput.value.trim(), gov: govName },
+                customer: { name: nameInput.value.trim(), phone: cleanPhone, phone2: phone2Input.value.trim() || 'لا يوجد', address: addressInput.value.trim(), gov: govName, note: (document.getElementById('cust-note').value || '').trim().slice(0, 300) },
                 items: [...cart], subtotal, shipping: shipFee, discount: disc, coupon: calcDisc(subT).label, utm: getUtm(), total: subtotal - disc + shipFee
             });
 
-            try { await fb.addOrder(order); lastOrder = order; saveMyOrder(order); saveCustomer(order); watchMyOrders(); useCouponAfter(order); clearTimeout(leadTimer); fb.saveLead(leadData(true)); localStorage.removeItem('zz_lead_id'); document.getElementById('success-order-id').innerText = 'رقم طلبك: ' + order.orderId; try { if (!localStorage.getItem(MEM_KEY)) document.getElementById('succ-bday').style.display = 'block'; } catch (e) {} localStorage.setItem('zz_orders_t', JSON.stringify([...hist, nowT])); track('Purchase', { value: order.total, name: order.orderId }); document.getElementById('wa-order-btn').style.display = settings.whatsapp ? 'block' : 'none'; } catch (err) { console.error(err); showToast('تعذر إرسال الطلب، حاول مرة أخرى'); return; }
+            try { await fb.addOrder(order); try { document.getElementById('cust-note').value = ''; } catch (e) {} lastOrder = order; saveMyOrder(order); saveCustomer(order); watchMyOrders(); useCouponAfter(order); clearTimeout(leadTimer); fb.saveLead(leadData(true)); localStorage.removeItem('zz_lead_id'); document.getElementById('success-order-id').innerText = 'رقم طلبك: ' + order.orderId; try { if (!localStorage.getItem(MEM_KEY)) document.getElementById('succ-bday').style.display = 'block'; } catch (e) {} localStorage.setItem('zz_orders_t', JSON.stringify([...hist, nowT])); track('Purchase', { value: order.total, name: order.orderId }); document.getElementById('wa-order-btn').style.display = settings.whatsapp ? 'block' : 'none'; } catch (err) { console.error(err); showToast('تعذر إرسال الطلب، حاول مرة أخرى'); return; }
             cart = []; saveCartState();
             closeCheckoutModal();
             document.getElementById('eta-span').innerText = etaFor(govName); updateNotifBtn();
