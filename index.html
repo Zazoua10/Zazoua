@@ -427,6 +427,7 @@
                 <button id="pmodal-fav" type="button" onclick="toggleFav(activeProduct.id)" style="background:none; border:none; font-size:24px; cursor:pointer; color:#c0392b;">♡</button>
                 <h2 id="pmodal-name" style="font-size: 17px; font-weight: 800;"></h2>
                 <span id="pmodal-price" style="font-size: 18px; font-weight: 900; color: var(--accent-dark);"></span>
+                <div id="pm-views" style="display:none; margin-top:6px; font-size:12px; font-weight:700; color:#b9770e;"></div>
             </div>
 
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
@@ -656,6 +657,8 @@
                 try { localStorage.setItem('zz_pc', JSON.stringify({ t: Date.now(), d })); } catch (e) {}
                 return d;
             },
+            async getProductViews(id, day) { const s = await getDoc(doc(db, 'productViews', id + '_' + day)); return s.exists() ? (Number(s.data().count) || 0) : 0; },
+            async addProductView(id, day) { await setDoc(doc(db, 'productViews', id + '_' + day), { count: increment(1) }, { merge: true }); },
             async getProductImages(id) { const s = await getDoc(doc(db, 'productImages', String(id))); return s.exists() ? (s.data().images || []) : []; },
             async getProductReviews(pid) { const s = await getDocs(query(collection(db, 'productReviews'), where('productId', '==', String(pid)))); return s.docs.map(d => d.data()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); },
             async addReviewSub(r) { await setDoc(doc(db, 'reviewSubs', r.id), r); },
@@ -664,7 +667,7 @@
             async getShipping() { const s = await getDocs(collection(db, 'shipping')); return s.docs.map(d => d.data()); },
             async getSettings() { const s = await getDoc(doc(db, 'settings', 'main')); return s.exists() ? s.data() : {}; },
             async getReviews() { const s = await getDocs(collection(db, 'reviews')); return s.docs.map(d => d.data()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); },
-            async saveLead(l) { try { await setDoc(doc(db, 'leads', l.id), l, { merge: true }); } catch (e) {} },
+            async saveLead(l) { try { await setDoc(doc(db, 'leads', l.id), l, { merge: true }); } catch (e) { console.error('saveLead failed', e); } },
             async useCoupon(code) { try { await updateDoc(doc(db, 'coupons', code), { used: increment(1) }); } catch (e) {} },
             async getCoupon(code) { const s = await getDoc(doc(db, 'coupons', code)); return s.exists() ? s.data() : null; },
             async addMember(m) { await setDoc(doc(db, 'members', m.phone), m); },
@@ -813,6 +816,20 @@
             `).join('');
         }
 
+        // عدّاد مشاهدات حقيقي: كل جهاز بيتحسب مرة واحدة للمنتج في اليوم، وبيظهر بس لما يوصل للحد الأدنى
+        const PV_MIN = 5;
+        function showProductViews(p) {
+            const box = document.getElementById('pm-views'); if (!box) return;
+            box.style.display = 'none';
+            try {
+                const d = new Date(), day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                const pid = String(p.id), key = 'zz_pv_' + pid;
+                const show = n => { if (activeProduct === p && n >= PV_MIN) { box.textContent = '👁 ' + n + ' شخص شاهدوا المنتج ده النهارده'; box.style.display = 'block'; } };
+                const counted = localStorage.getItem(key) === day;
+                const op = counted ? Promise.resolve() : fb.addProductView(pid, day).then(() => { try { localStorage.setItem(key, day); } catch (e) {} }).catch(() => {});
+                op.then(() => fb.getProductViews(pid, day)).then(show).catch(() => {});
+            } catch (e) {}
+        }
         function openProductModal(id, fromPop) {
             activeProduct = products.find(p => p.id == id);
             if (!activeProduct) return;
@@ -820,6 +837,7 @@
             currentQty = 1;
             document.getElementById('product-qty-val').innerText = currentQty;
             track('ViewContent', { value: activeProduct.price, name: activeProduct.title });
+            showProductViews(activeProduct);
             document.getElementById('pmodal-title').innerText = activeProduct.title;
             document.getElementById('pmodal-name').innerText = activeProduct.title;
             document.getElementById('pmodal-price').innerText = `${activeProduct.price} ج.م`;

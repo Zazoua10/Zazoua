@@ -676,7 +676,7 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
             async getShipping() { const s = await getDocs(collection(db, 'shipping')); return s.docs.map(d => d.data()); },
             async getSettings() { const s = await getDoc(doc(db, 'settings', 'main')); return s.exists() ? s.data() : {}; },
             async getReviews() { const s = await getDocs(collection(db, 'reviews')); return s.docs.map(d => d.data()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); },
-            async saveLead(l) { try { await setDoc(doc(db, 'leads', l.id), l, { merge: true }); } catch (e) {} },
+            async saveLead(l) { try { await setDoc(doc(db, 'leads', l.id), l, { merge: true }); } catch (e) { console.error('saveLead failed', e); } },
             async useCoupon(code) { try { await updateDoc(doc(db, 'coupons', code), { used: increment(1) }); } catch (e) {} },
             async getCoupon(code) { const s = await getDoc(doc(db, 'coupons', code)); return s.exists() ? s.data() : null; },
             async addMember(m) { await setDoc(doc(db, 'members', m.phone), m); },

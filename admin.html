@@ -911,9 +911,9 @@
 
         function renderLeads() {
             const el = document.getElementById('leads-list'); if (!el) return;
-            const done = new Set(orders.map(o => String(o.customer.phone)));
             const when = l => l.updatedAt || l.createdAt || 0;
-            const ls = leads.filter(l => !l.ordered && !(l.phone && done.has(l.phone))).sort((a, b) => when(b) - when(a));
+            const lastOrderAt = {}; orders.forEach(o => { const ph = String((o.customer && o.customer.phone) || ''); lastOrderAt[ph] = Math.max(lastOrderAt[ph] || 0, Number(o.createdAt) || 0); });
+            const ls = leads.filter(l => !l.ordered && !(l.phone && (lastOrderAt[l.phone] || 0) >= when(l))).sort((a, b) => when(b) - when(a));
             const openedL = new Set(Array.from(el.querySelectorAll('details[open]')).map(d => d.dataset.id));
             const row = (k, v) => v ? `<div><strong>${k}:</strong> ${esc(v)}</div>` : '';
             el.innerHTML = ls.length ? ls.map(l => {
@@ -993,6 +993,7 @@
             document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
             btn.classList.add('active');
             document.getElementById(`tab-${tab}`).classList.add('active');
+            if (tab === 'leads') { fb.getLeads().then(l => { leads = l; renderLeads(); }).catch(err => { console.error(err); const el = document.getElementById('leads-list'); if (el) el.innerHTML = '<div style="font-size:12px; color:#c0392b;">تعذر تحميل العملاء المهتمين: ' + esc(err.message || err) + '</div>'; }); }
         }
 
         function compressImage(file) {
