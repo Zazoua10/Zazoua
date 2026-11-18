@@ -208,6 +208,7 @@
                     <label class="form-label">السعر (ج.م) *</label>
                     <input type="number" id="prod-price" class="form-input" required>
                     <input type="number" id="prod-old-price" class="form-input" placeholder="السعر قبل الخصم (اختياري)" style="margin-top:6px;">
+                    <input type="number" id="prod-stock" class="form-input" min="0" placeholder="الكمية المتاحة في المخزن (اختياري)" style="margin-top:6px;">
                 </div>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
@@ -975,13 +976,28 @@
         document.addEventListener('DOMContentLoaded', updateSoundUI);
 
         let watching = false, firstSnap = true;
+        // بيحسب عدد القطع المباعة فعليًا (طلبات اتأكدت أو اتشحنت أو اتسلّمت) ويخزّنها في المنتج عشان تظهر للعملاء
+        let soldSyncing = false;
+        async function syncSold() {
+            if (soldSyncing || !products.length) return;
+            const OK = ['confirmed', 'shipped', 'delivered'], cnt = {};
+            orders.forEach(o => { if (OK.includes(o.status || 'new')) (o.items || []).forEach(i => { const k = String(i.id); cnt[k] = (cnt[k] || 0) + 1; }); });
+            const changed = products.filter(p => (Number(p.sold) || 0) !== (cnt[String(p.id)] || 0));
+            if (!changed.length) return;
+            soldSyncing = true;
+            try {
+                for (const p of changed) { const u = { ...p, sold: cnt[String(p.id)] || 0 }; await fb.saveProduct(u); products = products.map(x => x.id == p.id ? u : x); }
+                renderProductsAdmin();
+            } catch (e) { console.warn('syncSold', e); }
+            soldSyncing = false;
+        }
         function startOrderWatch() {
             if (watching) return; watching = true;
             try { fb.watchRequests(l => { requests = l; renderOrders(); }, e => console.warn('requests', e)); } catch (e) { console.warn(e); }
             fb.watchOrders(list => {
                 list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
                 const added = list.length - orders.length;
-                orders = list; renderOrders(); renderProdReviews(); renderStats(); renderStatsExtra(); renderLeads(); renderMembers(); renderSettle();
+                orders = list; syncSold(); renderOrders(); renderProdReviews(); renderStats(); renderStatsExtra(); renderLeads(); renderMembers(); renderSettle();
                 if (!firstSnap && added > 0) { beep(); document.title = `🔔 (${added}) طلب جديد - لوحة الإدارة`; }
                 firstSnap = false;
             }, err => { console.error(err); if (loggingOut) return; alert('تعذر تحميل الطلبات: ' + err.message); });
@@ -1993,6 +2009,7 @@
             document.getElementById('edit-prod-id').value = p.id;
             document.getElementById('prod-title').value = p.title;
             document.getElementById('prod-price').value = p.price;
+            document.getElementById('prod-stock').value = (p.stock == null || p.stock === '') ? '' : p.stock;
             document.getElementById('prod-old-price').value = p.oldPrice || '';
             document.getElementById('prod-sizechart').value = p.sizeChart || '';
             document.getElementById('prod-caption').value = p.caption || '';
@@ -2032,6 +2049,7 @@
                 title: document.getElementById('prod-title').value.trim(),
                 price: parseFloat(document.getElementById('prod-price').value),
                 oldPrice: parseFloat(document.getElementById('prod-old-price').value) || 0,
+                stock: document.getElementById('prod-stock').value === '' ? null : Math.max(0, parseInt(document.getElementById('prod-stock').value) || 0),
                 sizeChart: document.getElementById('prod-sizechart').value.trim(),
                 caption: document.getElementById('prod-caption').value.trim().slice(0, 600),
                 video: document.getElementById('prod-video').value || '',

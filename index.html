@@ -427,6 +427,7 @@
                 <button id="pmodal-fav" type="button" onclick="toggleFav(activeProduct.id)" style="background:none; border:none; font-size:24px; cursor:pointer; color:#c0392b;">♡</button>
                 <h2 id="pmodal-name" style="font-size: 17px; font-weight: 800;"></h2>
                 <span id="pmodal-price" style="font-size: 18px; font-weight: 900; color: var(--accent-dark);"></span>
+                <div id="pm-scarcity" style="display:none; margin-top:6px; font-size:12px; font-weight:800;"></div>
                 <div id="pm-views" style="display:none; margin-top:6px; font-size:12px; font-weight:700; color:#b9770e;"></div>
             </div>
 
@@ -822,6 +823,17 @@
 
         // عدّاد مشاهدات حقيقي: كل جهاز بيتحسب مرة واحدة للمنتج في اليوم، وبيظهر بس لما يوصل للحد الأدنى
         const PV_MIN = 5;
+        // أرقام حقيقية: اتباع منه (من الطلبات المؤكدة) ومتبقي (من المخزون اللي انت كاتبه)
+        const SOLD_MIN = 5, LEFT_MAX = 5;
+        function showScarcity(p) {
+            const box = document.getElementById('pm-scarcity'); if (!box) return;
+            const sold = Number(p.sold) || 0, hasStock = p.stock != null && p.stock !== '';
+            const left = hasStock ? Number(p.stock) - sold : null;
+            const parts = [];
+            if (left != null && left > 0 && left <= LEFT_MAX) parts.push('<span style="color:#c0392b;">⚠️ متبقي ' + left + (left === 1 ? ' قطعة فقط' : ' قطع فقط') + '</span>');
+            if (sold >= SOLD_MIN) parts.push('<span style="color:#1f7244;">🔥 اتباع منه ' + sold + ' قطعة</span>');
+            box.innerHTML = parts.join(' · '); box.style.display = parts.length ? 'block' : 'none';
+        }
         function showProductViews(p) {
             const box = document.getElementById('pm-views'); if (!box) return;
             box.style.display = 'none';
@@ -841,7 +853,7 @@
             currentQty = 1;
             document.getElementById('product-qty-val').innerText = currentQty;
             track('ViewContent', { value: activeProduct.price, name: activeProduct.title });
-            showProductViews(activeProduct);
+            showProductViews(activeProduct); showScarcity(activeProduct);
             document.getElementById('pmodal-title').innerText = activeProduct.title;
             document.getElementById('pmodal-name').innerText = activeProduct.title;
             document.getElementById('pmodal-price').innerText = `${activeProduct.price} ج.م`;
