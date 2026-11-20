@@ -830,6 +830,7 @@
             const sold = Number(p.sold) || 0, hasStock = p.stock != null && p.stock !== '';
             const left = hasStock ? Number(p.stock) - sold : null;
             const parts = [];
+            if (p.freeShip) parts.push('<span style="color:#1f7244;">🚚 شحن مجاني</span>');
             if (left != null && left > 0 && left <= LEFT_MAX) parts.push('<span style="color:#c0392b;">⚠️ متبقي ' + left + (left === 1 ? ' قطعة فقط' : ' قطع فقط') + '</span>');
             if (sold >= SOLD_MIN) parts.push('<span style="color:#1f7244;">🔥 اتباع منه ' + sold + ' قطعة</span>');
             box.innerHTML = parts.join(' · '); box.style.display = parts.length ? 'block' : 'none';
@@ -936,7 +937,10 @@
             select.innerHTML = `<option value="">اختر المحافظة...</option>` + shippingRates.map(r => `<option value="${r.id}" data-ship="${r.price}">${r.name}</option>`).join('');
         }
 
+        // لو في السلة منتج الأدمن علّمه "شحن مجاني"، الشحن بيبقى مجاني على الطلب كله
+        const cartHasFreeShip = () => cart.some(i => { const pr = products.find(p => p.id == i.id); return !!(pr && pr.freeShip); });
         function effShip(fee, sub) {
+            if (cartHasFreeShip()) return 0;
             const t = Number(settings.freeShipFrom) || 0;
             return t && (sub - getDiscount(sub)) >= t ? 0 : fee;
         }
@@ -1472,7 +1476,7 @@
         function renderPromoHint(sub, disc) {
             const el = document.getElementById('promo-hint'); if (!el) return;
             const m = [], ft = Number(settings.freeShipFrom) || 0, bq = Number(settings.bundleQty) || 0, bp = Number(settings.bundlePct) || 0;
-            if (ft) { const left = ft - (sub - disc); m.push(left > 0 ? `باقي ${left} ج.م وتاخد شحن مجاني` : 'الشحن مجاني على طلبك'); }
+            if (cartHasFreeShip()) m.push('الشحن مجاني على طلبك 🚚'); else if (ft) { const left = ft - (sub - disc); m.push(left > 0 ? `باقي ${left} ج.م وتاخد شحن مجاني` : 'الشحن مجاني على طلبك'); }
             if (bq && bp) m.push(cart.length >= bq ? `خصم الباقة ${bp}% متطبق` : `أضف ${bq - cart.length} قطعة كمان وخد خصم ${bp}%`);
             el.style.display = m.length ? 'block' : 'none'; el.innerHTML = m.map(esc).join('<br>');
         }

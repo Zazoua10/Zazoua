@@ -918,7 +918,10 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
             select.innerHTML = `<option value="">اختر المحافظة...</option>` + shippingRates.map(r => `<option value="${r.id}" data-ship="${r.price}">${r.name}</option>`).join('');
         }
 
+        // لو في السلة منتج الأدمن علّمه "شحن مجاني"، الشحن بيبقى مجاني على الطلب كله
+        const cartHasFreeShip = () => cart.some(i => { const pr = products.find(p => p.id == i.id); return !!(pr && pr.freeShip); });
         function effShip(fee, sub) {
+            if (cartHasFreeShip()) return 0;
             const t = Number(settings.freeShipFrom) || 0;
             return t && (sub - getDiscount(sub)) >= t ? 0 : fee;
         }
@@ -1447,7 +1450,7 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
         function renderPromoHint(sub, disc) {
             const el = document.getElementById('promo-hint'); if (!el) return;
             const m = [], ft = Number(settings.freeShipFrom) || 0, bq = Number(settings.bundleQty) || 0, bp = Number(settings.bundlePct) || 0;
-            if (ft) { const left = ft - (sub - disc); m.push(left > 0 ? `باقي ${left} ج.م وتاخد شحن مجاني` : 'الشحن مجاني على طلبك'); }
+            if (cartHasFreeShip()) m.push('الشحن مجاني على طلبك 🚚'); else if (ft) { const left = ft - (sub - disc); m.push(left > 0 ? `باقي ${left} ج.م وتاخد شحن مجاني` : 'الشحن مجاني على طلبك'); }
             if (bq && bp) m.push(cart.length >= bq ? `خصم الباقة ${bp}% متطبق` : `أضف ${bq - cart.length} قطعة كمان وخد خصم ${bp}%`);
             el.style.display = m.length ? 'block' : 'none'; el.innerHTML = m.map(esc).join('<br>');
         }

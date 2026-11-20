@@ -209,6 +209,7 @@
                     <input type="number" id="prod-price" class="form-input" required>
                     <input type="number" id="prod-old-price" class="form-input" placeholder="السعر قبل الخصم (اختياري)" style="margin-top:6px;">
                     <input type="number" id="prod-stock" class="form-input" min="0" placeholder="الكمية المتاحة في المخزن (اختياري)" style="margin-top:6px;">
+                    <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:13px; font-weight:700; cursor:pointer;"><input type="checkbox" id="prod-freeship"> 🚚 شحن مجاني للمنتج ده</label>
                 </div>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
@@ -240,7 +241,7 @@
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                 <div class="form-group"><label class="form-label">سعر التكلفة (لحساب الربح، لا يظهر للعميل)</label><input type="number" id="prod-cost" class="form-input" min="0"></div>
                 <div class="form-group"><label class="form-label">مصاريف تشغيل للقطعة (تتضاف للتكلفة في الربح، لا تظهر للعميل)</label><input type="number" id="prod-opex" class="form-input" min="0" step="0.01"></div>
-                <div class="form-group"><label class="form-label">ينتهي العرض في (اختياري)</label><input type="datetime-local" id="prod-offer-ends" class="form-input"></div>
+                <div class="form-group"><label class="form-label">ينتهي العرض في (اختياري)</label><div style="display:flex; gap:6px; align-items:center;"><input type="datetime-local" id="prod-offer-ends" class="form-input" style="flex:1;"><button type="button" onclick="document.getElementById('prod-offer-ends').value=''" class="submit-btn" style="background:#888; width:auto; padding:10px 14px; font-size:12px; white-space:nowrap;">مسح</button></div></div>
             </div>
             <div class="form-group"><label class="form-label">فيديو المنتج (اختياري، يظهر في صفحة المنتج)</label>
             <input type="file" id="prod-video-file" accept="video/*" style="display:none;" onchange="uploadProductVideo(this)">
@@ -1957,7 +1958,7 @@
                     </td>
                     <td style="padding:10px;">
                         <span style="display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:800; color:${st[1]}; background:${st[2]};">● ${st[0]}</span>
-                        ${p.hero ? '<div style="font-size:11px; color:#b9770e; margin-top:4px;">⭐ في السلايدر</div>' : ''}
+                        ${p.hero ? '<div style="font-size:11px; color:#b9770e; margin-top:4px;">⭐ في السلايدر</div>' : ''}${p.freeShip ? '<div style="font-size:11px; color:#1f7244; margin-top:4px;">🚚 شحن مجاني</div>' : ''}
                     </td>
                     <td style="padding:10px; font-weight:800; white-space:nowrap;">${p.price} ج.م</td>
                     <td style="padding:10px; color:var(--text-muted); white-space:nowrap;">${date}</td>
@@ -2010,6 +2011,7 @@
             document.getElementById('prod-title').value = p.title;
             document.getElementById('prod-price').value = p.price;
             document.getElementById('prod-stock').value = (p.stock == null || p.stock === '') ? '' : p.stock;
+            document.getElementById('prod-freeship').checked = !!p.freeShip;
             document.getElementById('prod-old-price').value = p.oldPrice || '';
             document.getElementById('prod-sizechart').value = p.sizeChart || '';
             document.getElementById('prod-caption').value = p.caption || '';
@@ -2049,6 +2051,7 @@
                 title: document.getElementById('prod-title').value.trim(),
                 price: parseFloat(document.getElementById('prod-price').value),
                 oldPrice: parseFloat(document.getElementById('prod-old-price').value) || 0,
+                freeShip: document.getElementById('prod-freeship').checked,
                 stock: document.getElementById('prod-stock').value === '' ? null : Math.max(0, parseInt(document.getElementById('prod-stock').value) || 0),
                 sizeChart: document.getElementById('prod-sizechart').value.trim(),
                 caption: document.getElementById('prod-caption').value.trim().slice(0, 600),
