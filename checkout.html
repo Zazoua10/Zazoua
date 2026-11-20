@@ -610,6 +610,7 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
                 ان شاء الله الاوردر هيوصل لحضرتك في خلال <span id="eta-span">يوم أو يومين</span> والتأكيد هيرن علي حضرتك قبل ما الاوردر ما يطلع بيوم عشان يأكد مع حضرتك الاوردر والرقم..نورتينا/نورتنا ❤️
             </div>
             <div id="success-order-id" style="font-weight:800; margin-bottom:6px;"></div>
+            <button type="button" class="submit-order-btn" style="background:#25D366; margin-bottom:12px;" onclick="sendOrderWa(lastOrder)">📲 ابعت تفاصيل الطلب على واتساب</button>
             <div id="succ-bday" style="display:none; text-align:right; border-top:1px dashed #ddd; padding-top:12px; margin-bottom:12px;">
                 <div style="font-size:13px; font-weight:800; margin-bottom:8px;">🎂 تاريخ ميلادك (اختياري) — هنبعتلك هدية يوم ميلادك</div>
                 <div class="bp" data-for="succ-birth" style="display:flex; gap:6px; margin-bottom:8px;"></div><input type="hidden" id="succ-birth">
@@ -1746,6 +1747,31 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
             closeCheckoutModal();
             document.getElementById('eta-span').innerText = etaFor(govName); updateNotifBtn();
             document.getElementById('order-success-modal').classList.add('active');
+        }
+
+        function buildOrderWaText(o) {
+            const c = o.customer || {};
+            const lines = [
+                '🛍️ طلب جديد - ' + o.orderId,
+                '👤 الاسم: ' + c.name,
+                '📞 التليفون: ' + c.phone + (c.phone2 && c.phone2 !== 'لا يوجد' ? ' / ' + c.phone2 : ''),
+                '📍 المحافظة: ' + c.gov,
+                '🏠 العنوان: ' + c.address,
+                '',
+                '👗 المنتجات:'
+            ];
+            (o.items || []).forEach((it, i) => {
+                lines.push((i + 1) + '- ' + it.title + (it.size ? ' | مقاس: ' + it.size : '') + (it.color ? ' | لون: ' + it.color : '') + ' | ' + it.price + ' ج.م');
+            });
+            lines.push('', 'الإجمالي: ' + o.subtotal + ' ج.م', 'الخصم: ' + o.discount + ' ج.م', 'الشحن: ' + o.shipping + ' ج.م', '💰 المطلوب: ' + o.total + ' ج.م');
+            if (c.note) lines.push('📝 ملاحظة: ' + c.note);
+            return lines.join('\n');
+        }
+
+        function sendOrderWa(o) {
+            const n = waNum();
+            if (!n || !o) { showToast('تعذر فتح واتساب، حاول تاني'); return; }
+            window.open('https://wa.me/' + n + '?text=' + encodeURIComponent(buildOrderWaText(o)), '_blank', 'noopener');
         }
 
         function closeSuccessModal() { document.getElementById('order-success-modal').classList.remove('active'); }
