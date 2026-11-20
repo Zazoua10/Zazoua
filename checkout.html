@@ -655,6 +655,14 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
 // App Check (reCAPTCHA Enterprise / Fraud Defense) - لازم يتعمل قبل أي استخدام لـ Firestore
         try { initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider("6LeTMBouAAAAAPog_ic7r83Gn1IKcq0C9laQMCqT"), isTokenAutoRefreshEnabled: true }); } catch (e) { console.warn("AppCheck init failed", e); }
         const db = getFirestore(app);
+
+            // كاش محلي بسيط: بيقلل قراءات Firestore لأن بيانات المتجر مش بتتغير كل ثانية
+            const zzCache = async (key, ttlMs, fn) => {
+                try { const c = JSON.parse(localStorage.getItem('zzc_' + key) || 'null'); if (c && Date.now() - c.t < ttlMs) return c.v; } catch (e) {}
+                const v = await fn();
+                try { localStorage.setItem('zzc_' + key, JSON.stringify({ t: Date.now(), v })); } catch (e) {}
+                return v;
+            };
         // عدّ زيارة واحدة لكل جهاز في اليوم (من غير قراءة من Firestore)
         (function countVisit() {
             try {
@@ -676,9 +684,9 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
             async getProductReviews(pid) { const s = await getDocs(query(collection(db, 'productReviews'), where('productId', '==', String(pid)))); return s.docs.map(d => d.data()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); },
             async addReviewSub(r) { await setDoc(doc(db, 'reviewSubs', r.id), r); },
             watchTracking(id, cb) { return onSnapshot(doc(db, 'tracking', String(id)), s => cb(s.exists() ? s.data() : null), () => {}); },
-            async getBundles() { const s = await getDocs(collection(db, 'bundles')); return s.docs.map(d => d.data()); },
-            async getShipping() { const s = await getDocs(collection(db, 'shipping')); return s.docs.map(d => d.data()); },
-            async getSettings() { const s = await getDoc(doc(db, 'settings', 'main')); return s.exists() ? s.data() : {}; },
+            async getBundles() { return zzCache('bundles', 600000, async () => { const s = await getDocs(collection(db, 'bundles')); return s.docs.map(d => d.data()); }); },
+            async getShipping() { return zzCache('shipping', 600000, async () => { const s = await getDocs(collection(db, 'shipping')); return s.docs.map(d => d.data()); }); },
+            async getSettings() { return zzCache('settings', 600000, async () => { const s = await getDoc(doc(db, 'settings', 'main')); return s.exists() ? s.data() : {}; }); },
             async getReviews() { const s = await getDocs(collection(db, 'reviews')); return s.docs.map(d => d.data()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); },
             async saveLead(l) { try { await setDoc(doc(db, 'leads', l.id), l, { merge: true }); } catch (e) { console.error('saveLead failed', e); } },
             async useCoupon(code) { try { await updateDoc(doc(db, 'coupons', code), { used: increment(1) }); } catch (e) {} },
