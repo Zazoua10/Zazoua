@@ -6,30 +6,51 @@ const { getMessaging } = require('firebase-admin/messaging');
 
 initializeApp();
 
+const DEAD_CODES = new Set([
+  'messaging/registration-token-not-registered',
+  'messaging/invalid-registration-token'
+]);
+
 exports.notifyNewOrder = onDocumentCreated('orders/{orderId}', async (event) => {
   const o = event.data && event.data.data();
   if (!o) return;
+
   const db = getFirestore();
   const snap = await db.collection('adminTokens').get();
-  const tokens = snap.docs.map(d => d.get('token')).filter(Boolean);
-  if (!tokens.length) return;
+  // id الوثيقة = التوكن نفسه (admin.html بيكتب كده)، فبنستخدمه مرجع للحذف
+  const entries = snap.docs
+    .map(d => ({ docId: d.id, token: d.get('token') || d.id }))
+    .filter(e => e.token);
+  if (!entries.length) return;
 
   const name = (o.customer && o.customer.name) || 'عميل';
-  const res = await getMessaging().sendEachForMulticast({
-    tokens,
-    // data-only عشان الـ service worker يعرض الإشعار دايمًا
-    data: {
-      title: '🛍️ طلب جديد',
-      body: `${name} — ${o.total} ج.م`,
-      orderId: String(o.orderId || event.params.orderId)
-    }
-  });
+  const total = Number(o.total);
+  const totalText = Number.isFinite(total) ? total.toFixed(2) : String(o.total ?? '');
 
-  // امسح التوكنز اللي بقت غير صالحة
-  const dead = [];
-  res.responses.forEach((r, i) => {
-    const code = r.error && r.error.code;
-    if (!r.success && (code === 'messaging/registration-token-not-registered' || code === 'messaging/invalid-registration-token')) dead.push(tokens[i]);
-  });
-  await Promise.all(dead.map(t => db.collection('adminTokens').doc(t).delete()));
+  // FCM بيقبل 500 توكن كحد أقصى في الطلب الواحد
+  const CHUNK = 500;
+  for (let i = 0; i < entries.length; i += CHUNK) {
+    const part = entries.slice(i, i + CHUNK);
+    const res = await getMessaging().sendEachForMulticast({
+      tokens: part.map(e => e.token),
+      // data-only عشان الـ service worker يعرض الإشعار دايمًا
+      data: {
+        title: '🛍️ طلب جديد',
+        body: `${name} — ${totalText} ج.م`,
+        orderId: String(o.orderId || event.params.orderId)
+      }
+    });
+
+    // امسح التوكنز اللي بقت غير صالحة
+    const batch = db.batch();
+    let deletes = 0;
+    res.responses.forEach((r, idx) => {
+      const code = r.error && r.error.code;
+      if (!r.success && DEAD_CODES.has(code)) {
+        batch.delete(db.collection('adminTokens').doc(part[idx].docId));
+        deletes++;
+      }
+    });
+    if (deletes) await batch.commit();
+  }
 });

@@ -26,15 +26,15 @@ messaging.onBackgroundMessage(payload => {
     vibrate: [200, 100, 200],
     dir: 'rtl',
     lang: 'ar',
-    data: { url: self.registration.scope.replace(/firebase-push\/?$/, '') + 'admin.html' }
+    data: { url: new URL('admin.html', self.location.href).href }
   });
 });
 
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  const url = (e.notification.data && e.notification.data.url) || 'admin.html';
+  const url = (e.notification.data && e.notification.data.url) || new URL('admin.html', self.location.href).href;
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-    const w = list.find(c => c.url.includes('admin'));
+    const w = list.find(c => c.url.includes('admin.html'));
     return w ? w.focus() : self.clients.openWindow(url);
   }));
 });
