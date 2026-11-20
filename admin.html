@@ -145,7 +145,7 @@
             </div>
             <div>
                 <button onclick="openManualOrder()" class="submit-btn" style="background:#1f7244; font-size:12px;"><i class="fa-solid fa-plus"></i> طلب يدوي</button>
-                <button onclick="printSelectedInvoices()" class="submit-btn" style="background:var(--accent-dark); font-size:12px;"><i class="fa-solid fa-print"></i> طباعة الفواتير </button>
+                <button onclick="printSelectedInvoices()" class="submit-btn" style="background:var(--accent-dark); font-size:12px;"><i class="fa-solid fa-print"></i> طباعة الفواتير المحددة (3/صفحة)</button>
                 <button onclick="deleteSelectedOrders()" class="submit-btn" style="background:var(--danger-color); font-size:12px;"><i class="fa-solid fa-trash"></i> حذف المحدد</button>
                 <button onclick="exportForCarrier()" class="submit-btn" style="background:#2c6fbb; font-size:12px;"><i class="fa-solid fa-truck"></i> تصدير لشركة الشحن</button>
                 <span style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap; font-size:12px; font-weight:700;">
@@ -157,7 +157,7 @@
             </div>
         </div>
         <div id="bulk-bar" style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:10px; margin-bottom:10px; font-size:12px;">
-            <div style="font-weight:800; margin-bottom:6px;">إجراءات على الأوردرات المحددة:</div>
+            <div style="font-weight:800; margin-bottom:6px;">إجراءات على الأوردرات المحددة (علّم المربعات الأول):</div>
             <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;">
                 <select id="bulk-co" class="form-select" style="width:auto;" onfocus="if(!this.dataset.f){this.innerHTML=carrierOpts('');this.dataset.f=1}" onchange="carrierPick(this)"></select>
                 <button onclick="bulkApply('co')" class="submit-btn" style="background:#2c6fbb; font-size:12px;">حدّد الشركة</button>
@@ -1830,7 +1830,7 @@
                 const p2 = ord.customer.phone2 && ord.customer.phone2 !== 'لا يوجد' ? ' &nbsp;|&nbsp; ' + esc(ord.customer.phone2) : '';
                 return `
                 <div class="print-invoice-item">
-                    <div class="inv-brand">Zazoua</div>
+                    <div class="inv-brand">زعزوعة - Zazoua</div>
                     <div class="inv-meta"><span>فاتورة رقم: <b>${esc(ord.orderId)}</b></span><span>${esc(ord.dateStr)}</span></div>
                     <div class="inv-cust">
                         <div><b>العميل:</b> ${esc(ord.customer.name)}</div>
