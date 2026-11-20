@@ -181,7 +181,7 @@
 
     <!-- TAB 2: PRODUCTS -->
     <div id="tab-products" class="admin-section">
-        <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:10px; margin-bottom:12px; font-size:12px;"><button type="button" onclick="optimizeProducts(this)" class="submit-btn" style="background:#2c6fbb;">⚡ تحسين سرعة المنتجات القديمة</button> <span>بيعمل صورة مصغّرة لكل منتج قديم وينقل الصور الكاملة لمكان منفصل. اعمله مرة واحدة.</span></div>
+        <div style="background:#fff; border:1px solid var(--border-color); border-radius:10px; padding:10px; margin-bottom:12px; font-size:12px;"><button type="button" onclick="optimizeProducts(this)" class="submit-btn" style="background:#2c6fbb;">⚡ تحسين سرعة المنتجات القديمة</button> <button type="button" onclick="rebuildThumbs(this)" class="submit-btn" style="background:#6c757d;">🖼️ إعادة توليد الصور المصغّرة</button> <span>بيعمل صورة مصغّرة لكل منتج قديم وينقل الصور الكاملة لمكان منفصل. اعمله مرة واحدة.</span></div>
         <form id="product-form" onsubmit="handleProductSave(event)">
             <input type="hidden" id="edit-prod-id">
             
@@ -1317,6 +1317,26 @@
                 img.onload = () => { const k = Math.min(1, 800 / Math.max(img.width, img.height)), c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', 0.82)); };
                 img.onerror = () => rej(new Error('صورة غير صالحة')); img.src = src;
             });
+        }
+        async function rebuildThumbs(btn) {
+            const todo = products.filter(p => p.fullImgs);
+            if (!todo.length) { alert('مفيش منتجات محسّنة لإعادة توليدها'); return; }
+            if (!confirm(`إعادة توليد الصور المصغّرة لـ ${todo.length} منتج بجودة أعلى؟`)) return;
+            btn.disabled = true; let done = 0;
+            try {
+                for (const p of todo) {
+                    const imgs = await fb.getProductImages(p.id);
+                    if (!imgs || !imgs.length) continue;
+                    const hi = (Number(p.heroImg) > 0 && imgs[p.heroImg]) ? Number(p.heroImg) : 0;
+                    if (isVidUrl(imgs[0])) continue;
+                    const thumb = await makeThumb(imgs[0]);
+                    const u = { ...p, image: thumb, thumb };
+                    if (hi > 0 && !isVidUrl(imgs[hi])) u.heroThumb = await makeThumb(imgs[hi]);
+                    await fb.saveProduct(u); products = products.map(x => x.id === p.id ? u : x); done++;
+                    btn.textContent = `جاري إعادة التوليد ${done}/${todo.length}`;
+                }
+            } catch (e) { alert('وقف عند منتج: ' + e.message); }
+            btn.disabled = false; btn.textContent = '🖼️ إعادة توليد الصور المصغّرة'; renderProductsAdmin(); if (done) alert(`تم تحديث ${done} منتج ✅`);
         }
         async function optimizeProducts(btn) {
             const todo = products.filter(p => !p.fullImgs);
