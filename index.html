@@ -667,7 +667,7 @@
             async getProducts() {
                 try { const c = JSON.parse(localStorage.getItem('zz_pc') || 'null'); if (c && Date.now() - c.t < 300000) return c.d; } catch (e) {}
                 const s = await getDocs(collection(db, 'products')), d = s.docs.map(x => x.data()).sort((a, b) => b.id - a.id);
-                try { localStorage.setItem('zz_pc', JSON.stringify({ t: Date.now(), d })); } catch (e) {}
+                if (d.length) { try { localStorage.setItem('zz_pc', JSON.stringify({ t: Date.now(), d })); } catch (e) {} }
                 return d;
             },
             async getProductViews(id, day) { const s = await getDoc(doc(db, 'productViews', id + '_' + day)); return s.exists() ? (Number(s.data().count) || 0) : 0; },
@@ -732,7 +732,12 @@
 
         async function loadData() {
             try {
-                products = (await fb.getProducts()).filter(p => !p.hidden); applyOffers();
+                let pl = null;
+                for (let a = 0; a < 3 && !pl; a++) {
+                    try { pl = await fb.getProducts(); } catch (e) { console.error(e); if (a < 2) await new Promise(r => setTimeout(r, 1500)); }
+                }
+                if (pl) { products = pl.filter(p => !p.hidden); applyOffers(); }
+                else { document.getElementById('products-grid').innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:30px 10px; color:var(--text-muted);">تعذر تحميل المنتجات<br><button type="button" onclick="location.reload()" class="submit-btn" style="margin-top:12px; width:auto; padding:10px 20px;">🔄 إعادة المحاولة</button></div>'; }
                 try { settings = await fb.getSettings(); initPixels(); renderMainCats(); if (settings.banner) document.querySelector('.announcement').innerText = settings.banner; if (settings.brandName) { const bt = document.querySelector('.brand-title'); if (bt) bt.textContent = settings.brandName; } let wn = String(settings.whatsapp || '').replace(/\D/g, ''); if (wn.startsWith('0')) wn = '20' + wn.slice(1); if (wn) { const wf = document.getElementById('wa-float'); wf.href = 'https://wa.me/' + wn; wf.style.display = 'flex'; } } catch (e) { console.error(e); }
                 try { reviews = await fb.getReviews(); } catch (e) { console.error(e); }
                 try { bundles = await fb.getBundles(); } catch (e) { console.error(e); }
