@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+    <link rel="manifest" href="admin-manifest.json">
+    <meta name="theme-color" content="#121212">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
@@ -1581,6 +1583,7 @@
                 if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) { alert('المتصفح ده مش بيدعم إشعارات الخلفية'); return; }
                 const perm = await Notification.requestPermission();
                 if (perm !== 'granted') { alert('لازم تسمح بالإشعارات من إعدادات المتصفح'); return; }
+                try { await navigator.serviceWorker.register('sw.js'); } catch (e) { console.warn('sw.js', e); }
                 const reg = await navigator.serviceWorker.register('firebase-messaging-sw.js', { scope: './firebase-push/' });
                 const token = await fcm.getToken(fcm.getMessaging(fcm.app), { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
                 if (!token) { alert('تعذر تفعيل الإشعارات'); return; }
