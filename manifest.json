@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Zazoua",
-  "short_name": "Zazoua",
-  "description": "متجر Zazoua للملابس الكاجوال",
+  "name": "زعزوعة - Zazoua",
+  "short_name": "زعزوعة - Zazoua",
+  "description": "متجر زعزوعة - Zazoua للملابس الكاجوال",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
