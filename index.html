@@ -903,16 +903,16 @@
                                 ${activeProduct.sizes.map((s, idx) => `<button type="button" class="size-btn ${idx === 0 ? 'selected' : ''}" onclick="selectOption(this)">${s}</button>`).join('')}
                             </div>
                         </div>` : ''}
-                        ${activeProduct.colors.length ? `<div>
+                        ${colorsFor(activeProduct, activeProduct.sizes[0]).length ? `<div class="color-block">
                             <span style="font-size:11px; color:var(--text-muted); font-weight:700;">اللون:</span>
                             <div style="display:flex; gap:4px; margin-top:2px;">
-                                ${activeProduct.colors.map((c, idx) => `<button type="button" class="color-btn ${idx === 0 ? 'selected' : ''}" onclick="selectOption(this)">${c}</button>`).join('')}
+                                ${colorsFor(activeProduct, activeProduct.sizes[0]).map((c, idx) => `<button type="button" class="color-btn ${idx === 0 ? 'selected' : ''}" onclick="selectOption(this)">${c}</button>`).join('')}
                             </div>
                         </div>` : ''}
                     </div>
                 `;
             }
-            container.innerHTML = html;
+            container.innerHTML = html; setTimeout(refreshPrices, 0);
         }
 
         function hideProductModal() { document.getElementById('product-page-modal').classList.remove('active'); document.body.style.overflow = ''; }
@@ -925,7 +925,7 @@
             if (e.state && e.state.pm) { if (!open) openProductModal(e.state.pm, true); }
             else if (open) hideProductModal();
         });
-        function selectOption(btn) {
+        function selectOption(btn) { if (btn.classList.contains('size-btn')) setTimeout(() => refreshCardForSize(btn), 0); setTimeout(refreshPrices, 0);
             btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('selected')); btn.classList.add('selected');
             if (btn.classList.contains('color-btn') && activeProduct && activeProduct.colorImages) {
                 const v = activeProduct.colorImages[btn.textContent.trim()];
@@ -934,13 +934,31 @@
             }
         }
 
-        function getSelectedPiecesDetails() {
+        function sizeOptOf(p, size) { return (p && p.sizeOpts && p.sizeOpts[size]) || {}; }
+function unitPriceFor(p, size) { const o = sizeOptOf(p, size); return o.price > 0 ? o.price : p.price; }
+function colorsFor(p, size) { const o = sizeOptOf(p, size); return (o.colors && o.colors.length) ? o.colors : (p.colors || []); }
+function refreshCardForSize(btn) {
+  const card = btn.closest('.piece-card'); if (!card) return;
+  const cols = colorsFor(activeProduct, btn.innerText.trim());
+  const html = cols.map((c, i) => `<button type="button" class="color-btn ${i === 0 ? 'selected' : ''}" onclick="selectOption(this)">${c}</button>`).join('');
+  const old = card.querySelector('.color-btn');
+  if (old) { const block = old.parentElement.parentElement; if (cols.length) old.parentElement.innerHTML = html; else block.remove(); }
+  else if (cols.length) card.insertAdjacentHTML('beforeend', `<div class="color-block"><span style="font-size:11px; color:var(--text-muted); font-weight:700;">اللون:</span><div style="display:flex; gap:4px; margin-top:2px;">${html}</div></div>`);
+}
+function refreshPrices() {
+  if (!activeProduct) return;
+  const d = getSelectedPiecesDetails();
+  const total = d.length ? d.reduce((s, x) => s + x.price, 0) : activeProduct.price * currentQty;
+  const a = document.getElementById('pmodal-price'); if (a) a.innerText = `${total} ج.م`;
+  const b = document.getElementById('pm-bar-price'); if (b) b.innerText = `${total} ج.م`;
+}
+function getSelectedPiecesDetails() {
             const cards = document.querySelectorAll('#pieces-details-container .piece-card');
             const details = [];
             cards.forEach(card => {
                 const size = card.querySelector('.size-btn.selected')?.innerText || activeProduct.sizes[0] || '';
                 const color = card.querySelector('.color-btn.selected')?.innerText || activeProduct.colors[0] || '';
-                details.push({ size, color });
+                details.push({ size, color, price: unitPriceFor(activeProduct, size) });
             });
             return details;
         }
@@ -1664,7 +1682,7 @@
             if (activeProduct && activeProduct.soldOut) { showToast('نفذت الكمية'); return; }
             if (!activeProduct) return;
             const pieces = getSelectedPiecesDetails();
-            pieces.forEach(p => cart.push({ cartId: Date.now() + Math.random(), id: activeProduct.id, title: activeProduct.title, price: activeProduct.price, size: p.size, color: p.color }));
+            pieces.forEach(p => cart.push({ cartId: Date.now() + Math.random(), id: activeProduct.id, title: activeProduct.title, price: p.price, size: p.size, color: p.color }));
             track('AddToCart', { value: activeProduct.price * pieces.length, name: activeProduct.title }); saveCartState(); closeProductModal(); showToast(`تمت إضافة (${pieces.length}) قطعة إلى السلة!`);
         }
 
@@ -1672,7 +1690,7 @@
             if (activeProduct && activeProduct.soldOut) { showToast('نفذت الكمية'); return; }
             if (!activeProduct) return;
             const pieces = getSelectedPiecesDetails();
-            cart = pieces.map(p => ({ cartId: Date.now() + Math.random(), id: activeProduct.id, title: activeProduct.title, price: activeProduct.price, size: p.size, color: p.color }));
+            cart = pieces.map(p => ({ cartId: Date.now() + Math.random(), id: activeProduct.id, title: activeProduct.title, price: p.price, size: p.size, color: p.color }));
             track('AddToCart', { value: activeProduct.price * pieces.length, name: activeProduct.title }); saveCartState(); closeProductModal(); openCartCheckoutModal();
         }
 

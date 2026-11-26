@@ -231,7 +231,8 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div class="form-group">
                     <label class="form-label">المقاسات (بفواصل)</label>
-                    <input type="text" id="prod-sizes" class="form-input" value="" placeholder="اختياري، مثال: M, L, XL">
+                    <input type="text" id="prod-sizes" class="form-input" value="" placeholder="اختياري، مثال: M, L, XL" oninput="renderSizeOpts()">
+<div id="size-opts" style="margin-top:8px;"></div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">الألوان (بفواصل)</label>
@@ -2018,8 +2019,24 @@
             if (b) return Number(b.opex || 0) / ((b.productIds || []).length || 1);
             return Number(opexMap[i.id] || 0);
         }
-        function resetProductForm() {
+        function readSizeOpts() {
+  const out = {};
+  document.querySelectorAll('#size-opts .so-price').forEach(inp => { const pr = parseFloat(inp.value); out[inp.dataset.size] = { price: pr > 0 ? pr : null, colors: [] }; });
+  document.querySelectorAll('#size-opts .so-colors').forEach(inp => { if (out[inp.dataset.size]) out[inp.dataset.size].colors = inp.value.split(',').map(c => c.trim()).filter(Boolean); });
+  return out;
+}
+function renderSizeOpts(existing) {
+  const box = document.getElementById('size-opts');
+  const sizes = document.getElementById('prod-sizes').value.split(',').map(x => x.trim()).filter(Boolean);
+  const cur = existing || readSizeOpts();
+  box.innerHTML = sizes.length ? '<div style="font-size:11px; font-weight:700; margin-bottom:6px;">سعر وألوان كل مقاس (سيب السعر فاضي لو نفس السعر الأساسي):</div>' + sizes.map(sz => {
+    const o = cur[sz] || {};
+    return `<div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;"><b style="min-width:40px; font-size:12px;">${esc(sz)}</b><input type="number" class="form-input so-price" data-size="${esc(sz)}" placeholder="السعر" value="${o.price || ''}" style="width:90px;"><input type="text" class="form-input so-colors" data-size="${esc(sz)}" placeholder="ألوان المقاس، مثال: أسود, أبيض" value="${esc((o.colors || []).join(', '))}" style="flex:1;"></div>`;
+  }).join('') : '';
+}
+function resetProductForm() {
             document.getElementById('product-form').reset();
+document.getElementById('size-opts').innerHTML = '';
             document.getElementById('edit-prod-id').value = '';
             currentImages = []; colorSel = {}; heroSel = 0; renderThumbs();
             document.getElementById('prod-save-btn').innerText = 'حفظ المنتج';
@@ -2047,6 +2064,7 @@
             document.getElementById('prod-sub-cat').value = p.subCat;
             document.getElementById('prod-sizes').value = p.sizes.join(', ');
             document.getElementById('prod-colors').value = p.colors.join(', ');
+renderSizeOpts(p.sizeOpts || {});
             renderColorImgs();
             if (p.fullImgs) { try { currentImages = await fb.getProductImages(p.id); } catch (e) { currentImages = []; } if (!currentImages.length) currentImages = [p.image]; } else currentImages = (p.images && p.images.length) ? [...p.images] : [p.image]; colorSel = { ...(p.colorImages || {}) }; heroSel = Number(p.heroImg) || 0;
             renderThumbs();
@@ -2083,7 +2101,8 @@
                 mainCat: document.getElementById('prod-main-cat').value,
                 subCat: document.getElementById('prod-sub-cat').value.trim(),
                 sizes: document.getElementById('prod-sizes').value.split(',').map(s => s.trim()).filter(Boolean),
-                colors: document.getElementById('prod-colors').value.split(',').map(c => c.trim()).filter(Boolean),
+                colors: [...new Set([...document.getElementById('prod-colors').value.split(',').map(c => c.trim()).filter(Boolean), ...Object.values(readSizeOpts()).flatMap(o => o.colors)])],
+ sizeOpts: readSizeOpts(),
                 image: '', images: [], fullImgs: true, imgCount: currentImages.length, heroImg: heroSel < currentImages.length ? heroSel : 0,
                 colorImages: Object.fromEntries(Object.entries(colorSel).filter(([c, v]) => v !== '' && v != null && document.getElementById('prod-colors').value.split(',').map(x => x.trim()).includes(c) && (String(v).startsWith('http') || currentImages[v])).map(([c, v]) => [c, String(v).startsWith('http') ? v : Number(v)]))
             };
