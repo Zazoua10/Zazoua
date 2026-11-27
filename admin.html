@@ -312,6 +312,7 @@
                 <button type="button" class="submit-btn" style="background:var(--accent-dark);" onclick="addBundleProduct()">+ إضافة</button>
             </div>
             <div id="bn-draft" style="font-size:12px;"></div>
+<div class="form-group" style="margin:0;"><label class="form-label">تفاصيل الباكج (اختياري، حر تكتب اللي انت عايزه)</label><textarea id="bn-details" class="form-input" rows="3" placeholder="اكتب تفاصيل الباكج كلها هنا"></textarea></div>
 <div class="form-group" style="margin:0;"><label class="form-label">منتجات مكتوبة (مش موجودة في الموقع)، سطر لكل منتج: الاسم | التفاصيل | السعر (اختياري)</label><textarea id="bn-custom" class="form-input" rows="3" placeholder="بيجامة قطن | مقاس M، لون وردي | 250"></textarea></div>
             <div style="display:flex; gap:8px;">
                 <button type="submit" class="submit-btn" id="bn-submit">حفظ الباكج</button>
@@ -627,7 +628,7 @@ function bundleProdOptions() {
         function removeBundleProduct(i) { bundleDraft.splice(i, 1); renderBundleDraft(); }
         function renderBundleDraft() {
             const box = document.getElementById('bn-draft');
-            if (!bundleDraft.length) { box.innerHTML = '<span style="color:var(--text-muted);">لسه ما أضفتش منتجات (لازم 2 على الأقل).</span>'; return; }
+            if (!bundleDraft.length) { box.innerHTML = '<span style="color:var(--text-muted);">لسه ما أضفتش منتجات من الموقع (ممكن تكتب الباكج تفاصيل بس).</span>'; return; }
             const ps = bundleDraft.map(id => products.find(p => p.id == id));
             const full = ps.reduce((s, p) => s + (p ? p.price : 0), 0), price = parseFloat(document.getElementById('bn-price').value) || 0;
             box.innerHTML = ps.map((p, i) => `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:6px; margin-bottom:4px;"><span style="display:flex; align-items:center; gap:8px;">${p ? `<img src="${p.image}" style="width:30px; height:30px; object-fit:cover; border-radius:4px;">${esc(p.title)} — ${p.price} ج.م` : 'منتج محذوف'}</span><button type="button" onclick="removeBundleProduct(${i})" style="border:none; background:var(--danger-color); color:#fff; border-radius:4px; padding:3px 8px; cursor:pointer;">حذف</button></div>`).join('')
@@ -636,17 +637,17 @@ function bundleProdOptions() {
         }
         function resetBundleForm() {
             document.getElementById('bn-id').value = ''; document.getElementById('bn-name').value = ''; document.getElementById('bn-price').value = ''; document.getElementById('bn-cost').value = ''; document.getElementById('bn-opex').value = '';
-            bundleDraft = []; renderBundleDraft(); document.getElementById('bn-custom').value = ''; document.getElementById('bn-submit').innerText = 'حفظ الباكج';
+            bundleDraft = []; renderBundleDraft(); document.getElementById('bn-custom').value = ''; document.getElementById('bn-details').value = ''; document.getElementById('bn-submit').innerText = 'حفظ الباكج';
         }
         async function handleSaveBundle(e) {
             e.preventDefault();
-            if (bundleDraft.length + parseCustomItems().length < 2) { alert('الباكج لازم يحتوي على منتجين على الأقل (من الموقع أو مكتوبين)'); return; }
+            if (!bundleDraft.length && !parseCustomItems().length && !(document.getElementById('bn-details').value || '').trim()) { alert('اكتب تفاصيل الباكج، أو أضف منتجات له'); return; }
             const id = document.getElementById('bn-id').value || ('B' + Date.now().toString(36));
             const old = bundles.find(x => x.id === id);
             const b = { id, name: document.getElementById('bn-name').value.trim().slice(0, 80), price: parseFloat(document.getElementById('bn-price').value), productIds: [...bundleDraft], active: old ? old.active !== false : true, createdAt: old ? old.createdAt : Date.now() };
             const bc = parseFloat(document.getElementById('bn-cost').value), bo = parseFloat(document.getElementById('bn-opex').value);
             if (!isNaN(bc)) b.cost = bc; if (!isNaN(bo)) b.opex = bo;
-b.customItems = parseCustomItems();
+b.customItems = parseCustomItems(); b.details = (document.getElementById('bn-details').value || '').trim().slice(0, 1000);
             if (!b.name || !(b.price > 0)) return;
             try { await fb.saveBundle(b); } catch (err) { alert('فشل الحفظ: ' + err.message + '\n(تأكد إنك نشرت قواعد Firestore الجديدة للباكجات)'); return; }
             bundles = [...bundles.filter(x => x.id !== id), b]; renderBundlesAdmin(); resetBundleForm();
@@ -655,7 +656,7 @@ b.customItems = parseCustomItems();
             const b = bundles.find(x => x.id === id); if (!b) return;
             document.getElementById('bn-id').value = b.id; document.getElementById('bn-name').value = b.name; document.getElementById('bn-price').value = b.price;
             document.getElementById('bn-cost').value = b.cost != null ? b.cost : ''; document.getElementById('bn-opex').value = b.opex != null ? b.opex : '';
-            bundleDraft = [...b.productIds]; renderBundleDraft(); document.getElementById('bn-custom').value = (b.customItems || []).map(c => [c.name, c.details, c.price > 0 ? c.price : ''].filter((x, k) => k < 2 || x !== '').join(' | ')).join('\n'); document.getElementById('bn-submit').innerText = 'حفظ التعديلات';
+            bundleDraft = [...b.productIds]; renderBundleDraft(); document.getElementById('bn-details').value = b.details || ''; document.getElementById('bn-custom').value = (b.customItems || []).map(c => [c.name, c.details, c.price > 0 ? c.price : ''].filter((x, k) => k < 2 || x !== '').join(' | ')).join('\n'); document.getElementById('bn-submit').innerText = 'حفظ التعديلات';
             document.getElementById('tab-bundles').scrollIntoView({ behavior: 'smooth' });
         }
         async function toggleBundle(id) {

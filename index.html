@@ -1368,10 +1368,10 @@ function getSelectedPiecesDetails() {
 function bundleInfo(b) {
 const ps = (b.productIds || []).map(id => products.find(p => p.id == id));
 const custom = b.customItems || [];
-if (!ps.length && !custom.length) return null;
+if (!ps.length && !custom.length && !b.details) return null;
 if (ps.some(p => !p || p.soldOut)) return null;
 const full = ps.reduce((s, p) => s + p.price, 0) + custom.reduce((s, c) => s + (Number(c.price) || 0), 0);
-return { ps, custom, full, save: full > 0 ? full - b.price : 0 };
+return { ps, custom, full, details: b.details || '', save: full > 0 ? full - b.price : 0 };
 }
         function renderBundles() {
             const sec = document.getElementById('bundles-section');
@@ -1382,13 +1382,14 @@ return { ps, custom, full, save: full > 0 ? full - b.price : 0 };
                 <div class="bn-card" onclick="openBundle('${esc(b.id)}')">
                     <div class="bn-name">${esc(b.name)}</div>
                     <div class="bn-thumbs">${i.ps.slice(0, 4).map(p => `<img src="${esc(p.image)}" alt="" loading="lazy">`).join('')}${i.ps.length > 4 ? `<span class="bn-more">+${i.ps.length - 4}</span>` : ''}</div>
-                    <div style="font-size:12px; color:var(--text-muted); line-height:1.6;">${[...i.ps.map(p => esc(p.title)), ...i.custom.map(c => esc(c.name))].join(' + ')}</div>
+                    <div style="font-size:12px; color:var(--text-muted); line-height:1.6;">${[...i.ps.map(p => esc(p.title)), ...i.custom.map(c => esc(c.name))].join(' + ') || esc(i.details || '')}</div>
                     <div class="bn-price">${b.price} ج.م ${i.save > 0 ? `<s>${i.full}</s><span class="bn-save">وفّر ${i.save} ج.م</span>` : ''}</div>
                     <button type="button" class="bn-btn">اختار المقاسات واطلب</button>
                 </div>`).join('');
         }
         function renderBundleCustoms(i) {
   const box = document.getElementById('bundle-pieces');
+  if (i.details) box.insertAdjacentHTML('beforeend', `<div class="piece-card" style="white-space:pre-line; font-size:13px; line-height:1.8;">${esc(i.details)}</div>`);
   if (i.custom.length) box.insertAdjacentHTML('beforeend', i.custom.map(c => `<div class="piece-card"><strong style="font-size:13px;">${esc(c.name)}</strong>${c.details ? `<div style="font-size:12px; color:var(--text-muted); margin-top:4px; line-height:1.6; white-space:pre-line;">${esc(c.details)}</div>` : ''}</div>`).join(''));
 }
 function openBundle(id) {
@@ -1424,6 +1425,7 @@ const cards = [...document.querySelectorAll('#bundle-pieces .piece-card')];
 const key = 'bk' + Date.now() + Math.random().toString(36).slice(2, 6);
 const list = [...i.ps.map((p, k) => ({ p, w: p.price, card: cards[k] })), ...i.custom.map(c => ({ c, w: Number(c.price) || 0 }))];
 const total = list.reduce((s, x) => s + x.w, 0);
+if (!list.length) return [{ cartId: Date.now() + Math.random(), id: 'bundle', title: b.name, price: b.price, size: '', color: '', note: b.details || '', bundleKey: key }];
 let left = b.price;
 return list.map((x, k) => {
   const price = k === list.length - 1 ? Math.max(0, left) : (total > 0 ? Math.round(x.w * b.price / total) : 0);
