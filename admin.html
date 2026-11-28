@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+    <script>if (location.search.indexOf('bundle=') !== -1) location.replace('index.html' + location.search);</script>
     <link rel="manifest" href="admin-manifest.json">
     <meta name="theme-color" content="#121212">
     <meta charset="UTF-8">
@@ -676,7 +677,7 @@ b.images = bnImages.slice(0, 4); b.image = bnImages[0] || ''; b.sizes = bnParse(
             bundles = bundles.filter(x => x.id !== id); renderBundlesAdmin();
         }
         function copyBundleLink(id) {
-  const url = new URL('index.html', location.href);
+  const url = new URL('index.html', location.href.split('admin')[0] + 'index.html');
   url.search = '?bundle=' + encodeURIComponent(id);
   navigator.clipboard.writeText(url.href).then(() => alert('تم نسخ رابط الباكج ✅'), () => prompt('انسخ الرابط:', url.href));
 }

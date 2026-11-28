@@ -4,7 +4,7 @@
   "short_name": "إدارة زعزوعة",
   "description": "لوحة إدارة متجر زعزوعة",
   "start_url": "./admin.html",
-  "scope": "./",
+  "scope": "./admin.html",
   "display": "standalone",
   "dir": "rtl",
   "lang": "ar",
