@@ -314,6 +314,7 @@
                 <button type="button" class="submit-btn" style="background:var(--accent-dark);" onclick="addBundleProduct()">+ إضافة</button>
             </div>
             <div class="form-group" style="margin:0 0 8px;"><label class="form-label">صور الباكج (من المعرض، لحد 4 صور)</label><input type="file" id="bn-img-file" accept="image/*" multiple onchange="bnPickImages(this)" style="display:none;"><button type="button" class="submit-btn" style="background:#6c757d;" onclick="document.getElementById('bn-img-file').click()">📷 اختار صور من المعرض</button><div id="bn-thumbs" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;"></div></div>
+<div class="form-group" style="margin:0 0 8px;"><label class="form-label">شحن الباكج (جنيه، سيبه فاضي = مجاني)</label><input type="number" id="bn-ship" class="form-input" placeholder="0" min="0"></div>
 <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;"><div><label class="form-label">المقاسات (بفاصلة)</label><input type="text" id="bn-sizes" class="form-input" placeholder="M, L, XL"></div><div><label class="form-label">الألوان (بفاصلة)</label><input type="text" id="bn-colors" class="form-input" placeholder="أسود, أبيض"></div></div>
 <div style="margin-bottom:6px;"><button type="button" class="submit-btn" style="background:#2c6fbb;" onclick="startBundleProduct()">🆕 منتج جديد للباكج (صور ومقاسات وألوان وتكلفة)</button></div>
 <div id="bn-draft" style="font-size:12px;"></div>
@@ -642,7 +643,7 @@ function bundleProdOptions() {
         }
         function resetBundleForm() {
             document.getElementById('bn-id').value = ''; document.getElementById('bn-name').value = ''; document.getElementById('bn-price').value = ''; document.getElementById('bn-cost').value = ''; document.getElementById('bn-opex').value = '';
-            bundleDraft = []; renderBundleDraft(); document.getElementById('bn-custom').value = ''; document.getElementById('bn-details').value = ''; bnImages = []; renderBnThumbs(); document.getElementById('bn-sizes').value = ''; document.getElementById('bn-colors').value = ''; document.getElementById('bn-submit').innerText = 'حفظ الباكج';
+            bundleDraft = []; renderBundleDraft(); document.getElementById('bn-custom').value = ''; document.getElementById('bn-details').value = ''; bnImages = []; renderBnThumbs(); document.getElementById('bn-sizes').value = ''; document.getElementById('bn-colors').value = ''; document.getElementById('bn-ship').value = ''; document.getElementById('bn-submit').innerText = 'حفظ الباكج';
         }
         async function handleSaveBundle(e) {
             e.preventDefault();
@@ -653,7 +654,7 @@ function bundleProdOptions() {
             const bc = parseFloat(document.getElementById('bn-cost').value), bo = parseFloat(document.getElementById('bn-opex').value);
             if (!isNaN(bc)) b.cost = bc; if (!isNaN(bo)) b.opex = bo;
 b.customItems = parseCustomItems(); b.details = (document.getElementById('bn-details').value || '').trim().slice(0, 1000);
-b.images = bnImages.slice(0, 4); b.image = bnImages[0] || ''; b.sizes = bnParse('bn-sizes'); b.colors = bnParse('bn-colors');
+b.shipFee = Math.max(0, parseFloat(document.getElementById('bn-ship').value) || 0); b.images = bnImages.slice(0, 4); b.image = bnImages[0] || ''; b.sizes = bnParse('bn-sizes'); b.colors = bnParse('bn-colors');
             if (!b.name || !(b.price > 0)) return;
             try { await fb.saveBundle(b); } catch (err) { alert('فشل الحفظ: ' + err.message + '\n(تأكد إنك نشرت قواعد Firestore الجديدة للباكجات)'); return; }
             bundles = [...bundles.filter(x => x.id !== id), b]; renderBundlesAdmin(); resetBundleForm();
@@ -662,7 +663,7 @@ b.images = bnImages.slice(0, 4); b.image = bnImages[0] || ''; b.sizes = bnParse(
             const b = bundles.find(x => x.id === id); if (!b) return;
             document.getElementById('bn-id').value = b.id; document.getElementById('bn-name').value = b.name; document.getElementById('bn-price').value = b.price;
             document.getElementById('bn-cost').value = b.cost != null ? b.cost : ''; document.getElementById('bn-opex').value = b.opex != null ? b.opex : '';
-            bundleDraft = [...b.productIds]; renderBundleDraft(); document.getElementById('bn-details').value = b.details || ''; bnImages = (b.images && b.images.length ? b.images : (b.image ? [b.image] : [])).slice(); renderBnThumbs(); document.getElementById('bn-sizes').value = (b.sizes || []).join(', '); document.getElementById('bn-colors').value = (b.colors || []).join(', '); document.getElementById('bn-custom').value = (b.customItems || []).map(c => [c.name, c.details, c.price > 0 ? c.price : ''].filter((x, k) => k < 2 || x !== '').join(' | ')).join('\n'); document.getElementById('bn-submit').innerText = 'حفظ التعديلات';
+            bundleDraft = [...b.productIds]; renderBundleDraft(); document.getElementById('bn-details').value = b.details || ''; bnImages = (b.images && b.images.length ? b.images : (b.image ? [b.image] : [])).slice(); renderBnThumbs(); document.getElementById('bn-sizes').value = (b.sizes || []).join(', '); document.getElementById('bn-colors').value = (b.colors || []).join(', '); document.getElementById('bn-ship').value = b.shipFee || ''; document.getElementById('bn-custom').value = (b.customItems || []).map(c => [c.name, c.details, c.price > 0 ? c.price : ''].filter((x, k) => k < 2 || x !== '').join(' | ')).join('\n'); document.getElementById('bn-submit').innerText = 'حفظ التعديلات';
             document.getElementById('tab-bundles').scrollIntoView({ behavior: 'smooth' });
         }
         async function toggleBundle(id) {
@@ -2078,7 +2079,7 @@ function renderBnThumbs() {
 }
 let pendingBundleProduct = false, bundleReturn = null;
 function startBundleProduct() {
-  bundleReturn = { id: document.getElementById('bn-id').value, name: document.getElementById('bn-name').value, price: document.getElementById('bn-price').value, cost: document.getElementById('bn-cost').value, opex: document.getElementById('bn-opex').value, details: document.getElementById('bn-details').value, custom: document.getElementById('bn-custom').value, draft: [...bundleDraft], images: [...bnImages], sizes: document.getElementById('bn-sizes').value, colors: document.getElementById('bn-colors').value };
+  bundleReturn = { id: document.getElementById('bn-id').value, name: document.getElementById('bn-name').value, price: document.getElementById('bn-price').value, cost: document.getElementById('bn-cost').value, opex: document.getElementById('bn-opex').value, details: document.getElementById('bn-details').value, custom: document.getElementById('bn-custom').value, draft: [...bundleDraft], images: [...bnImages], sizes: document.getElementById('bn-sizes').value, colors: document.getElementById('bn-colors').value, ship: document.getElementById('bn-ship').value };
   pendingBundleProduct = true;
   resetProductForm();
   document.getElementById('prod-bundle-only').checked = true;
@@ -2093,7 +2094,7 @@ function returnToBundle(pid) {
   document.getElementById('bn-price').value = r.price || '';
   document.getElementById('bn-cost').value = r.cost || '';
   document.getElementById('bn-opex').value = r.opex || '';
-  document.getElementById('bn-details').value = r.details || ''; bnImages = [...(r.images || [])]; renderBnThumbs(); document.getElementById('bn-sizes').value = r.sizes || ''; document.getElementById('bn-colors').value = r.colors || '';
+  document.getElementById('bn-details').value = r.details || ''; bnImages = [...(r.images || [])]; renderBnThumbs(); document.getElementById('bn-sizes').value = r.sizes || ''; document.getElementById('bn-colors').value = r.colors || ''; document.getElementById('bn-ship').value = r.ship || '';
   document.getElementById('bn-custom').value = r.custom || '';
   bundleDraft = [...(r.draft || []), Number(pid)];
   bundleReturn = null;
