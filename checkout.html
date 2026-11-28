@@ -316,6 +316,14 @@
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { transition: none !important; animation: none !important; }
         }
+.bn-gallery{display:flex;gap:8px;overflow-x:auto;margin-bottom:12px;scroll-snap-type:x mandatory}
+.bn-gallery img{flex:0 0 100%;width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:14px;scroll-snap-align:start}
+.bn-hero{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:14px;margin:8px 0}
+.bn-opts{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:10px 0;font-size:13px}
+.bn-opt{padding:8px 14px;border:1px solid #ddd;border-radius:10px;background:#fff;cursor:pointer;font-weight:700;font-family:inherit}
+.bn-opt.on{background:#121212;color:#fff;border-color:#121212}
+#bundle-modal .modal-box{max-width:100%!important;width:100%;height:100%;max-height:100%;border-radius:0;overflow-y:auto}
+@media (min-width:600px){#bundle-modal .modal-box{max-width:520px!important;height:auto;max-height:94vh;border-radius:16px}}
 </style>
 
 <style>
@@ -647,6 +655,9 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
     </div>
 
     <script type="module">
+let allProducts = [];
+let bundleSel = { size: '', color: '' };
+function pickBundleOpt(btn, kind, val) { bundleSel[kind] = val; btn.parentElement.querySelectorAll('.bn-opt').forEach(x => x.classList.remove('on')); btn.classList.add('on'); }
         try { const dv = new URLSearchParams(location.search).get('dev'); if (dv === '1') localStorage.setItem('zz_dev', '1'); if (dv === '0') localStorage.removeItem('zz_dev'); } catch (e) {}
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -741,7 +752,7 @@ body.checkout-page #checkout-modal .modal-header { position: sticky; top: 0; z-i
 
         async function loadData() {
             try {
-                products = (await fb.getProducts()).filter(p => !p.hidden); applyOffers();
+                allProducts = await fb.getProducts(); products = allProducts.filter(p => !p.hidden); applyOffers();
                 try { settings = await fb.getSettings(); initPixels(); renderMainCats(); if (settings.banner) document.querySelector('.announcement').innerText = settings.banner; let wn = String(settings.whatsapp || '').replace(/\D/g, ''); if (wn.startsWith('0')) wn = '20' + wn.slice(1); if (wn) { const wf = document.getElementById('wa-float'); wf.href = 'https://wa.me/' + wn; wf.style.display = 'flex'; } } catch (e) { console.error(e); }
                 try { reviews = await fb.getReviews(); } catch (e) { console.error(e); }
                 try { bundles = await fb.getBundles(); } catch (e) { console.error(e); }
@@ -1335,12 +1346,12 @@ function getSelectedPiecesDetails() {
         // ===== الباكجات =====
         let bundles = [], activeBundle = null;
 function bundleInfo(b) {
-const ps = (b.productIds || []).map(id => products.find(p => p.id == id));
+const ps = (b.productIds || []).map(id => allProducts.find(p => p.id == id));
 const custom = b.customItems || [];
-if (!ps.length && !custom.length) return null;
+if (!ps.length && !custom.length && !b.details) return null;
 if (ps.some(p => !p || p.soldOut)) return null;
 const full = ps.reduce((s, p) => s + p.price, 0) + custom.reduce((s, c) => s + (Number(c.price) || 0), 0);
-return { ps, custom, full, save: full > 0 ? full - b.price : 0 };
+return { ps, custom, full, details: b.details || '', image: b.image || '', images: b.images || (b.image ? [b.image] : []), sizes: b.sizes || [], colors: b.colors || [], save: full > 0 ? full - b.price : 0 };
 }
         function renderBundles() {
             const sec = document.getElementById('bundles-section');
@@ -1349,15 +1360,20 @@ return { ps, custom, full, save: full > 0 ? full - b.price : 0 };
             sec.style.display = list.length ? 'block' : 'none';
             document.getElementById('bundles-store').innerHTML = list.map(({ b, i }) => `
                 <div class="bn-card" onclick="openBundle('${esc(b.id)}')">
-                    <div class="bn-name">${esc(b.name)}</div>
-                    <div class="bn-thumbs">${i.ps.slice(0, 4).map(p => `<img src="${esc(p.image)}" alt="" loading="lazy">`).join('')}${i.ps.length > 4 ? `<span class="bn-more">+${i.ps.length - 4}</span>` : ''}</div>
-                    <div style="font-size:12px; color:var(--text-muted); line-height:1.6;">${[...i.ps.map(p => esc(p.title)), ...i.custom.map(c => esc(c.name))].join(' + ')}</div>
+                    <div class="bn-name">${esc(b.name)}</div>${i.image ? `<img src="${esc(i.image)}" alt="" class="bn-hero" loading="lazy">` : ''}
+                    <div class="bn-thumbs" ${i.image ? 'style="display:none"' : ''}>${i.ps.slice(0, 4).map(p => `<img src="${esc(p.image)}" alt="" loading="lazy">`).join('')}${i.ps.length > 4 ? `<span class="bn-more">+${i.ps.length - 4}</span>` : ''}</div>
+                    <div style="font-size:12px; color:var(--text-muted); line-height:1.6;">${[...i.ps.map(p => esc(p.title)), ...i.custom.map(c => esc(c.name))].join(' + ') || esc(i.details || '')}</div>
                     <div class="bn-price">${b.price} ج.م ${i.save > 0 ? `<s>${i.full}</s><span class="bn-save">وفّر ${i.save} ج.م</span>` : ''}</div>
                     <button type="button" class="bn-btn">اختار المقاسات واطلب</button>
                 </div>`).join('');
         }
         function renderBundleCustoms(i) {
   const box = document.getElementById('bundle-pieces');
+  bundleSel = { size: i.sizes[0] || '', color: i.colors[0] || '' };
+  if (i.images.length) box.insertAdjacentHTML('beforeend', `<div class="bn-gallery">${i.images.map(src => `<img src="${src}" alt="">`).join('')}</div>`);
+  if (i.sizes.length) box.insertAdjacentHTML('beforeend', `<div class="bn-opts"><b>المقاس:</b>${i.sizes.map((x, k) => `<button type="button" class="bn-opt ${k === 0 ? 'on' : ''}" onclick="pickBundleOpt(this,'size','${esc(x)}')">${esc(x)}</button>`).join('')}</div>`);
+  if (i.colors.length) box.insertAdjacentHTML('beforeend', `<div class="bn-opts"><b>اللون:</b>${i.colors.map((x, k) => `<button type="button" class="bn-opt ${k === 0 ? 'on' : ''}" onclick="pickBundleOpt(this,'color','${esc(x)}')">${esc(x)}</button>`).join('')}</div>`);
+  if (i.details) box.insertAdjacentHTML('beforeend', `<div class="piece-card" style="white-space:pre-line; font-size:13px; line-height:1.8;">${esc(i.details)}</div>`);
   if (i.custom.length) box.insertAdjacentHTML('beforeend', i.custom.map(c => `<div class="piece-card"><strong style="font-size:13px;">${esc(c.name)}</strong>${c.details ? `<div style="font-size:12px; color:var(--text-muted); margin-top:4px; line-height:1.6; white-space:pre-line;">${esc(c.details)}</div>` : ''}</div>`).join(''));
 }
 function openBundle(id) {
@@ -1386,13 +1402,14 @@ const cards = [...document.querySelectorAll('#bundle-pieces .piece-card')];
 const key = 'bk' + Date.now() + Math.random().toString(36).slice(2, 6);
 const list = [...i.ps.map((p, k) => ({ p, w: p.price, card: cards[k] })), ...i.custom.map(c => ({ c, w: Number(c.price) || 0 }))];
 const total = list.reduce((s, x) => s + x.w, 0);
+if (!list.length) return [{ cartId: Date.now() + Math.random(), id: 'bundle', title: b.name, price: b.price, size: bundleSel.size, color: bundleSel.color, note: b.details || '', bundleKey: key }];
 let left = b.price;
 return list.map((x, k) => {
   const price = k === list.length - 1 ? Math.max(0, left) : (total > 0 ? Math.round(x.w * b.price / total) : 0);
   left -= price;
-  if (x.c) return { cartId: Date.now() + Math.random(), id: 'custom', title: `${x.c.name} (باكج ${b.name})`, price, size: '', color: '', note: x.c.details || '', bundleKey: key };
+  if (x.c) return { cartId: Date.now() + Math.random(), id: 'custom', title: `${x.c.name} (باكج ${b.name})`, price, size: bundleSel.size, color: bundleSel.color, note: x.c.details || '', bundleKey: key };
   const p = x.p, c = x.card;
-  return { cartId: Date.now() + Math.random(), id: p.id, title: `${p.title} (باكج ${b.name})`, price, size: (c && c.querySelector('.size-btn.selected')?.innerText) || p.sizes[0] || '', color: (c && c.querySelector('.color-btn.selected')?.innerText) || p.colors[0] || '', bundleKey: key };
+  return { cartId: Date.now() + Math.random(), id: p.id, title: `${p.title} (باكج ${b.name})`, price, size: (c && c.querySelector('.size-btn.selected')?.innerText) || p.sizes[0] || bundleSel.size || '', color: (c && c.querySelector('.color-btn.selected')?.innerText) || p.colors[0] || bundleSel.color || '', bundleKey: key };
 });
 }
         function addBundleToCart() {
