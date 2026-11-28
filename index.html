@@ -654,6 +654,19 @@
     <script type="module">
 let allProducts = [];
 let bundleSel = { size: '', color: '' };
+document.addEventListener('click', e => {
+  const btn = e.target.closest && e.target.closest('.copy-link-btn');
+  if (!btn) return;
+  e.stopPropagation(); e.preventDefault();
+  const kind = btn.dataset.copyKind, id = btn.dataset.copyId;
+  const base = location.origin + location.pathname;
+  const url = kind === 'bundle' ? `${base}?bundle=${encodeURIComponent(id)}` : `${base}?product=${encodeURIComponent(id)}`;
+  const ok = () => { try { showToast('تم نسخ الرابط 🔗'); } catch (x) { alert('تم نسخ الرابط ✅'); } };
+  const fallback = () => prompt('انسخ الرابط:', url);
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, fallback);
+  else { const t = document.createElement('textarea'); t.value = url; document.body.appendChild(t); t.select(); let done = false; try { done = document.execCommand('copy'); } catch (x) {} t.remove(); done ? ok() : fallback(); }
+}, true);
+
 function copyStoreLink(url) {
   const done = () => showToast('تم نسخ الرابط 🔗');
   if (navigator.clipboard) navigator.clipboard.writeText(url).then(done, () => prompt('انسخ الرابط:', url));
@@ -661,6 +674,7 @@ function copyStoreLink(url) {
 }
 function copyProductLinkStore(id) { copyStoreLink(`${location.origin}${location.pathname}?product=${encodeURIComponent(id)}`); }
 function copyBundleLinkStore(id) { copyStoreLink(`${location.origin}${location.pathname}?bundle=${encodeURIComponent(id)}`); }
+window.copyProductLinkStore = copyProductLinkStore; window.copyBundleLinkStore = copyBundleLinkStore;
 function pickBundleOpt(btn, kind, val) { bundleSel[kind] = val; btn.parentElement.querySelectorAll('.bn-opt').forEach(x => x.classList.remove('on')); btn.classList.add('on'); }
         try { const dv = new URLSearchParams(location.search).get('dev'); if (dv === '1') localStorage.setItem('zz_dev', '1'); if (dv === '0') localStorage.removeItem('zz_dev'); } catch (e) {}
 
@@ -856,7 +870,7 @@ setTimeout(openBundleFromUrl, 500);
                         <div class="product-price">${product.oldPrice > product.price ? `<s style="color:var(--text-muted); font-size:12px; font-weight:600;">${product.oldPrice}</s> ` : ''}${product.price} ج.م${product.oldPrice > product.price ? ` <span style="background:var(--danger-color); color:#fff; font-size:10px; padding:1px 6px; border-radius:10px;">-${Math.round((1 - product.price / product.oldPrice) * 100)}%</span>` : ''}</div>
                         ${offerLeft(product) ? `<div style="font-size:10px; color:var(--danger-color); font-weight:700; margin:2px 0;">${offerLeft(product)}</div>` : ''}
                         <button class="open-details-btn"><i class="fa-solid fa-cart-shopping"></i> عرض المنتج والطلب</button>
-<button type="button" class="copy-link-btn" onclick="event.stopPropagation(); copyProductLinkStore(${product.id})"><i class="fa-solid fa-link"></i> نسخ رابط المنتج</button>
+<button type="button" class="copy-link-btn" data-copy-kind="product" data-copy-id="${product.id}"><i class="fa-solid fa-link"></i> نسخ رابط المنتج</button>
                     </div>
                 </div>
             `).join('');
@@ -1412,7 +1426,7 @@ return { ps, custom, full, details: b.details || '', image: b.image || '', image
                     <div style="font-size:12px; color:var(--text-muted); line-height:1.6;">${[...i.ps.map(p => esc(p.title)), ...i.custom.map(c => esc(c.name))].join(' + ') || esc(i.details || '')}</div>
                     <div class="bn-price">${b.price} ج.م ${i.save > 0 ? `<s>${i.full}</s><span class="bn-save">وفّر ${i.save} ج.م</span>` : ''}</div>
                     <button type="button" class="bn-btn">اختار المقاسات واطلب</button>
-<button type="button" class="copy-link-btn" onclick="event.stopPropagation(); copyBundleLinkStore('${esc(b.id)}')"><i class="fa-solid fa-link"></i> نسخ رابط الباكج</button>
+<button type="button" class="copy-link-btn" data-copy-kind="bundle" data-copy-id="${esc(b.id)}"><i class="fa-solid fa-link"></i> نسخ رابط الباكج</button>
                 </div>`).join('');
         }
         function renderBundleCustoms(i) {
