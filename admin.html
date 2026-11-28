@@ -676,11 +676,14 @@ b.images = bnImages.slice(0, 4); b.image = bnImages[0] || ''; b.sizes = bnParse(
             try { await fb.deleteBundle(id); } catch (err) { alert('فشل الحذف: ' + err.message); return; }
             bundles = bundles.filter(x => x.id !== id); renderBundlesAdmin();
         }
-        function copyBundleLink(id) {
-  const url = new URL('index.html', location.href.split('admin')[0] + 'index.html');
-  url.search = '?bundle=' + encodeURIComponent(id);
-  navigator.clipboard.writeText(url.href).then(() => alert('تم نسخ رابط الباكج ✅'), () => prompt('انسخ الرابط:', url.href));
+const SITE_URL = 'https://zazoua10.github.io/Zazoua/index.html';
+function copyLink(url) {
+  const done = () => alert('تم نسخ الرابط ✅\n' + url);
+  if (navigator.clipboard) navigator.clipboard.writeText(url).then(done, () => prompt('انسخ الرابط:', url));
+  else prompt('انسخ الرابط:', url);
 }
+function copyBundleLink(id) { copyLink(SITE_URL + '?bundle=' + encodeURIComponent(id)); }
+function copyProductLink(id) { copyLink(SITE_URL + '?product=' + encodeURIComponent(id)); }
 function renderBundlesAdmin() {
             bundleProdOptions(); renderBundleDraft();
             const el = document.getElementById('bundles-list'); if (!el) return;
@@ -2012,7 +2015,7 @@ function renderBundlesAdmin() {
                         <div style="display:flex; gap:4px; flex-wrap:wrap; max-width:360px;">
                             ${btn('✏️ تعديل', `editProduct(${p.id})`, '#2c6fbb')}
                             ${btn(p.soldOut ? 'متوفر' : 'نفذت', `toggleFlag(${p.id}, 'soldOut')`)}
-                            ${btn(p.hero ? 'إزالة من السلايدر' : 'للسلايدر', `toggleFlag(${p.id}, 'hero')`)}
+                            ${btn('🔗 الرابط', `copyProductLink(${p.id})`)} ${btn(p.hero ? 'إزالة من السلايدر' : 'للسلايدر', `toggleFlag(${p.id}, 'hero')`)}
                             ${btn(p.hidden ? 'إظهار' : 'إخفاء', `toggleFlag(${p.id}, 'hidden')`)}
                             ${btn('🔗 رابط الإعلان', `copyAdLink(${p.id})`)}
                             ${btn('🗑️ حذف', `deleteProduct(${p.id})`, '#c0392b')}
