@@ -759,7 +759,7 @@ function pickBundleOpt(btn, kind, val) { bundleSel[kind] = val; btn.parentElemen
                 try { settings = await fb.getSettings(); initPixels(); renderMainCats(); if (settings.banner) document.querySelector('.announcement').innerText = settings.banner; if (settings.brandName) { const bt = document.querySelector('.brand-title'); if (bt) bt.textContent = settings.brandName; } let wn = String(settings.whatsapp || '').replace(/\D/g, ''); if (wn.startsWith('0')) wn = '20' + wn.slice(1); if (wn) { const wf = document.getElementById('wa-float'); wf.href = 'https://wa.me/' + wn; wf.style.display = 'flex'; } } catch (e) { console.error(e); }
                 try { reviews = await fb.getReviews(); } catch (e) { console.error(e); }
                 try { bundles = await fb.getBundles(); } catch (e) { console.error(e); }
-openBundleFromUrl();
+setTimeout(openBundleFromUrl, 500);
                 const s = await fb.getShipping();
                 shippingRates = s.length ? s : defaultShippingRates;
             } catch (e) {
@@ -1434,9 +1434,9 @@ document.getElementById('bundle-modal').classList.add('active');
         function openBundleFromUrl() {
   const bid = new URLSearchParams(location.search).get('bundle');
   if (!bid) return;
-  history.replaceState(null, '', window.location.pathname);
   const b = bundles.find(x => String(x.id) === bid);
-  if (b && bundleInfo(b)) openBundle(b.id); else showToast('الباكج ده مش متاح دلوقتي');
+  if (b && bundleInfo(b)) { openBundle(b.id); history.replaceState(null, '', window.location.pathname); }
+  else { showToast('الباكج ده مش متاح دلوقتي'); history.replaceState(null, '', window.location.pathname); }
 }
 function closeBundleModal() { document.getElementById('bundle-modal').classList.remove('active'); }
         function selectBundleOption(btn) { btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('selected')); btn.classList.add('selected'); }
